@@ -54,7 +54,12 @@ passport.use(
         // Create new user
         const [result] = await mysqlPool.query(
           'INSERT INTO users (google_id, email, name, picture) VALUES (?, ?, ?, ?)',
-          [profile.id, profile.emails![0].value, profile.displayName, profile.photos![0].value]
+          [
+            profile.id, 
+            profile.emails![0].value, 
+            profile.displayName, 
+            profile.photos![0].value
+          ]
         );
 
         const newUser = {
