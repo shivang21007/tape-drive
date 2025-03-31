@@ -19,6 +19,7 @@ export default function Home() {
                     className="h-10 w-10 rounded-full border-2 border-gray-200"
                   />
                 )}
+                <br/>
                 <span className="text-lg font-medium text-gray-700">{user?.name}</span>
               </div>
               <button
