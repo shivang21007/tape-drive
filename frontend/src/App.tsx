@@ -1,39 +1,40 @@
-import React from 'react'
-import './index.css'
-import octroLogo from './assets/octro-logo.png'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
+import Home from './pages/Home';
+import Admin from './pages/Admin';
+import './index.css';
+import octroLogo from './assets/octro-logo.png';
 
 const App: React.FC = () => {
   return (
-    <div className="app">
-      <header className="header">
-        <div className="header-right">
-          <img src={octroLogo} alt="Octro Logo" />
-        </div>
-        <div className="header-left">
-          <div>DevOps Engineer</div>
-          <div>John Doe</div>
-          <button>Logout</button>
-        </div>
-      </header>
+    <Router>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requireAdmin>
+                <Admin />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
+    </Router>
+  );
+};
 
-      <main className="main-content">
-        <h1>TapeX</h1>
-        <h4>Tape Management demystified</h4>
-        <div className="button-group">
-          <button>Upload</button>
-          <button>View</button>
-          <button>Download</button>
-        </div>
-        <div className="file-input-container">
-          <button>Choose File</button>
-        </div>
-      </main>
-
-      <footer className="footer">
-        Made with <span className="heart">❤</span> by DevOps Team
-      </footer>
-    </div>
-  )
-}
-
-export default App
+export default App;
