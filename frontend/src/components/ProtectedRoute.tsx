@@ -5,9 +5,14 @@ import { useAuth } from '../contexts/AuthContext';
 interface ProtectedRouteProps {
   children: ReactNode;
   requireAdmin?: boolean;
+  allowedRoles?: ('admin' | 'data_team' | 'art_team' | 'user')[];
 }
 
-export default function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
+export default function ProtectedRoute({ 
+  children, 
+  requireAdmin = false,
+  allowedRoles = ['admin'] 
+}: ProtectedRouteProps) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -22,7 +27,7 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
     return <Navigate to="/login" />;
   }
 
-  if (requireAdmin && user.role !== 'admin') {
+  if (requireAdmin && !allowedRoles.includes(user.role)) {
     return <Navigate to="/" />;
   }
 
