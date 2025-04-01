@@ -1,13 +1,13 @@
 import React from 'react'
 import './index.css'
-import octroLogo from './assets/octro-logo.png'
 
-const App: React.FC = () => {
+function App() {
   return (
     <div className="app">
       <header className="header">
+        
         <div className="header-right">
-          <img src={octroLogo} alt="Octro Logo" />
+          <img src="/assets/octro-logo.png" alt="Logo" />
         </div>
         <div className="header-left">
           <div>DevOps Engineer</div>
@@ -17,8 +17,6 @@ const App: React.FC = () => {
       </header>
 
       <main className="main-content">
-        <h1>TapeX</h1>
-        <h4>Tape Management demystified</h4>
         <div className="button-group">
           <button>Upload</button>
           <button>View</button>
@@ -36,4 +34,4 @@ const App: React.FC = () => {
   )
 }
 
-export default App
+export default App 

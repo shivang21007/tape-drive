@@ -4,13 +4,17 @@
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color: #213547;
+  background-color: #ffffff;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
 a {
@@ -42,10 +46,13 @@ button {
   font-family: inherit;
   background-color: #1a1a1a;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: all 0.3s ease;
+  width: 120px;
 }
 button:hover {
-  border-color: #646cff;
+  background-color: #60a0c8;
+  box-shadow: 0 0 10px rgba(96, 160, 200, 0.3);
+  transform: scale(1.05);
 }
 button:focus,
 button:focus-visible {
@@ -63,4 +70,89 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+  button:hover {
+    background-color: #60a0c8;
+  }
+}
+
+/* Layout Components */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.header-right img {
+  border-radius: 20px;
+  height: 80px;
+  width: auto;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  min-height: calc(100vh - 120px); /* Account for header and footer height */
+}
+
+.main-content h1 {
+  font-size: 3.5em;
+  margin: 0;
+  color: #213547;
+}
+
+.main-content h4 {
+  font-size: 1.5em;
+  margin: 0 0 1rem 0;
+  color: #666;
+  font-weight: 400;
+}
+
+.button-group {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.file-input-container {
+  margin-top: 1rem;
+}
+
+.footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+  margin-top: auto;
+}
+
+.heart {
+  color: #ff4444;
+  margin: 0 0.5rem;
 }
