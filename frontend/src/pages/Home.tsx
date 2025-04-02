@@ -15,28 +15,31 @@ const Home: React.FC = () => {
           <img src={octroLogo} alt="Octro Logo" />
         </div>
         <div className="header-left">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3" >
             <img
               src={user?.picture || defaultProfilePic}
               alt="User"
               className="h-10 w-10 rounded-full border-2 border-gray-200"
+              style={{"display":"flex" , "margin":"1px", "justifyContent":"center", "alignItems":"center", "padding":"1px"}}
             />
             <div className="flex flex-col">
-              <div className="text-lg font-medium">{user?.role || 'User'}</div>
-              <div className="text-sm text-gray-600">{user?.name || 'User'}</div>
+              <div style={{"display":"flex" , "margin":"1px", "justifyContent":"center", "alignItems":"center", "padding":"1px"}} className="text-sm text-gray-600">{user?.name || 'User'}</div>
             </div>
+              <div style={{"display":"flex" , "margin":"1px", "justifyContent":"center", "alignItems":"center", "padding":"1px"}} className="text-lg font-medium">{user?.role || 'User'}</div>
           </div>
           <div className="flex items-center space-x-4">
             {user?.role === 'admin' && (
-              <button
+              <button style={{"display":"flex" , "margin":"10px", "justifyContent":"center", "alignItems":"center", "padding":"10px"}}
                 onClick={() => navigate('/admin')}
                 className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+                
               >
                 Admin Panel
               </button>
             )}
             
             <button 
+              style={{"display":"flex" , "margin":"10px", "justifyContent":"center", "alignItems":"center", "padding":"10px"}}
               onClick={logout}
               className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
             >
