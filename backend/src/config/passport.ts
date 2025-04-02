@@ -2,18 +2,9 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { mysqlPool } from './database';
 import dotenv from 'dotenv';
+import { User, UserRole } from '../types/user';
 
 dotenv.config();
-
-// Define user type
-interface User {
-  id: number;
-  google_id: string;
-  email: string;
-  name: string;
-  picture?: string;
-  role: 'admin' | 'user';
-}
 
 // Serialize user for the session
 passport.serializeUser((user: User, done) => {
@@ -37,7 +28,7 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: 'http://localhost:8000/auth/google/callback',
+      callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:8000/auth/google/callback',
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
@@ -51,14 +42,20 @@ passport.use(
           return done(null, (existingUsers as any[])[0]);
         }
 
+        // Check if this is the first user
+        const [userCount] = await mysqlPool.query('SELECT COUNT(*) as count FROM users');
+        const isFirstUser = (userCount as any[])[0].count === 0;
+        const defaultRole: UserRole = isFirstUser ? 'admin' : 'user';
+
         // Create new user
         const [result] = await mysqlPool.query(
-          'INSERT INTO users (google_id, email, name, picture) VALUES (?, ?, ?, ?)',
+          'INSERT INTO users (google_id, email, name, picture, role) VALUES (?, ?, ?, ?, ?)',
           [
             profile.id, 
             profile.emails![0].value, 
             profile.displayName, 
-            profile.photos![0].value
+            profile.photos![0].value,
+            defaultRole
           ]
         );
 
@@ -68,7 +65,7 @@ passport.use(
           email: profile.emails![0].value,
           name: profile.displayName,
           picture: profile.photos![0].value,
-          role: 'user',
+          role: defaultRole,
         };
 
         return done(null, newUser);

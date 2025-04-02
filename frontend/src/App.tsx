@@ -6,7 +6,6 @@ import Login from './pages/Login';
 import Home from './pages/Home';
 import Admin from './pages/Admin';
 import './index.css';
-import octroLogo from './assets/octro-logo.png';
 
 const App: React.FC = () => {
   return (

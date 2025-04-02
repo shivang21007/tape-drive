@@ -11,7 +11,7 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ 
   children, 
   requireAdmin = false,
-  allowedRoles = ['admin'] 
+  allowedRoles = ['admin', 'data_team', 'art_team', 'user'] 
 }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
 
@@ -27,7 +27,11 @@ export default function ProtectedRoute({
     return <Navigate to="/login" />;
   }
 
-  if (requireAdmin && !allowedRoles.includes(user.role)) {
+  if (requireAdmin && user.role !== 'admin') {
+    return <Navigate to="/" />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
     return <Navigate to="/" />;
   }
 

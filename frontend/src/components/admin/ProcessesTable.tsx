@@ -7,14 +7,28 @@ interface Process {
 
 interface ProcessesTableProps {
   processes: Process[];
+  onEditProcess?: (process: Process) => void;
+  onDeleteProcess?: (processId: number) => void;
+  onPauseProcess?: (processId: number) => void;
+  onStopProcess?: (processId: number) => void;
+  onRestartProcess?: (processId: number) => void;
+  onRetryProcess?: (processId: number) => void;
 }
 
-export function ProcessesTable({ processes }: ProcessesTableProps) {
+export function ProcessesTable({ 
+  processes, 
+  onEditProcess,
+  onDeleteProcess,
+  onPauseProcess,
+  onStopProcess,
+  onRestartProcess,
+  onRetryProcess
+}: ProcessesTableProps) {
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
       <div className="p-4 flex justify-between items-center bg-slate-800 text-white">
-        <h2 className="text-xl font-semibold">Processes</h2>
-        <button className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">
+        <h2 className="text-xl font-semibold">Processes Management</h2>
+        <button className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
           Add New Process
         </button>
       </div>
@@ -47,26 +61,41 @@ export function ProcessesTable({ processes }: ProcessesTableProps) {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm space-x-2">
-                  <button className="px-2 py-1 text-sm bg-slate-800 text-white rounded hover:bg-slate-700">
+                  <button
+                    onClick={() => onEditProcess?.(process)}
+                    className="px-2 py-1 text-sm bg-slate-800 text-white rounded hover:bg-slate-700 transition-colors"
+                  >
                     Edit
                   </button>
                   {process.status === "active" && (
                     <>
-                      <button className="px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">
+                      <button
+                        onClick={() => onPauseProcess?.(process.id)}
+                        className="px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                      >
                         Pause
                       </button>
-                      <button className="px-2 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600">
+                      <button
+                        onClick={() => onStopProcess?.(process.id)}
+                        className="px-2 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                      >
                         Stop
                       </button>
                     </>
                   )}
                   {process.status === "completed" && (
-                    <button className="px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">
+                    <button
+                      onClick={() => onRestartProcess?.(process.id)}
+                      className="px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                    >
                       Restart
                     </button>
                   )}
                   {process.status === "inactive" && (
-                    <button className="px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">
+                    <button
+                      onClick={() => onRetryProcess?.(process.id)}
+                      className="px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                    >
                       Retry
                     </button>
                   )}
@@ -77,6 +106,5 @@ export function ProcessesTable({ processes }: ProcessesTableProps) {
         </table>
       </div>
     </div>
-  )
-}
-
+  );
+} 

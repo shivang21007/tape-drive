@@ -1,4 +1,3 @@
--- filepath: /Users/shivanggupta/Downloads/octro/tape/init.sql
 CREATE DATABASE user_management_system;
 USE user_management_system;
 
@@ -29,8 +28,8 @@ CREATE TABLE user_group_memberships (
     user_id INT NOT NULL,
     group_id INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (group_id) REFERENCES user_groups_table(id)
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES user_groups_table(id) ON DELETE CASCADE
 );
 
 -- Processes Table
@@ -39,6 +38,15 @@ CREATE TABLE processes (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     status ENUM('active', 'inactive', 'completed') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Sessions Table (for Express Session)
+CREATE TABLE sessions (
+    session_id VARCHAR(128) NOT NULL PRIMARY KEY,
+    expires BIGINT,
+    data TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

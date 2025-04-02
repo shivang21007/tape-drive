@@ -12,7 +12,7 @@ const createTables = async () => {
         email VARCHAR(255) UNIQUE NOT NULL,
         name VARCHAR(255) NOT NULL,
         picture VARCHAR(255),
-        role ENUM('admin', 'user') DEFAULT 'user',
+        role ENUM('admin', 'data_team', 'art_team', 'user') DEFAULT 'user',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )

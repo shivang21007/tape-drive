@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 interface User {
   id: number;
@@ -23,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     checkUser();
@@ -30,30 +31,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkUser = async () => {
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/auth/me`, {
-        withCredentials: true,
+      const response = await fetch('/auth/me', {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json'
+        }
       });
-      setUser(response.data);
+      
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      } else {
+        setUser(null);
+        if (window.location.pathname !== '/login') {
+          navigate('/login');
+        }
+      }
     } catch (error) {
+      console.error('Error checking user:', error);
       setUser(null);
+      setError('Failed to check authentication status');
+      if (window.location.pathname !== '/login') {
+        navigate('/login');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const login = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL}/auth/google`;
+    window.location.href = '/auth/google';
   };
 
   const logout = async () => {
     try {
-      await axios.get(`${import.meta.env.VITE_API_URL}/auth/logout`, {
-        withCredentials: true,
+      const response = await fetch('/auth/logout', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json'
+        }
       });
+      
       setUser(null);
-      window.location.href = '/login';
+      navigate('/login');
     } catch (error) {
       console.error('Logout failed:', error);
+      setError('Failed to logout');
     }
   };
 

@@ -1,10 +1,12 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import octroLogo from '../assets/octro-logo.png';
 import defaultProfilePic from '../assets/default_profile_pic.png';
 
 const Home: React.FC = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="app">
@@ -24,12 +26,23 @@ const Home: React.FC = () => {
               <div className="text-sm text-gray-600">{user?.name || 'User'}</div>
             </div>
           </div>
-          <button 
-            onClick={logout}
-            className="ml-4 rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
-          >
-            Logout
-          </button>
+          <div className="flex items-center space-x-4">
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => navigate('/admin')}
+                className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+              >
+                Admin Panel
+              </button>
+            )}
+            
+            <button 
+              onClick={logout}
+              className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 

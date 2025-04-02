@@ -1,6 +1,4 @@
-"use client"
-
-import { Shield } from "lucide-react"
+import { Shield } from "lucide-react";
 
 interface HeaderProps {
   user: {
@@ -24,21 +22,33 @@ export function Header({ user, onLogout, activeTab, setActiveTab }: HeaderProps)
         <div className="hidden md:flex space-x-4">
           <button
             onClick={() => setActiveTab("users")}
-            className={`px-3 py-2 rounded ${activeTab === "users" ? "bg-slate-700" : "hover:bg-slate-700"}`}
+            className={`px-3 py-2 rounded transition-colors ${
+              activeTab === "users" 
+                ? "bg-slate-700 text-white" 
+                : "text-gray-300 hover:bg-slate-700 hover:text-white"
+            }`}
           >
-            Users Table
+            Users
           </button>
           <button
             onClick={() => setActiveTab("groups")}
-            className={`px-3 py-2 rounded ${activeTab === "groups" ? "bg-slate-700" : "hover:bg-slate-700"}`}
+            className={`px-3 py-2 rounded transition-colors ${
+              activeTab === "groups" 
+                ? "bg-slate-700 text-white" 
+                : "text-gray-300 hover:bg-slate-700 hover:text-white"
+            }`}
           >
-            Groups Table
+            Groups
           </button>
           <button
             onClick={() => setActiveTab("processes")}
-            className={`px-3 py-2 rounded ${activeTab === "processes" ? "bg-slate-700" : "hover:bg-slate-700"}`}
+            className={`px-3 py-2 rounded transition-colors ${
+              activeTab === "processes" 
+                ? "bg-slate-700 text-white" 
+                : "text-gray-300 hover:bg-slate-700 hover:text-white"
+            }`}
           >
-            Process Table
+            Processes
           </button>
         </div>
 
@@ -47,19 +57,18 @@ export function Header({ user, onLogout, activeTab, setActiveTab }: HeaderProps)
             <img
               src={user.picture}
               alt={user.name}
-              className="h-8 w-8 rounded-full"
+              className="h-8 w-8 rounded-full border-2 border-white"
             />
           )}
           <span className="text-sm">{user?.name}</span>
           <button
             onClick={onLogout}
-            className="px-3 py-2 rounded bg-slate-700 hover:bg-slate-600"
+            className="px-3 py-2 rounded bg-red-600 hover:bg-red-700 transition-colors"
           >
             Logout
           </button>
         </div>
       </div>
     </header>
-  )
-}
-
+  );
+} 
