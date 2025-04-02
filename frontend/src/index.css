@@ -37,41 +37,117 @@ h1 {
   line-height: 1.1;
 }
 
+/* Base Button Styles */
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.95rem;
   font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
+  border-radius: 8px;
+  border: none;
   cursor: pointer;
+  margin-right: 1rem;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #2c455c, #3a5a78);
+  color: white;
   transition: all 0.3s ease;
-  width: 120px;
-}
-button:hover {
-  background-color: #60a0c8;
-  box-shadow: 0 0 10px rgba(96, 160, 200, 0.3);
-  transform: scale(1.05);
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  box-shadow: 0 2px 4px rgba(44, 69, 92, 0.1);
 }
 
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(44, 69, 92, 0.25);
+  background: linear-gradient(135deg, #3a5a78, #4b7299);
+}
+
+button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: 0.5s;
+}
+
+button:hover::before {
+  left: 100%;
+}
+
+/* Navigation Buttons (Users, Groups, Processes) */
+.flex.space-x-8 button {
+  background: white;
+  color: #2c455c;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  border: 1px solid #2c455c;
+}
+
+.flex.space-x-8 button:hover {
+  color: white;
+  background: linear-gradient(135deg, #3a5a78, #4b7299);
+  border: 1px solid transparent;
+}
+
+.flex.space-x-8 button[class*="bg-[#2c455c]"] {
+  background: linear-gradient(135deg, #2c455c, #3a5a78);
+  color: white;
+  box-shadow: 0 4px 15px rgba(44, 69, 92, 0.25);
+  border: none;
+}
+
+/* Remove duplicate styles since they're now in base button */
+.header button {
+  font-weight: 500;
+  padding: 0.6rem 1.2rem;
+}
+
+/* Action Buttons - now following the same gradient pattern */
+button[class*="bg-blue-500"] {
+  background: linear-gradient(135deg, #2c455c, #3a5a78);
+  color: white;
+  font-weight: 500;
+  padding: 0.6rem 1.2rem;
+}
+
+button[class*="bg-blue-500"]:hover {
+  background: linear-gradient(135deg, #3a5a78, #4b7299);
+}
+
+/* Disabled state */
+button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Focus state */
+button:focus {
+  outline: none;
+  ring: 2px solid rgba(44, 69, 92, 0.5);
+  ring-offset: 2px;
+}
+
+/* Active state */
+button:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(44, 69, 92, 0.15);
+}
+
+/* Override light theme button styles */
 @media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
   button {
-    background-color: #f9f9f9;
+    background: linear-gradient(135deg, #2c455c, #3a5a78);
   }
   button:hover {
-    background-color: #60a0c8;
+    background: linear-gradient(135deg, #3a5a78, #4b7299);
   }
 }
 
@@ -262,4 +338,10 @@ button:focus-visible {
 @keyframes heart-beat {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.1); }
+}
+
+/* Admin page specific styles */
+.max-w-7xl {
+  margin-top: 2rem;
+  margin-left: 2rem;
 }

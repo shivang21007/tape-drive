@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { User } from '../types/user';
 import { Group } from '../types/group';
@@ -9,6 +10,7 @@ import { GroupsTable } from '../components/admin/GroupsTable';
 import { ProcessesTable } from '../components/admin/ProcessesTable';
 import { AddGroupForm } from '../components/admin/AddGroupForm';
 import { AddProcessForm } from '../components/admin/AddProcessForm';
+import octroLogo from '../assets/octro-logo.png';
 
 const Admin: React.FC = () => {
   const { user, logout } = useAuth();
@@ -16,6 +18,7 @@ const Admin: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [processes, setProcesses] = useState<Process[]>([]);
+  const [activeTab, setActiveTab] = useState<'users' | 'groups' | 'processes'>('users');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddGroup, setShowAddGroup] = useState(false);
@@ -29,43 +32,19 @@ const Admin: React.FC = () => {
 
     const fetchData = async () => {
       try {
+        setLoading(true);
         const [usersRes, groupsRes, processesRes] = await Promise.all([
-          fetch('/api/users', {
-            credentials: 'include',
-            headers: {
-              'Accept': 'application/json'
-            }
-          }),
-          fetch('/api/groups', {
-            credentials: 'include',
-            headers: {
-              'Accept': 'application/json'
-            }
-          }),
-          fetch('/api/processes', {
-            credentials: 'include',
-            headers: {
-              'Accept': 'application/json'
-            }
-          })
+          axios.get(`${import.meta.env.VITE_API_URL}/api/users`, { withCredentials: true }),
+          axios.get(`${import.meta.env.VITE_API_URL}/api/groups`, { withCredentials: true }),
+          axios.get(`${import.meta.env.VITE_API_URL}/api/processes`, { withCredentials: true }),
         ]);
 
-        if (!usersRes.ok || !groupsRes.ok || !processesRes.ok) {
-          throw new Error('Failed to fetch data');
-        }
-
-        const [usersData, groupsData, processesData] = await Promise.all([
-          usersRes.json(),
-          groupsRes.json(),
-          processesRes.json()
-        ]);
-
-        setUsers(usersData);
-        setGroups(groupsData);
-        setProcesses(processesData);
-      } catch (err) {
+        setUsers(usersRes.data);
+        setGroups(groupsRes.data);
+        setProcesses(processesRes.data);
+      } catch (error) {
         setError('Failed to load data');
-        console.error('Error fetching data:', err);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
@@ -182,83 +161,116 @@ const Admin: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Navigation Header */}
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <button
-                onClick={() => navigate('/')}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 focus:outline-none"
-              >
-                Home
-              </button>
-            </div>
-            <div className="flex items-center">
-              <span className="mr-4 text-sm text-gray-700">Welcome, {user?.name}</span>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-              >
-                Logout
-              </button>
-            </div>
+    <div className="min-h-screen flex flex-col">
+      <header className="header bg-white shadow-sm py-4 px-6">
+        <div className="header-right">
+          <img src={octroLogo} alt="Octro Logo" className="h-8" />
+        </div>
+        <div className="header-left">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => navigate('/')}
+              className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+            >
+              Home
+            </button>
+            <button
+              onClick={handleLogout}
+              className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+            >
+              Logout
+            </button>
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="space-y-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-2xl font-bold mb-4">Users</h2>
-            <UsersTable users={users} onRoleChange={handleRoleChange} />
+      <main className="flex-1 bg-gray-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex space-x-8 mb-8">
+            <button
+              onClick={() => setActiveTab("users")}
+              className={`px-6 py-2 rounded-lg transition-all duration-200 font-medium
+                ${activeTab === "users" 
+                  ? "bg-[#2c455c] text-white shadow-lg transform -translate-y-0.5" 
+                  : "text-gray-600 hover:bg-gray-100"}`}
+            >
+              Users
+            </button>
+            <button
+              onClick={() => setActiveTab("groups")}
+              className={`px-6 py-2 rounded-lg transition-all duration-200 font-medium
+                ${activeTab === "groups" 
+                  ? "bg-[#2c455c] text-white shadow-lg transform -translate-y-0.5" 
+                  : "text-gray-600 hover:bg-gray-100"}`}
+            >
+              Groups
+            </button>
+            <button
+              onClick={() => setActiveTab("processes")}
+              className={`px-6 py-2 rounded-lg transition-all duration-200 font-medium
+                ${activeTab === "processes" 
+                  ? "bg-[#2c455c] text-white shadow-lg transform -translate-y-0.5" 
+                  : "text-gray-600 hover:bg-gray-100"}`}
+            >
+              Processes
+            </button>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold">Groups</h2>
-              <button
-                onClick={() => setShowAddGroup(true)}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-              >
-                Add New Group
-              </button>
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-lg font-medium text-gray-600">Loading...</div>
             </div>
-            {showAddGroup && (
-              <div className="mb-4">
-                <AddGroupForm
-                  onAddGroup={handleAddGroup}
-                  onCancel={() => setShowAddGroup(false)}
-                />
-              </div>
-            )}
-            <GroupsTable groups={groups} />
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold">Processes</h2>
-              <button
-                onClick={() => setShowAddProcess(true)}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-              >
-                Add New Process
-              </button>
-            </div>
-            {showAddProcess && (
-              <div className="mb-4">
-                <AddProcessForm
-                  onAddProcess={handleAddProcess}
-                  onCancel={() => setShowAddProcess(false)}
-                />
-              </div>
-            )}
-            <ProcessesTable processes={processes} />
-          </div>
+          ) : (
+            <>
+              {activeTab === 'users' && <UsersTable users={users} onRoleChange={handleRoleChange} />}
+              {activeTab === 'groups' && (
+                <>
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-bold">Groups</h2>
+                    <button
+                      onClick={() => setShowAddGroup(true)}
+                      className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                    >
+                      Add New Group
+                    </button>
+                  </div>
+                  {showAddGroup && (
+                    <div className="mb-4">
+                      <AddGroupForm
+                        onAddGroup={handleAddGroup}
+                        onCancel={() => setShowAddGroup(false)}
+                      />
+                    </div>
+                  )}
+                  <GroupsTable groups={groups} />
+                </>
+              )}
+              {activeTab === 'processes' && (
+                <>
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-bold">Processes</h2>
+                    <button
+                      onClick={() => setShowAddProcess(true)}
+                      className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                    >
+                      Add New Process
+                    </button>
+                  </div>
+                  {showAddProcess && (
+                    <div className="mb-4">
+                      <AddProcessForm
+                        onAddProcess={handleAddProcess}
+                        onCancel={() => setShowAddProcess(false)}
+                      />
+                    </div>
+                  )}
+                  <ProcessesTable processes={processes} />
+                </>
+              )}
+            </>
+          )}
         </div>
-      </div>
+      </main>
     </div>
   );
 };
