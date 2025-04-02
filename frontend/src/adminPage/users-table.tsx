@@ -30,10 +30,10 @@ export function UsersTable({ users }: UsersTableProps) {
           <tbody className="divide-y divide-gray-200">
             {users.map((user) => (
               <tr key={user.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm text-gray-700">{user.name}</td>
-                <td className="px-6 py-4 text-sm text-gray-700">{user.email}</td>
-                <td className="px-6 py-4 text-sm text-gray-700">{user.role}</td>
-                <td className="px-6 py-4 text-sm space-x-2">
+                <td className="px-10 py-10 text-sm text-gray-700">{user.name}</td>
+                <td className="px-10 py-10 text-sm text-gray-700">{user.email}</td>
+                <td className="px-10 py-10 text-sm text-gray-700">{user.role}</td>
+                <td className="px-10 py-10 text-sm space-x-2">
                   <button className="px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">
                     Edit
                   </button>
