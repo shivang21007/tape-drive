@@ -359,7 +359,7 @@ button:active {
 .header-buttons {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0rem;
 }
 
 /* User Info Text */
