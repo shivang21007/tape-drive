@@ -1,7 +1,7 @@
 # Build Stage
 FROM node:20-alpine AS builder
 
-WORKDIR /app
+WORKDIR /frontend
 
 # Copy package files
 COPY package.json package-lock.json ./
@@ -15,16 +15,16 @@ COPY . .
 # Build the app
 RUN npm run build
 
-# Production Stage (using Nginx)
-FROM nginx:alpine AS runner
+# Production Stage (Vite Server)
+FROM node:20-alpine AS runner
 
-WORKDIR /usr/share/nginx/html
+WORKDIR /frontend
 
-# Copy built files from builder stage
-COPY --from=builder /app/dist .
+# Install only production dependencies
+COPY --from=builder /frontend .
 
-# Expose the port Vite usually runs on
+# Expose the port Vite uses in preview mode
 EXPOSE 4173
 
-# Start Nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Run Vite preview server
+CMD ["npm", "run", "preview"]
