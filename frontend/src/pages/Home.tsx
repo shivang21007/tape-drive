@@ -2,7 +2,6 @@ import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import octroLogo from '../assets/octro-logo.png';
-import defaultProfilePic from '../assets/default_profile_pic.png';
 
 const Home: React.FC = () => {
   const { user, logout } = useAuth();
@@ -16,11 +15,6 @@ const Home: React.FC = () => {
         </div>
         <div className="header-left">
           <div className="flex items-center space-x-3">
-            <img
-              src={user?.picture || defaultProfilePic}
-              alt="User"
-              className="h-10 w-10 rounded-full border-2 border-gray-200"
-            />
             <div className="flex flex-col">
               <div className="text-lg font-medium">{user?.role || 'User'}</div>
               <div className="text-sm text-gray-600">{user?.name || 'User'}</div>

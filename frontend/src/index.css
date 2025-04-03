@@ -39,8 +39,8 @@ h1 {
 
 /* Base Button Styles */
 button {
-  padding: 0.6rem 1.2rem;
-  font-size: 0.95rem;
+  padding: 0.8rem 2.8rem;
+  font-size: 1.1rem;
   font-weight: 500;
   border-radius: 8px;
   border: none;
@@ -82,24 +82,21 @@ button:hover::before {
 
 /* Navigation Buttons (Users, Groups, Processes) */
 .flex.space-x-8 button {
-  background: white;
-  color: #2c455c;
+  background: transparent;
+  color: #4a5568;
   padding: 0.75rem 1.5rem;
   font-weight: 600;
-  border: 1px solid #2c455c;
 }
 
 .flex.space-x-8 button:hover {
   color: white;
   background: linear-gradient(135deg, #3a5a78, #4b7299);
-  border: 1px solid transparent;
 }
 
 .flex.space-x-8 button[class*="bg-[#2c455c]"] {
   background: linear-gradient(135deg, #2c455c, #3a5a78);
   color: white;
   box-shadow: 0 4px 15px rgba(44, 69, 92, 0.25);
-  border: none;
 }
 
 /* Remove duplicate styles since they're now in base button */
