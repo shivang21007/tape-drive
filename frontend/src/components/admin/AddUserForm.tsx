@@ -14,10 +14,10 @@ interface AddUserFormProps {
 }
 
 export function AddUserForm({ onAddUser, onCancel }: AddUserFormProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Omit<User, 'id'>>({
     name: '',
     email: '',
-    role: 'user' as const,
+    role: 'user',
   });
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -67,6 +67,12 @@ export function ProcessesTable({
                   >
                     Edit
                   </button>
+                  <button
+                    onClick={() => onDeleteProcess?.(process.id)}
+                    className="px-2 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                  >
+                    Delete
+                  </button>
                   {process.status === "active" && (
                     <>
                       <button

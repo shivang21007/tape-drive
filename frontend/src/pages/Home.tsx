@@ -12,7 +12,7 @@ const Home: React.FC = () => {
     <div className="app">
       <header className="header">
         <div className="header-right">
-          <img src={octroLogo} alt="Octro Logo" />
+          <img src={octroLogo} alt="Octro Logo" />        
         </div>
         <div className="header-left">
           <div className="flex items-center space-x-3" >

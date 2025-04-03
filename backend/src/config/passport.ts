@@ -2,13 +2,14 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { mysqlPool } from './database';
 import dotenv from 'dotenv';
-import { User, UserRole } from '../types/user';
+import { User } from '../types/user';
+import { UserRole } from '../middleware/auth';
 
 dotenv.config();
 
-// Serialize user for the session
-passport.serializeUser((user: User, done) => {
-  done(null, user.id);
+// Serialize user for the session 
+passport.serializeUser((user: Express.User, done) => {
+  done(null, (user as User).id);
 });
 
 // Deserialize user from the session

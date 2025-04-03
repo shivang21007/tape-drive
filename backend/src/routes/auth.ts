@@ -1,7 +1,13 @@
 import express from 'express';
 import passport from 'passport';
+import dotenv from 'dotenv';
 
+dotenv.config();
 const router = express.Router();
+
+if (!process.env.FRONTEND_URL) {
+  throw new Error('FRONTEND_URL environment variable is not set');
+}
 
 // Google OAuth routes
 router.get(
@@ -12,11 +18,11 @@ router.get(
 router.get(
   '/google/callback',
   passport.authenticate('google', { 
-    failureRedirect: 'http://localhost:5173/login',
-    session: true
+    session: true,
+    failureRedirect: `${process.env.FRONTEND_URL}/login`,
   }),
   (req, res) => {
-    res.redirect('http://localhost:5173');
+    res.redirect(process.env.FRONTEND_URL || 'http://localhost:4173');
   }
 );
 
