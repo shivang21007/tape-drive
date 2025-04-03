@@ -342,3 +342,86 @@ button:active {
   margin-top: 2rem;
   margin-left: 2rem;
 }
+
+/* Header Content Layout */
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.header-buttons {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* User Info Text */
+.user-info .text-lg {
+  font-size: 1.5em;
+  margin: 0;
+  padding-left: 5px;
+  background: linear-gradient(135deg, #000000, #000000);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-family: "Roboto", sans-serif;
+  font-weight: 500;
+  font-style: normal;
+  font-variation-settings: "wdth" 100;
+  letter-spacing: -0.02em;
+}
+
+.user-info .text-sm {
+  font-size: 1em;
+  margin: 0;
+  padding-left: 5px;
+  background: linear-gradient(135deg, #000000, #000000);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-family: "Roboto", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  font-variation-settings: "wdth" 100;
+  letter-spacing: -0.02em;
+}
+
+/* Admin Navigation Buttons */
+.max-w-7xl button {
+  padding: 0.8rem 2.8rem;
+  font-size: 1.1rem;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid #2c455c;
+  cursor: pointer;
+  margin-right: 1rem;
+  position: relative;
+  overflow: hidden;
+  background: white;
+  color: #2c455c;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(44, 69, 92, 0.1);
+}
+
+.max-w-7xl button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(44, 69, 92, 0.25);
+  background: linear-gradient(135deg, #2c455c, #3a5a78);
+  color: white;
+  border: none;
+}
+
+.max-w-7xl button.active {
+  background: linear-gradient(135deg, #2c455c, #3a5a78);
+  color: white;
+  border: none;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(44, 69, 92, 0.25);
+}
