@@ -23,13 +23,6 @@ export const UsersTable: React.FC<UsersTableProps> = ({ users, onRoleChange }) =
             <tr key={user.id}>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center">
-                  {user.picture && (
-                    <img
-                      className="h-8 w-8 rounded-full"
-                      src={user.picture}
-                      alt={user.name}
-                    />
-                  )}
                   <div className="ml-4">
                     <div className="text-sm font-medium text-gray-900">{user.name}</div>
                   </div>
