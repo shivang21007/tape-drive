@@ -26,12 +26,6 @@ export function ProcessesTable({
 }: ProcessesTableProps) {
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="p-4 flex justify-between items-center bg-slate-800 text-white">
-        <h2 className="text-xl font-semibold">Processes Management</h2>
-        <button className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
-          Add New Process
-        </button>
-      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-100">
