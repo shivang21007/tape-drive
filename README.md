@@ -1,252 +1,144 @@
-# User Management System
+# TapeX - Tape Management System
 
-A full-stack application with user authentication, role-based access control, and group management.
+A web application for managing tapes, built with React, Express, and MySQL.
 
 ## Tech Stack
 
 ### Frontend
-- React with TypeScript
-- Vite
-- Tailwind CSS
-- React Router DOM
+- React 18.2.0
+- TypeScript 4.9.5
+- Vite 4.5.2
+- React Router 6.22.1
+- Axios 1.6.7
+- Tailwind CSS 3.4.1
 
 ### Backend
-- Node.js with Express
-- TypeScript
-- MySQL for main database
-- Express Session with MySQL store
-- Passport.js for Google OAuth
+- Node.js 16.20.2
+- Express.js 4.18.2
+- TypeScript 4.9.5
+- MySQL2 3.6.5
+- Passport.js 0.6.0
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
-- Node.js (v16 or higher)
-- MySQL (v8.0 or higher)
-- Git
+- CentOS 7
+- Node.js 16.20.2 (LTS)
+- MySQL 5.7 or higher
+- npm 8.x or higher
 
-## Setup Instructions
+## Installation
 
-### 1. Clone the Repository
+### Setting up Node.js 16 on CentOS 7
+
 ```bash
-git clone <repository-url>
-cd <repository-name>
+# Install NodeSource repository for Node.js 16
+curl -fsSL https://rpm.nodesource.com/setup_16.x | sudo bash -
+
+# Install Node.js 16
+sudo yum install -y nodejs
+
+# Verify installation
+node --version  # Should output v16.x.x
+npm --version   # Should output 8.x.x or higher
 ```
 
-### 2. Environment Setup
+### Clone the repository
 
-#### Backend (.env file in backend directory)
-```env
-# Server
+```bash
+git clone <repository-url>
+cd tape-drive
+```
+
+### Backend Setup
+
+```bash
+cd backend
+
+# Install dependencies
+npm install
+
+# Create a .env file with the following variables
+cat > .env << EOL
 PORT=8000
-NODE_ENV=development
-
-# MySQL
+FRONTEND_URL=http://localhost:5173
 MYSQL_HOST=localhost
 MYSQL_PORT=3306
 MYSQL_USER=your_mysql_user
 MYSQL_PASSWORD=your_mysql_password
-MYSQL_DATABASE=user_management_system
-
-# Google OAuth
+MYSQL_DATABASE=tapex
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
-
-# Session
+GOOGLE_CALLBACK_URL=http://localhost:8000/auth/google/callback
 SESSION_SECRET=your_session_secret
+EOL
+
+# Run database migrations
+npm run migrate
+
+# Start the development server
+npm run dev
 ```
 
-#### Frontend (.env file in frontend directory)
-```env
+### Frontend Setup
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Create a .env file with the following variables
+cat > .env << EOL
 VITE_API_URL=http://localhost:8000
+EOL
+
+# Start the development server
+npm run dev
 ```
 
-### 3. Database Setup
+## Running the Application
 
-#### Create MySQL Database
-```sql
-CREATE DATABASE user_management_system;
-USE user_management_system;
+1. Start the backend server:
+   ```bash
+   cd backend
+   npm run dev
+   ```
 
--- Users Table
-CREATE TABLE users (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    google_id VARCHAR(255) NOT NULL UNIQUE,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    name VARCHAR(255) NOT NULL,
-    picture TEXT,
-    role ENUM('admin', 'data_team', 'art_team', 'user') DEFAULT 'user',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+2. Start the frontend development server:
+   ```bash
+   cd frontend
+   npm run dev
+   ```
 
--- Groups Table
-CREATE TABLE user_groups_table (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+3. Open your browser and navigate to `http://localhost:5173`
 
--- User-Group Memberships Table
-CREATE TABLE user_group_memberships (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
-    group_id INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (group_id) REFERENCES user_groups_table(id) ON DELETE CASCADE
-);
+## Building for Production
 
--- Processes Table
-CREATE TABLE processes (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    status ENUM('active', 'inactive', 'completed') DEFAULT 'active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
--- Sessions Table (for Express Session)
-CREATE TABLE sessions (
-    session_id VARCHAR(128) NOT NULL PRIMARY KEY,
-    expires BIGINT,
-    data TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-```
-
-### 4. Google OAuth Setup
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create a new project or select an existing one
-3. Enable the Google+ API
-4. Go to Credentials → Create Credentials → OAuth Client ID
-5. Configure the OAuth consent screen
-6. Add authorized redirect URI: `http://localhost:8000/auth/google/callback`
-7. Copy the Client ID and Client Secret to your backend .env file
-
-### 5. Install Dependencies
+### Backend
 
 ```bash
-# Install backend dependencies
 cd backend
-npm install
-
-# Install frontend dependencies
-cd ../frontend
-npm install
+npm run build
+npm start
 ```
 
-### 6. Start the Application
+### Frontend
 
 ```bash
-# Start backend (from backend directory)
-npm run dev
-
-# Start frontend (from frontend directory)
-npm run dev
+cd frontend
+npm run build
 ```
 
-The application will be available at:
-- Frontend: http://localhost:5173
-- Backend: http://localhost:8000
-
-## Authentication Flow
-
-1. Users must sign in using Google OAuth
-2. First-time users are automatically assigned the 'user' role
-3. Only admins can change user roles
-4. Session persistence is handled through MySQL sessions store
-
-## User Roles and Permissions
-
-The application supports four roles:
-1. `admin` - Full access to all features
-   - Can view all users
-   - Can change user roles
-   - Can manage groups and processes
-2. `data_team` - Access to data management features
-3. `art_team` - Access to art and media features
-4. `user` - Basic user access
-
-## Features
-
-- Google OAuth Authentication
-- Role-based Access Control
-- User Management (Admin only)
-  - View all users
-  - Change user roles
-- Group Management
-  - Create and view groups
-- Process Tracking
-  - Create and monitor processes
-- Admin Dashboard
-
-## Development
-
-### Backend Structure
-```
-backend/
-├── src/
-│   ├── config/      # Configuration files
-│   ├── middleware/  # Custom middleware
-│   ├── routes/      # API routes
-│   ├── types/       # TypeScript interfaces
-│   └── index.ts     # Entry point
-```
-
-### Frontend Structure
-```
-frontend/
-├── src/
-│   ├── components/  # Reusable components
-│   │   └── admin/  # Admin-specific components
-│   ├── contexts/    # React contexts
-│   ├── types/      # TypeScript interfaces
-│   ├── pages/      # Page components
-│   └── main.tsx    # Entry point
-```
-
-## API Endpoints
-
-### Authentication
-- `GET /auth/google` - Initiate Google OAuth
-- `GET /auth/google/callback` - Google OAuth callback
-- `GET /auth/me` - Get current user
-- `POST /auth/logout` - Logout user
-
-### Users (Admin only)
-- `GET /api/users` - Get all users
-- `PUT /api/users/:id/role` - Update user role
-
-### Groups
-- `GET /api/groups` - Get all groups
-- `POST /api/groups` - Create new group (Admin only)
-
-### Processes
-- `GET /api/processes` - Get all processes
-- `POST /api/processes` - Create new process (Admin only)
+The built files will be in the `frontend/dist` directory, which can be served using a static file server like Nginx.
 
 ## Troubleshooting
 
-1. **Database Connection Issues**
-   - Verify MySQL is running
-   - Check credentials in .env file
-   - Ensure database and tables are created
+### Common Issues
 
-2. **OAuth Issues**
-   - Verify Google OAuth credentials
-   - Check redirect URI configuration
-   - Ensure cookies are enabled in browser
-
-3. **Session Issues**
-   - Check if sessions table is created
-   - Verify session secret in .env
-   - Clear browser cookies if needed
+1. **Node.js version mismatch**: Ensure you're using Node.js 16.20.2 (LTS) on CentOS 7.
+2. **MySQL connection issues**: Verify your MySQL server is running and the credentials in the `.env` file are correct.
+3. **Google OAuth issues**: Ensure your Google OAuth credentials are correctly set up in the Google Cloud Console and match the values in your `.env` file.
 
 ## License
 
-[Your License Here] 
+ISC 

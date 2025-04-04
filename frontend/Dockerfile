@@ -1,10 +1,10 @@
 # Build Stage
-FROM node:20-alpine AS builder
+FROM node:16.20.2-alpine AS builder
 
 WORKDIR /frontend
 
 # Copy package files
-COPY package.json package-lock.json ./
+COPY package*.json ./
 
 # Install dependencies
 RUN npm install
@@ -16,7 +16,7 @@ COPY . .
 RUN npm run build
 
 # Production Stage (Vite Server)
-FROM node:20-alpine AS runner
+FROM node:16.20.2-alpine AS runner
 
 WORKDIR /frontend
 
