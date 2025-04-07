@@ -9,18 +9,25 @@ import authRoutes from './routes/auth';
 import apiRoutes from './routes/api';
 import { isAuthenticated } from './middleware/auth';
 
-dotenv.config();
+// Load environment variables based on NODE_ENV
+dotenv.config({
+  path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env'
+});
 
 const app = express();
 const port = process.env.PORT || 8000;
 
-// Middleware
-app.use(cors({
+// CORS configuration
+const corsOptions = {
   origin: process.env.FRONTEND_URL,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
+};
+
+// Middleware
+app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -32,10 +39,13 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     secure: false, // Set to true only in production with HTTPS
+    // secure: process.env.NODE_ENV === 'production', // Set to true in production
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'lax',
-    path: '/'
+    //  sameSite: 'lax',
+    // path: '/'
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    domain: process.env.NODE_ENV === 'production' ? 'serv19.octro.net' : undefined
   }
 }));
 
@@ -65,7 +75,7 @@ const startServer = async () => {
     await testConnections();
     
     app.listen(port, () => {
-      console.log(`Server is running on port ${port}`);
+      console.log(`Server is running on port ${port} in ${process.env.NODE_ENV} mode`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
