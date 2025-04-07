@@ -6,6 +6,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const isProduction = env.VITE_NODE_ENV === 'production'
 
+  console.log('isProduction', isProduction)
+
   return {
     plugins: [react()],
     server: {
@@ -14,6 +16,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/auth': {
           target: env.VITE_API_URL,
+          
           changeOrigin: true,
           secure: false,
           xfwd: true,
