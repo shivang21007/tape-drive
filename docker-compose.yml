@@ -9,7 +9,7 @@ services:
       - "8000:8000"
     environment:
       - PORT=8000
-      - FRONTEND_URL=http://localhost:5173
+      - FRONTEND_URL=http://localhost:4173
       - MYSQL_HOST=mysql
       - MYSQL_PORT=3306
       - MYSQL_USER=tapex_user
@@ -45,9 +45,15 @@ services:
       - "3306:3306"
     environment:
       - MYSQL_ROOT_PASSWORD=root_password
-      - MYSQL_DATABASE=tapex
-      - MYSQL_USER=tapex_user
-      - MYSQL_PASSWORD=tapex_password
+      - MYSQL_DATABASE=user_management_system
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root_password
+    condition:
+      healthcheck:
+        test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
     volumes:
       - mysql_data:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql

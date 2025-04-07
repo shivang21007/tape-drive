@@ -20,8 +20,14 @@ FROM node:16.20.2-alpine AS runner
 
 WORKDIR /frontend
 
+# Copy package files
+COPY package*.json ./
+
 # Install only production dependencies
-COPY --from=builder /frontend .
+RUN npm install --only=production
+
+# Copy built files from builder stage
+COPY --from=builder /frontend/dist ./dist
 
 # Expose the port Vite uses in preview mode
 EXPOSE 4173
