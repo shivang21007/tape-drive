@@ -41,7 +41,7 @@ build
 
 */node_modules
 *.log
-*/.env
+*/.env*
 *.env
 */.env.docker
 *.env.docker
@@ -88,14 +88,11 @@ dist-ssr
 */yarn-error.log*
 */pnpm-debug.log*
 */lerna-debug.log*
-*/
-*/node_modules
+node_modules
 */dist
 */dist-ssr
 */*.local
-*/
 */.env.docker
-*/
 */# Editor directories and files
 */.vscode/*
 */!.vscode/extensions.json

@@ -33,6 +33,9 @@ COPY --from=builder /backend/dist ./dist
 # COPY --from=builder /backend/.env* ./
 # COPY --from=builder /backend/src/config ./src/config
 
+#Migrate the database
+RUN npm run migrate
+
 # Expose the port the app runs on
 EXPOSE 8000
 
