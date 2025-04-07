@@ -9,10 +9,9 @@ import authRoutes from './routes/auth';
 import apiRoutes from './routes/api';
 import { isAuthenticated } from './middleware/auth';
 
+
 // Load environment variables based on NODE_ENV
-dotenv.config({
-  path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env'
-});
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 8000;
