@@ -1,4 +1,4 @@
-import { UserRole } from '../middleware/auth';
+import { UserRole } from './auth';
 
 export interface User {
   id: number;

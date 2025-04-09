@@ -20,9 +20,7 @@ declare module 'express-session' {
 }
 
 // Load environment variables
-const envFile = process.env.NODE_ENV === 'production' 
-  ? '.env.production' 
-  : '.env.local';
+const envFile = '.env';
 
 dotenv.config({ path: path.resolve(process.cwd(), envFile) });
 
