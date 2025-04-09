@@ -244,9 +244,9 @@ button:active {
   position: absolute;
   width: 200%;
   height: 200%;
-  background: linear-gradient(45deg, #2c455c10, #60a0c810);
+  background: linear-gradient(45deg, rgb(210 220 229 / 30%), rgba(96, 160, 200, 0.3));
   animation: gradient-shift 15s ease infinite;
-  z-index: -1;
+  z-index: 0;
 }
 
 @keyframes gradient-shift {
