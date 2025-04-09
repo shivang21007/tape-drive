@@ -1,6 +1,149 @@
-# TapeX - Tape Management System
+# User Management System
 
-A web application for managing tapes, built with React, Express, and MySQL.
+A full-stack application for managing users, groups, and processes with role-based access control.
+
+## Architecture
+
+The application consists of two main parts:
+- Frontend: React + Vite application running on port 5173
+- Backend: Node.js + Express application running on port 8000
+
+## Request Flow
+
+### 1. Initial Application Load
+```
+Browser -> Frontend (5173) -> App.tsx
+```
+
+- The application starts at `App.tsx`
+- `AuthProvider` is initialized and checks user authentication
+- If not authenticated, redirects to `/login`
+
+### 2. Authentication Flow
+```
+Browser -> Frontend (5173) -> Backend (8000) -> Google OAuth -> Backend (8000) -> Frontend (5173)
+```
+
+1. User clicks "Login with Google" button
+2. Frontend redirects to `/auth/google`
+3. Backend initiates Google OAuth flow
+4. Google authenticates user and redirects back to `/auth/google/callback`
+5. Backend:
+   - Creates/updates user in database
+   - Creates session
+   - Sets session cookie
+   - Redirects to frontend
+
+### 3. Protected Route Access
+```
+Browser -> Frontend (5173) -> Backend (8000) -> Frontend (5173)
+```
+
+1. User tries to access protected route (e.g., `/admin`)
+2. Frontend checks authentication via `/auth/me`
+3. Backend:
+   - Validates session cookie
+   - Returns user data if authenticated
+   - Returns 401 if not authenticated
+4. Frontend:
+   - Shows protected content if authenticated
+   - Redirects to login if not authenticated
+
+### 4. API Request Flow
+```
+Browser -> Frontend (5173) -> Backend (8000) -> Database -> Backend (8000) -> Frontend (5173)
+```
+
+1. Frontend makes API request (e.g., `/api/users`)
+2. Vite proxy forwards request to backend
+3. Backend:
+   - Validates session
+   - Checks user role
+   - Executes database query
+   - Returns response
+4. Frontend:
+   - Handles response
+   - Updates UI
+
+## Key Components
+
+### Frontend
+- `App.tsx`: Main application component with routing
+- `AuthContext.tsx`: Manages authentication state
+- `ProtectedRoute.tsx`: Protects routes based on authentication
+- `Login.tsx`: Google OAuth login page
+- `Home.tsx`: Main dashboard
+- `Admin.tsx`: Admin interface
+
+### Backend
+- `index.ts`: Main server setup
+- `routes/auth.ts`: Authentication routes
+- `routes/api.ts`: Protected API routes
+- `middleware/auth.ts`: Authentication middleware
+- `config/passport.ts`: Passport.js configuration
+- `config/database.ts`: Database configuration
+
+## Environment Configuration
+
+### Local Development
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8000`
+- Database: Local MySQL
+
+### Production
+- Frontend: `http://serv19.octro.net:5173`
+- Backend: `http://serv19.octro.net:8000`
+- Database: Production MySQL
+
+## Security Features
+- Session-based authentication
+- Role-based access control
+- CORS protection
+- Secure cookie settings
+- HTTPS in production
+
+## Getting Started
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   # Frontend
+   cd frontend
+   npm install
+
+   # Backend
+   cd backend
+   npm install
+   ```
+
+3. Set up environment variables:
+   - Copy `.env.example` to `.env.local` for local development
+   - Copy `.env.example` to `.env.production` for production
+
+4. Start the applications:
+   ```bash
+   # Frontend
+   cd frontend
+   npm run dev
+
+   # Backend
+   cd backend
+   npm run dev
+   ```
+
+## Deployment
+
+1. Build the frontend:
+   ```bash
+   cd frontend
+   npm run build
+   ```
+
+2. Start the backend in production mode:
+   ```bash
+   cd backend
+   NODE_ENV=production npm start
+   ```
 
 ## Tech Stack
 

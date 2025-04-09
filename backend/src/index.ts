@@ -8,6 +8,7 @@ import './config/passport';
 import authRoutes from './routes/auth';
 import apiRoutes from './routes/api';
 import { isAuthenticated } from './middleware/auth';
+import path from 'path';
 
 // Add this type declaration at the top of the file
 declare module 'express-session' {
@@ -18,8 +19,28 @@ declare module 'express-session' {
   }
 }
 
-// Load environment variables based on NODE_ENV
-dotenv.config();
+// Load environment variables
+const envFile = process.env.NODE_ENV === 'production' 
+  ? '.env.production' 
+  : '.env.local';
+
+dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+
+// Verify environment variables
+const requiredEnvVars = [
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
+  'GOOGLE_CALLBACK_URL',
+  'SESSION_SECRET',
+  'FRONTEND_URL'
+];
+
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    console.error(`Missing required environment variable: ${envVar}`);
+    process.exit(1);
+  }
+}
 
 const app = express();
 const port = process.env.PORT || 8000;
@@ -41,21 +62,17 @@ app.use(express.urlencoded({ extended: true }));
 
 // Session configuration
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-session-secret-key',
+  secret: process.env.SESSION_SECRET!,
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // Set to true only in production with HTTPS
-    // secure: process.env.NODE_ENV === 'production', // Set to true in production
+    secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    //  sameSite: 'lax',
-    // path: '/'
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     domain: process.env.NODE_ENV === 'production' ? '.serv19.octro.net' : undefined
   },
-  name: 'connect.sid', // Explicitly set session cookie name
-  rolling: true // Refresh the cookie on every response
+  name: 'connect.sid'
 }));
 
 // Initialize Passport
@@ -73,18 +90,11 @@ app.get('/', (req, res) => {
 
 // Get current user
 app.get('/auth/me', (req, res) => {
-  // Log session and user for debugging
-  console.log('Session:', req.session);
-  console.log('User:', req.user);
-  
   if (!req.isAuthenticated()) {
-    console.log('Not authenticated - Session ID:', req.sessionID);
     return res.status(401).json({ error: 'Not authenticated' });
   }
   
-  // Ensure we have a valid session
   if (!req.session || !req.session.passport?.user) {
-    console.log('No valid session found');
     return res.status(401).json({ error: 'No valid session' });
   }
   
@@ -100,11 +110,11 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // Start server
 const startServer = async () => {
   try {
-    // Test database connections
     await testConnections();
     
     app.listen(port, () => {
       console.log(`Server is running on port ${port} in ${process.env.NODE_ENV} mode`);
+      console.log(`Frontend URL: ${process.env.FRONTEND_URL}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

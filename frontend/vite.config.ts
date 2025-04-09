@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import * as path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -10,28 +11,23 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
-    server: {
+    server: { 
       port: 5173,
       allowedHosts: ['serv19.octro.net'],
       proxy: {
-        '/auth': {
-          target: env.VITE_API_URL,
-          
-          changeOrigin: true,
-          secure: false,
-          xfwd: true,
-          cookieDomainRewrite: isProduction ? 'serv19.octro.net' : 'localhost',
-          cookiePathRewrite: '/'
-        },
         '/api': {
-          target: env.VITE_API_URL,
+          target: env.VITE_API_URL || 'http://localhost:8000',
           changeOrigin: true,
           secure: false,
-          xfwd: true,
-          cookieDomainRewrite: isProduction ? 'serv19.octro.net' : 'localhost',
-          cookiePathRewrite: '/'
-        }
-      }
+          ws: true,
+        },
+        '/auth': {
+          target: env.VITE_API_URL || 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false,
+          ws: true,
+        },
+      },
     },
     build: {
       outDir: 'dist',
@@ -44,6 +40,11 @@ export default defineConfig(({ mode }) => {
           }
         }
       }
-    }
+    },
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+      },
+    },
   }
 })
