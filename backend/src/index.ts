@@ -8,6 +8,7 @@ import './config/passport';
 import authRoutes from './routes/auth';
 import apiRoutes from './routes/api';
 import { isAuthenticated } from './middleware/auth';
+import path from 'path';
 
 // Add this type declaration at the top of the file
 declare module 'express-session' {
@@ -18,9 +19,28 @@ declare module 'express-session' {
   }
 }
 
-// Load environment variables based on NODE_ENV
-const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.local';
-dotenv.config({ path: envFile });
+// Load environment variables
+const envFile = process.env.NODE_ENV === 'production' 
+  ? '.env.production' 
+  : '.env.local';
+
+dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+
+// Verify environment variables
+const requiredEnvVars = [
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
+  'GOOGLE_CALLBACK_URL',
+  'SESSION_SECRET',
+  'FRONTEND_URL'
+];
+
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    console.error(`Missing required environment variable: ${envVar}`);
+    process.exit(1);
+  }
+}
 
 const app = express();
 const port = process.env.PORT || 8000;
@@ -42,19 +62,17 @@ app.use(express.urlencoded({ extended: true }));
 
 // Session configuration
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-session-secret-key',
+  secret: process.env.SESSION_SECRET!,
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // Set to true only in production with HTTPS
-    // secure: process.env.NODE_ENV === 'production', // Set to true in production
+    secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     domain: process.env.NODE_ENV === 'production' ? '.serv19.octro.net' : undefined
   },
-  name: 'connect.sid',
-  rolling: true
+  name: 'connect.sid'
 }));
 
 // Initialize Passport
