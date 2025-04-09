@@ -3,8 +3,41 @@ import { isAdmin } from '../middleware/auth';
 import { mysqlPool } from '../config/database';
 import { User } from '../types/user';
 import { ResultSetHeader } from 'mysql2';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const router = express.Router();
+
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Get user info from session
+    const user = (req as any).user as User;
+    if (!user) {
+      return cb(new Error('User not authenticated'), '');
+    }
+
+    const uploadDir = path.join(__dirname, '../../uploadfiles', user.role, user.name);
+    
+    // Create directory structure if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Keep original filename
+    cb(null, file.originalname);
+  }
+});
+
+const upload = multer({ 
+  storage,
+  limits: {
+    fileSize: 100 * 1024 * 1024 * 1024 // 100GB limit
+  }
+});
 
 // Get all users (admin only)
 router.get('/users', isAdmin, async (req, res) => {
@@ -120,6 +153,46 @@ router.post('/processes', isAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error creating process:', error);
     res.status(500).json({ error: 'Failed to create process' });
+  }
+});
+
+// File upload endpoint
+router.post('/upload', upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  const user = (req as any).user as User;
+  if (!user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  const fileSize = req.file.size / (1024 * 1024 * 1024); // Convert to GB
+
+  try {
+    const connection = await mysqlPool.getConnection();
+    
+    try {
+      // Insert upload details into database
+      await connection.query(
+        'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status) VALUES (?, ?, ?, ?, ?)',
+        [user.name, user.role, req.file.originalname, fileSize, 'completed']
+      );
+
+      res.json({ 
+        message: 'File uploaded successfully',
+        file: {
+          name: req.file.originalname,
+          size: fileSize,
+          path: req.file.path
+        }
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error saving upload details:', error);
+    res.status(500).json({ error: 'Failed to save upload details' });
   }
 });
 

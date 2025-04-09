@@ -53,6 +53,20 @@ const createTables = async () => {
       )
     `);
 
+    // Create upload_details table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS upload_details (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        user_name VARCHAR(255) NOT NULL,
+        group_name VARCHAR(255) NOT NULL,
+        file_name VARCHAR(255) NOT NULL,
+        file_size DECIMAL(10,2) NOT NULL,
+        status ENUM('pending', 'uploading', 'completed', 'failed') DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+
     console.log('Database tables created successfully');
   } catch (error) {
     console.error('Error creating database tables:', error);
