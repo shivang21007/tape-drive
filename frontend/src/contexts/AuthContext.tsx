@@ -31,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkUser = async () => {
     try {
+      console.log('Checking user authentication...');
       const response = await fetch('/auth/me', {
         credentials: 'include',
         headers: {
@@ -38,22 +39,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       });
       
+      console.log('Auth check response:', response.status);
+      
       if (response.ok) {
         const userData = await response.json();
+        console.log('User data:', userData);
         setUser(userData);
       } else {
+        console.log('Auth check failed');
         setUser(null);
         if (window.location.pathname !== '/login') {
           navigate('/login');
         }
       }
     } catch (error) {
-      console.error('Error checking user:', error);
-      setUser(null);
-      setError('Failed to check authentication status');
-      if (window.location.pathname !== '/login') {
-        navigate('/login');
-      }
+      console.error('Auth check error:', error);
+      setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
     }

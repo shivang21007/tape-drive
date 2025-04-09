@@ -9,10 +9,17 @@ import authRoutes from './routes/auth';
 import apiRoutes from './routes/api';
 import { isAuthenticated } from './middleware/auth';
 
+// Add this type declaration at the top of the file
+declare module 'express-session' {
+  interface SessionData {
+    passport?: {
+      user?: any;
+    };
+  }
+}
+
 // Load environment variables based on NODE_ENV
-dotenv.config({
-  path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env'
-});
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 8000;
@@ -45,8 +52,10 @@ app.use(session({
     //  sameSite: 'lax',
     // path: '/'
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    domain: process.env.NODE_ENV === 'production' ? 'serv19.octro.net' : undefined
-  }
+    domain: process.env.NODE_ENV === 'production' ? '.serv19.octro.net' : undefined
+  },
+  name: 'connect.sid', // Explicitly set session cookie name
+  rolling: true // Refresh the cookie on every response
 }));
 
 // Initialize Passport
@@ -60,6 +69,26 @@ app.use('/api', isAuthenticated, apiRoutes);
 // Welcome route
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to the User Management System API' });
+});
+
+// Get current user
+app.get('/auth/me', (req, res) => {
+  // Log session and user for debugging
+  console.log('Session:', req.session);
+  console.log('User:', req.user);
+  
+  if (!req.isAuthenticated()) {
+    console.log('Not authenticated - Session ID:', req.sessionID);
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  
+  // Ensure we have a valid session
+  if (!req.session || !req.session.passport?.user) {
+    console.log('No valid session found');
+    return res.status(401).json({ error: 'No valid session' });
+  }
+  
+  res.json(req.user);
 });
 
 // Error handling middleware
