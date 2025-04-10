@@ -40,7 +40,7 @@ router.get('/logout', (req, res) => {
       path: '/',
       httpOnly: true,
       secure: false,
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+      sameSite: 'lax'
     });
     
     res.status(200).json({ message: 'Logged out successfully' });
