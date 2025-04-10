@@ -224,7 +224,7 @@ const Home: React.FC = () => {
               }}
               title="Cancel upload"
             >
-              <ImCross size={20} />
+              <ImCross size={20} color="white" />
             </button>
           )}
           <button
