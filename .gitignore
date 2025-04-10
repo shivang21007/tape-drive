@@ -45,7 +45,7 @@ build
 *.env
 */.env.docker
 *.env.docker
-
+*/uploadfiles
 
 *.env.local
 *.env.development.local
