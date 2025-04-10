@@ -2,10 +2,11 @@ import React, { useState, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import octroLogo from '../assets/octro-logo.png';
-import axios from 'axios';
+import axios, { CancelTokenSource } from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Confetti from 'react-confetti';
+import { ImCross } from 'react-icons/im';
 
 const formatFileSize = (bytes: number): string => {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -28,6 +29,7 @@ const Home: React.FC = () => {
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [showConfetti, setShowConfetti] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cancelTokenRef = useRef<CancelTokenSource | null>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -35,7 +37,7 @@ const Home: React.FC = () => {
       setSelectedFile(file);
       toast.info(`Selected: ${file.name} (${formatFileSize(file.size)})`, {
         position: "top-right",
-        autoClose: 2000,
+        autoClose: 3000,
       });
     }
   };
@@ -43,8 +45,33 @@ const Home: React.FC = () => {
   const stopConfetti = useCallback(() => {
     setTimeout(() => {
       setShowConfetti(false);
-    }, 5000); // Stop confetti after 5 seconds
+    }, 5000);
   }, []);
+
+  const handleCancelUpload = async () => {
+    if (cancelTokenRef.current) {
+      cancelTokenRef.current.cancel('Upload cancelled by user');
+      setIsUploading(false);
+      setUploadProgress(0);
+      
+      // Clean up the partial upload file only
+      try {
+        await axios.post('/api/cancel-upload', {
+          fileName: selectedFile?.name,
+          userName: user?.name,
+          groupName: user?.role
+        });
+      } catch (error) {
+        console.error('Error cleaning up partial upload:', error);
+      }
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      setSelectedFile(null);
+    }
+  };
 
   const handleUpload = async () => {
     if (!selectedFile) return;
@@ -56,6 +83,9 @@ const Home: React.FC = () => {
       position: "top-right",
     });
 
+    // Create a new cancel token
+    cancelTokenRef.current = axios.CancelToken.source();
+
     const formData = new FormData();
     formData.append('file', selectedFile);
     formData.append('userName', user?.name || '');
@@ -66,6 +96,7 @@ const Home: React.FC = () => {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        cancelToken: cancelTokenRef.current.token,
         onUploadProgress: (progressEvent) => {
           const progress = progressEvent.total
             ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
@@ -92,16 +123,26 @@ const Home: React.FC = () => {
         fileInputRef.current.value = '';
       }
     } catch (error) {
-      console.error('Upload failed:', error);
-      toast.update(uploadToastId, {
-        render: 'Upload failed!',
-        type: 'error',
-        isLoading: false,
-        autoClose: 2000,
-      });
+      if (axios.isCancel(error)) {
+        toast.update(uploadToastId, {
+          render: 'Upload cancelled',
+          type: 'info',
+          isLoading: false,
+          autoClose: 2000,
+        });
+      } else {
+        console.error('Upload failed:', error);
+        toast.update(uploadToastId, {
+          render: 'Upload failed!',
+          type: 'error',
+          isLoading: false,
+          autoClose: 2000,
+        });
+      }
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
+      cancelTokenRef.current = null;
     }
   };
 
@@ -158,8 +199,39 @@ const Home: React.FC = () => {
           >
             {isUploading ? 'Uploading...' : 'Upload'}
           </button>
-          <button>View</button>
-          <button>Download</button>
+          {isUploading && (
+            <button
+              onClick={handleCancelUpload}
+              style={{
+                padding: '0.8rem',
+                fontSize: '1.1rem',
+                fontWeight: 500,
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                marginRight: '1rem',
+                position: 'relative',
+                overflow: 'hidden',
+                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                color: 'white',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 2px 4px rgba(239, 68, 68, 0.1)',
+                width: '3.2rem',
+                height: '3.2rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              title="Cancel upload"
+            >
+              <ImCross size={20} />
+            </button>
+          )}
+          <button
+            className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+          >
+            View/Download
+          </button>
         </div>
         <div className="file-input-container">
           <input
@@ -171,17 +243,16 @@ const Home: React.FC = () => {
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+            className={`rounded-md px-4 py-2 text-sm font-medium text-white transition-colors duration-1000 ${
+              selectedFile 
+                ? "bg-green-600 hover:bg-green-700" 
+                : "bg-gray-800 hover:bg-gray-700"
+            }`}
           >
             Choose File
           </button>
-          {selectedFile && (
-            <div className="mt-2 text-sm text-gray-600">
-              Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
-            </div>
-          )}
           {isUploading && (
-            <div className="mt-4 w-full">
+            <div className="mt-4 w-full relative">
               <div className="h-2 w-full bg-gray-200 rounded-full">
                 <div
                   className="h-2 bg-blue-600 rounded-full transition-all duration-300"
@@ -194,6 +265,16 @@ const Home: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Selected File Display */}
+        {selectedFile && (
+          <div className="mt-4 flex flex-col items-center justify-center">
+            <div className="text-gray-700 font-medium">Selected File</div>
+            <div className="text-gray-600 text-sm mt-1">
+              "{selectedFile.name}" ({formatFileSize(selectedFile.size)})
+            </div>
+          </div>
+        )}
       </main>
 
       <footer className="footer">

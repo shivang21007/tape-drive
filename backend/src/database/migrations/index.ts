@@ -4,6 +4,9 @@ const createTables = async () => {
   const connection = await mysqlPool.getConnection();
   
   try {
+    // Set timezone to IST
+    await connection.query(`SET time_zone = '+05:30'`);
+
     // Create users table
     await connection.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -60,10 +63,9 @@ const createTables = async () => {
         user_name VARCHAR(255) NOT NULL,
         group_name VARCHAR(255) NOT NULL,
         file_name VARCHAR(255) NOT NULL,
-        file_size DECIMAL(10,2) NOT NULL,
+        file_size VARCHAR(20) NOT NULL,
         status ENUM('pending', 'uploading', 'completed', 'failed') DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 

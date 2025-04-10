@@ -9,6 +9,22 @@ import fs from 'fs';
 
 const router = express.Router();
 
+// Function to format file size with appropriate unit
+const formatFileSize = (bytes: number): string => {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let size = bytes;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
+  }
+
+  // Round to 2 decimal places
+  size = Math.round(size * 100) / 100;
+  return `${size}${units[unitIndex]}`;
+};
+
 // Configure multer for file upload
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -167,23 +183,37 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
-  const fileSize = req.file.size / (1024 * 1024 * 1024); // Convert to GB
+  const formattedSize = formatFileSize(req.file.size);
 
   try {
+    // Verify file exists and is complete
+    const filePath = req.file.path;
+    if (!fs.existsSync(filePath)) {
+      return res.status(500).json({ error: 'File upload failed - file not found' });
+    }
+
+    // Verify file size matches expected size
+    const stats = fs.statSync(filePath);
+    if (stats.size !== req.file.size) {
+      // Clean up incomplete file
+      fs.unlinkSync(filePath);
+      return res.status(500).json({ error: 'File upload incomplete' });
+    }
+
     const connection = await mysqlPool.getConnection();
     
     try {
-      // Insert upload details into database
+      // Only insert into database if file is complete
       await connection.query(
         'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status) VALUES (?, ?, ?, ?, ?)',
-        [user.name, user.role, req.file.originalname, fileSize, 'completed']
+        [user.name, user.role, req.file.originalname, formattedSize, 'completed']
       );
 
       res.json({ 
         message: 'File uploaded successfully',
         file: {
           name: req.file.originalname,
-          size: fileSize,
+          size: formattedSize,
           path: req.file.path
         }
       });
@@ -191,8 +221,36 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       connection.release();
     }
   } catch (error) {
-    console.error('Error saving upload details:', error);
-    res.status(500).json({ error: 'Failed to save upload details' });
+    // If there's an error, clean up the file if it exists
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    console.error('Error processing upload:', error);
+    res.status(500).json({ error: 'Failed to process upload' });
+  }
+});
+
+// Cancel upload endpoint
+router.post('/cancel-upload', async (req, res) => {
+  const { fileName, userName, groupName } = req.body;
+  
+  if (!fileName || !userName || !groupName) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    // Construct the path to the partial upload
+    const filePath = path.join(__dirname, '../../uploadfiles', groupName, userName, fileName);
+    
+    // Check if file exists and delete it
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    res.json({ message: 'Upload cancelled and cleaned up successfully' });
+  } catch (error) {
+    console.error('Error cleaning up cancelled upload:', error);
+    res.status(500).json({ error: 'Failed to clean up cancelled upload' });
   }
 });
 
