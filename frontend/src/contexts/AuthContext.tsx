@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (response.ok) {
         const userData = await response.json();
-        console.log('User data:', userData);
+        //console.log('User data:', userData);
         setUser(userData);
       } else {
         console.log('Auth check failed');
