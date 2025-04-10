@@ -26,10 +26,14 @@ const Home: React.FC = () => {
   const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [uploadSpeed, setUploadSpeed] = useState<string>('0 KB/s');
+  const [timeRemaining, setTimeRemaining] = useState<string>('Calculating...');
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [showConfetti, setShowConfetti] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cancelTokenRef = useRef<CancelTokenSource | null>(null);
+  const lastLoadedRef = useRef<number>(0);
+  const lastTimeRef = useRef<number>(0);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -73,11 +77,54 @@ const Home: React.FC = () => {
     }
   };
 
+  const calculateSpeedAndTime = (loaded: number, total: number, currentTime: number, toastId: string | number) => {
+    const timeDiff = (currentTime - lastTimeRef.current) / 1000; // Convert to seconds
+    const loadedDiff = loaded - lastLoadedRef.current;
+    const speed = loadedDiff / timeDiff; // bytes per second
+
+    // Update speed
+    const formattedSpeed = formatFileSize(speed) + '/s';
+    setUploadSpeed(formattedSpeed);
+
+    // Calculate time remaining
+    if (speed > 0) {
+      const remainingBytes = total - loaded;
+      const secondsRemaining = remainingBytes / speed;
+      setTimeRemaining(formatTimeRemaining(secondsRemaining));
+    }
+
+    // Update toast with current speed
+    toast.update(toastId, {
+      render: `Uploading: ${Math.round((loaded * 100) / total)}% (${formattedSpeed})`,
+    });
+
+    // Update refs
+    lastLoadedRef.current = loaded;
+    lastTimeRef.current = currentTime;
+  };
+
+  const formatTimeRemaining = (seconds: number): string => {
+    if (seconds < 60) {
+      return `${Math.ceil(seconds)} seconds`;
+    } else if (seconds < 3600) {
+      const minutes = Math.ceil(seconds / 60);
+      return `${minutes} minute${minutes > 1 ? 's' : ''}`;
+    } else {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.ceil((seconds % 3600) / 60);
+      return `${hours} hour${hours > 1 ? 's' : ''} ${minutes} minute${minutes > 1 ? 's' : ''}`;
+    }
+  };
+
   const handleUpload = async () => {
     if (!selectedFile) return;
 
     setIsUploading(true);
     setUploadProgress(0);
+    setUploadSpeed('0 KB/s');
+    setTimeRemaining('Calculating...');
+    lastLoadedRef.current = 0;
+    lastTimeRef.current = Date.now();
 
     const uploadToastId = toast.loading('Starting upload...', {
       position: "top-right",
@@ -98,13 +145,18 @@ const Home: React.FC = () => {
         },
         cancelToken: cancelTokenRef.current.token,
         onUploadProgress: (progressEvent) => {
+          const currentTime = Date.now();
           const progress = progressEvent.total
             ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
             : 0;
+          
           setUploadProgress(progress);
-          toast.update(uploadToastId, {
-            render: `Uploading: ${progress}%`,
-          });
+          calculateSpeedAndTime(
+            progressEvent.loaded, 
+            progressEvent.total || 0, 
+            currentTime,
+            uploadToastId
+          );
         },
       });
 
@@ -142,6 +194,8 @@ const Home: React.FC = () => {
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
+      setUploadSpeed('0 KB/s');
+      setTimeRemaining('Calculating...');
       cancelTokenRef.current = null;
     }
   };
@@ -260,7 +314,10 @@ const Home: React.FC = () => {
                 />
               </div>
               <div className="mt-1 text-sm text-gray-600 text-center">
-                {uploadProgress}%
+                {uploadProgress}% - {uploadSpeed}
+              </div>
+              <div className="mt-1 text-sm text-gray-500 text-center">
+                Time remaining: {timeRemaining}
               </div>
             </div>
           )}
