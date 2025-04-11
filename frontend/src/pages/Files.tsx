@@ -1,73 +1,55 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import axios from 'axios';
-import { formatFileSize } from '../utils/format';
-import { FaSync } from 'react-icons/fa';
 
 interface FileData {
   id: number;
-  username: string;
-  group: string;
-  filename: string;
-  filesize: number;
+  user_name: string;
+  group_name: string;
+  file_name: string;
+  file_size: string;
   created_at: string;
   status: string;
 }
 
 const Files: React.FC = () => {
-  const { user, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
   const [files, setFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const fetchFiles = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await axios.get('/api/files', {
-        headers: {
-          'Accept': 'application/json'
-        },
-        withCredentials: true
-      });
-      
-      // Directly use the response data
-      setFiles(response.data);
-    } catch (err) {
-      setError('Failed to fetch files');
-      console.error('Error fetching files:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate('/login');
-      return;
-    }
+    const fetchFiles = async () => {
+      try {
+        const response = await axios.get('/api/files', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
 
-    if (user) {
-      fetchFiles();
-    }
-  }, [user, authLoading, navigate]);
+        if (response.data) {
+          setFiles(response.data);
+        }
+      } catch (error) {
+        toast.error('Error fetching files');
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleRefresh = () => {
-    setRefreshing(true);
     fetchFiles();
-  };
+  }, []);
 
-  const handleDownload = async (fileId: number, filename: string) => {
+  const handleDownload = async (id: number, filename: string) => {
     try {
-      const response = await axios.get(`/api/files/${fileId}/download`, {
+      const response = await axios.get(`/api/download/${id}`, {
         responseType: 'blob',
-        withCredentials: true
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
       });
-      
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -75,110 +57,115 @@ const Files: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
-    } catch (err) {
-      console.error('Error downloading file:', err);
-      setError('Failed to download file');
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error('Error downloading file');
+      console.error('Error:', error);
     }
   };
 
-  if (authLoading) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
-  if (!user) {
-    return null; // Will be redirected by useEffect
-  }
-
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Files</h1>
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center space-x-2 px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 disabled:opacity-50"
-          >
-            <FaSync className={`${refreshing ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
-          </button>
-          <button
-            onClick={() => navigate('/')}
-            className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700"
-          >
-            Back to Home
-          </button>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">Files</h1>
+          <div className="space-x-4">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+            >
+              Refresh
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+            >
+              Back to Home
+            </button>
+          </div>
         </div>
-      </div>
 
-      {error && (
-        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">
-          {error}
-        </div>
-      )}
-
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border border-gray-200">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-              <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-              <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Group</th>
-              <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filename</th>
-              <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
-              <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded Date</th>
-              <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
-                <td colSpan={8} className="px-6 py-4 text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-                </td>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  ID
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Username
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Group
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Filename
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Size
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Uploaded Date
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
-            ) : files.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
-                  No files found
-                </td>
-              </tr>
-            ) : (
-              files.map((file) => (
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {files.map((file) => (
                 <tr key={file.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 border-b">{file.id}</td>
-                  <td className="px-6 py-4 border-b">{file.username}</td>
-                  <td className="px-6 py-4 border-b">{file.group}</td>
-                  <td className="px-6 py-4 border-b">{file.filename}</td>
-                  <td className="px-6 py-4 border-b">{formatFileSize(file.filesize)}</td>
-                  <td className="px-6 py-4 border-b">{new Date(file.created_at).toLocaleString()}</td>
-                  <td className="px-6 py-4 border-b">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      file.status === 'completed' ? 'bg-green-100 text-green-800' :
-                      file.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {file.id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {file.user_name || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {file.group_name || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {file.file_name || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {file.file_size || '0 B'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {new Date(file.created_at).toLocaleString() || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                      ${file.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                        file.status === 'failed' ? 'bg-red-100 text-red-800' : 
+                        'bg-yellow-100 text-yellow-800'}`}>
                       {file.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 border-b">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <button
-                      onClick={() => handleDownload(file.id, file.filename)}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
+                      onClick={() => handleDownload(file.id, file.file_name)}
+                      className="text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md transition-colors"
+                      disabled={file.status !== 'completed'}
+                     > 
                       Download
                     </button>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
