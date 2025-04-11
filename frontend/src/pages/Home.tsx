@@ -57,7 +57,7 @@ const Home: React.FC = () => {
       cancelTokenRef.current.cancel('Upload cancelled by user');
       setIsUploading(false);
       setUploadProgress(0);
-      
+
       // Clean up the partial upload file only
       try {
         await axios.post('/api/cancel-upload', {
@@ -149,11 +149,11 @@ const Home: React.FC = () => {
           const progress = progressEvent.total
             ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
             : 0;
-          
+
           setUploadProgress(progress);
           calculateSpeedAndTime(
-            progressEvent.loaded, 
-            progressEvent.total || 0, 
+            progressEvent.loaded,
+            progressEvent.total || 0,
             currentTime,
             uploadToastId
           );
@@ -202,7 +202,7 @@ const Home: React.FC = () => {
 
   return (
     <div className="app">
-      {showConfetti && <Confetti 
+      {showConfetti && <Confetti
         numberOfPieces={200}
         recycle={false}
         gravity={0.2}
@@ -211,7 +211,7 @@ const Home: React.FC = () => {
       <ToastContainer />
       <header className="header">
         <div className="header-right">
-          <img src={octroLogo} alt="Octro Logo" />        
+          <img src={octroLogo} alt="Octro Logo" />
         </div>
         <div className="header-left">
           <div className="header-content">
@@ -230,8 +230,8 @@ const Home: React.FC = () => {
                   Admin Panel
                 </button>
               )}
-              
-              <button 
+
+              <button
                 onClick={logout}
                 className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
               >
@@ -246,10 +246,13 @@ const Home: React.FC = () => {
         <h1>TapeX</h1>
         <h4>Tape Management demystified</h4>
         <div className="button-group">
-          <button 
+          <button
             onClick={handleUpload}
             disabled={!selectedFile || isUploading}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:bg-gray-400"
+            className={`rounded-md px-4 py-2 text-sm font-medium text-white transition-colors
+            ${selectedFile ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}
+            ${!selectedFile || isUploading ? 'bg-gray-400 cursor-not-allowed' : 'cursor-pointer'}
+            `}
           >
             {isUploading ? 'Uploading...' : 'Upload'}
           </button>
@@ -282,9 +285,10 @@ const Home: React.FC = () => {
             </button>
           )}
           <button
+            onClick={() => navigate('/files')}
             className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
           >
-            View/Download
+            View Files
           </button>
         </div>
         <div className="file-input-container">
@@ -297,11 +301,11 @@ const Home: React.FC = () => {
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className={`rounded-md px-4 py-2 text-sm font-medium text-white transition-colors duration-1000 ${
-              selectedFile 
-                ? "bg-green-600 hover:bg-green-700" 
+            className={`rounded-md px-4 py-2 text-sm font-medium text-white transition-colors duration-1000 ${selectedFile
+                ? "bg-green-600 hover:bg-green-700"
                 : "bg-gray-800 hover:bg-gray-700"
-            }`}
+              }`}
+            disabled={isUploading}
           >
             Choose File
           </button>

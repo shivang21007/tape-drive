@@ -10,9 +10,20 @@ import fs from 'fs';
 const router = express.Router();
 
 // Function to format file size with appropriate unit
-const formatFileSize = (bytes: number): string => {
+export const formatFileSize = (bytes: number | string | undefined): string => {
+  if (bytes === undefined || bytes === null) {
+    return '0 B';
+  }
+
+  // Convert to number if it's a string
+  const numBytes = typeof bytes === 'string' ? parseFloat(bytes) : bytes;
+  
+  if (isNaN(numBytes) || numBytes < 0) {
+    return '0 B';
+  }
+
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let size = bytes;
+  let size = numBytes;
   let unitIndex = 0;
 
   while (size >= 1024 && unitIndex < units.length - 1) {
@@ -20,9 +31,7 @@ const formatFileSize = (bytes: number): string => {
     unitIndex++;
   }
 
-  // Round to 2 decimal places
-  size = Math.round(size * 100) / 100;
-  return `${size}${units[unitIndex]}`;
+  return `${size.toFixed(2)} ${units[unitIndex]}`;
 };
 
 // Configure multer for file upload
@@ -251,6 +260,70 @@ router.post('/cancel-upload', async (req, res) => {
   } catch (error) {
     console.error('Error cleaning up cancelled upload:', error);
     res.status(500).json({ error: 'Failed to clean up cancelled upload' });
+  }
+});
+
+// Get files endpoint
+router.get('/files', async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  const user = req.user as User;
+  try {
+    let query = 'SELECT * FROM upload_details';
+    let params: any[] = [];
+
+    // If not admin, filter by user's role
+    if (user.role !== 'admin') {
+      query += ' WHERE group_name = ?';
+      params.push(user.role);
+    }
+
+    const [files] = await mysqlPool.query(query, params);
+    res.json(files);
+  } catch (error) {
+    console.error('Error fetching files:', error);
+    res.status(500).json({ error: 'Failed to fetch files' });
+  }
+});
+
+// File download endpoint
+router.get('/files/:id/download', async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  const user = req.user as User;
+  const { id } = req.params;
+
+  try {
+    const [files] = await mysqlPool.query(
+      'SELECT * FROM upload_details WHERE id = ?',
+      [id]
+    );
+
+    if ((files as any[]).length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const file = (files as any[])[0];
+
+    // Check if user has access to this file
+    if (user.role !== 'admin' && file.group_name !== user.role) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const filePath = path.join(__dirname, '../../uploadfiles', file.group_name, file.user_name, file.file_name);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found on server' });
+    }
+
+    res.download(filePath, file.file_name);
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    res.status(500).json({ error: 'Failed to download file' });
   }
 });
 

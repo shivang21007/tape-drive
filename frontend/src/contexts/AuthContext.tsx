@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 interface User {
   id: number;
@@ -14,7 +13,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   login: () => void;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,7 +22,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     checkUser();
@@ -43,14 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (response.ok) {
         const userData = await response.json();
-        //console.log('User data:', userData);
         setUser(userData);
       } else {
         console.log('Auth check failed');
         setUser(null);
-        if (window.location.pathname !== '/login') {
-          navigate('/login');
-        }
       }
     } catch (error) {
       console.error('Auth check error:', error);
@@ -75,10 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       
       setUser(null);
-      navigate('/login');
     } catch (error) {
       console.error('Logout failed:', error);
       setError('Failed to logout');
+      throw error;
     }
   };
 
