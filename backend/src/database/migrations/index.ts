@@ -1,4 +1,4 @@
-import { mysqlPool } from '../../config/database';
+import { mysqlPool } from '../index';
 
 const createTables = async () => {
   const connection = await mysqlPool.getConnection();

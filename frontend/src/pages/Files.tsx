@@ -157,6 +157,7 @@ const Files: React.FC = () => {
                       onClick={() => handleDownload(file.id, file.file_name)}
                       className="text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md transition-colors"
                       disabled={file.status !== 'completed'}
+                      style={{ cursor: file.status !== 'completed' ? 'not-allowed' : 'pointer' }}
                      > 
                       Download
                     </button>

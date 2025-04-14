@@ -1,6 +1,6 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { mysqlPool } from './database';
+import { mysqlPool } from '../database/config';
 import dotenv from 'dotenv';
 import { UserRole } from '../types/auth';
 

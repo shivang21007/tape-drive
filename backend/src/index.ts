@@ -3,12 +3,13 @@ import cors from 'cors';
 import session from 'express-session';
 import passport from 'passport';
 import dotenv from 'dotenv';
-import { testConnections } from './config/database';
+import { testConnections } from './database';
 import './config/passport';
 import authRoutes from './routes/auth';
 import apiRoutes from './routes/api';
 import { isAuthenticated } from './middleware/auth';
 import path from 'path';
+import { redisClient } from './database/config';
 
 // Add this type declaration at the top of the file
 declare module 'express-session' {
@@ -105,19 +106,24 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// Start server
-const startServer = async () => {
+// Start the server
+async function startServer() {
   try {
+    // Test Redis connection
+    await redisClient.connect();
+    await redisClient.ping();
+    
     await testConnections();
     
     app.listen(port, () => {
       console.log(`Server is running on port ${port} in ${process.env.NODE_ENV} mode`);
       console.log(`Frontend URL: ${process.env.FRONTEND_URL}`);
+      console.log('File processor worker started');
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
+    console.error('Failed to connect to Redis:', error);
+    process.exit(1); // Exit if Redis connection fails
   }
-};
+}
 
 startServer(); 

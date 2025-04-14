@@ -1,11 +1,12 @@
 import express from 'express';
 import { isAdmin } from '../middleware/auth';
-import { mysqlPool } from '../config/database';
+import { mysqlPool } from '../database';
 import { User } from '../types/user';
 import { ResultSetHeader } from 'mysql2';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { fileQueue, FileProcessingJob } from '../queue/fileQueue';
 
 const router = express.Router();
 
@@ -212,14 +213,30 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     const connection = await mysqlPool.getConnection();
     
     try {
-      // Only insert into database if file is complete
-      await connection.query(
+      // Insert into database with 'queueing' status
+      const [result] = await connection.query<ResultSetHeader>(
         'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status) VALUES (?, ?, ?, ?, ?)',
-        [user.name, user.role, req.file.originalname, formattedSize, 'completed']
+        [user.name, user.role, req.file.originalname, formattedSize, 'queueing']
       );
 
+      // Push event to BullMQ queue
+      const jobData: FileProcessingJob = {
+        fileId: result.insertId,
+        fileName: req.file.originalname,
+        fileSize: formattedSize,
+        userName: user.name,
+        groupName: user.role,
+        isAdmin: user.role === 'admin',
+        filePath: req.file.path,
+        requestedAt: Date.now()
+      };
+
+      await fileQueue.add('process-file', jobData, {
+        priority: user.role === 'admin' ? 1 : 2 // Higher priority for admin files
+      });
+
       res.json({ 
-        message: 'File uploaded successfully',
+        message: 'File uploaded successfully and queued for processing',
         file: {
           name: req.file.originalname,
           size: formattedSize,
