@@ -278,6 +278,7 @@ router.get('/files', async (req, res) => {
     if (user.role !== 'admin') {
       query += ' WHERE group_name = ?';
       params.push(user.role);
+      query += ' ORDER BY created_at DESC';
     }
 
     const [files] = await mysqlPool.query(query, params);

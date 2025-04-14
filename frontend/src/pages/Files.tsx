@@ -43,7 +43,7 @@ const Files: React.FC = () => {
 
   const handleDownload = async (id: number, filename: string) => {
     try {
-      const response = await axios.get(`/api/download/${id}`, {
+      const response = await axios.get(`/api/files/${id}/download`, {
         responseType: 'blob',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
