@@ -82,6 +82,8 @@ async function checkRedisJobs() {
                 console.log('  Error Stack:', stacktrace[0]);
               }
             }
+
+            console.log('--------------------------------');
           } catch (error) {
             console.log('Raw job data:', jobData);
           }
