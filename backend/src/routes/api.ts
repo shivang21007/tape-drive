@@ -6,7 +6,8 @@ import { ResultSetHeader } from 'mysql2';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { fileQueue, FileProcessingJob } from '../queue/fileQueue';
+import { fileQueue } from '../queue/fileQueue';
+import { FileProcessingJob } from '../types/fileProcessing';
 
 const router = express.Router();
 
@@ -215,8 +216,8 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     try {
       // Insert into database with 'queueing' status
       const [result] = await connection.query<ResultSetHeader>(
-        'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status) VALUES (?, ?, ?, ?, ?)',
-        [user.name, user.role, req.file.originalname, formattedSize, 'queueing']
+        'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location) VALUES (?, ?, ?, ?, ?, ?)',
+        [user.name, user.role, req.file.originalname, formattedSize, 'queueing', req.file.path]
       );
 
       // Push event to BullMQ queue
@@ -225,13 +226,14 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         fileName: req.file.originalname,
         fileSize: formattedSize,
         userName: user.name,
+        userEmail: user.email,
         groupName: user.role,
         isAdmin: user.role === 'admin',
         filePath: req.file.path,
         requestedAt: Date.now()
       };
 
-      await fileQueue.add('process-file', jobData, {
+      await fileQueue.add('file-processing', jobData, {
         priority: user.role === 'admin' ? 1 : 2 // Higher priority for admin files
       });
 

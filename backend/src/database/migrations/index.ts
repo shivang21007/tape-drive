@@ -64,8 +64,12 @@ const createTables = async () => {
         group_name VARCHAR(255) NOT NULL,
         file_name VARCHAR(255) NOT NULL,
         file_size VARCHAR(20) NOT NULL,
-        status ENUM('pending', 'uploading', 'completed', 'failed') DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        status ENUM('queueing', 'processing', 'completed', 'failed') DEFAULT 'queueing',
+        local_file_location VARCHAR(255) NOT NULL,
+        tape_location VARCHAR(255) DEFAULT 'pending',
+        tape_number VARCHAR(50) DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
     `);
 
