@@ -74,43 +74,31 @@ export async function processFile(job: FileProcessingJob) {
         tapeNumber: currentTape
       };
     } catch (error) {
-      // Log the error and notify admin
-      const operation = error instanceof Error ? error.message : 'Unknown operation';
-      tapeLogger.logError(operation, error as Error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      tapeLogger.logError('file_processing', new Error(errorMessage));
+      await adminNotificationService.sendCriticalError('file_processing', new Error(errorMessage), { fileId, fileName });
       
-      if (tapeLogger.trackFailure(operation)) {
-        await adminNotificationService.sendRepeatedFailureAlert(
-          operation,
-          tapeLogger.trackFailure(operation) ? 3 : 1,
-          error as Error
-        );
-      }
-
       // Update status to failed
       await databaseService.updateUploadStatus(fileId, 'failed');
-
-      // Try to send failure email to user
+      
+      // Try to send failure email
       try {
         const userEmail = await databaseService.getUserEmail(fileId);
-        await emailService.sendFileProcessedEmail(
-          userEmail,
-          fileName,
-          'failed',
-          { errorMessage: error instanceof Error ? error.message : 'Unknown error' }
-        );
+        await emailService.sendFileProcessedEmail(userEmail, fileName, 'failed');
       } catch (emailError) {
-        logger.error('Failed to send failure email:', emailError);
+        const emailErrorMessage = emailError instanceof Error ? emailError.message : 'Unknown error';
+        tapeLogger.logError('email_notification', new Error(emailErrorMessage));
       }
 
-      // Notify admin of critical error
-      await adminNotificationService.sendCriticalError(
-        'file-processing',
-        error as Error,
-        job
-      );
-
-      // Re-throw the error to stop the worker
       throw error;
+    } finally {
+      // Clean up local file
+      try {
+        await fs.unlink(filePath);
+      } catch (unlinkError) {
+        const unlinkErrorMessage = unlinkError instanceof Error ? unlinkError.message : 'Unknown error';
+        tapeLogger.logError('file_cleanup', new Error(unlinkErrorMessage));
+      }
     }
   } catch (error) {
     logger.error(`Failed to process file ${fileName}:`, error);
