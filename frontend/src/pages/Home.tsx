@@ -7,7 +7,19 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Confetti from 'react-confetti';
 import { ImCross } from 'react-icons/im';
-import { formatFileSize } from '../utils/format';
+
+const formatFileSize = (bytes: number): string => {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let size = bytes;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
+  }
+
+  return `${size.toFixed(2)} ${units[unitIndex]}`;
+};
 
 const Home: React.FC = () => {
   const { user, logout } = useAuth();
@@ -18,20 +30,10 @@ const Home: React.FC = () => {
   const [timeRemaining, setTimeRemaining] = useState<string>('Calculating...');
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [showConfetti, setShowConfetti] = useState<boolean>(false);
-  const [uploadToastId, setUploadToastId] = useState<string | number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cancelTokenRef = useRef<CancelTokenSource | null>(null);
   const lastLoadedRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -114,15 +116,6 @@ const Home: React.FC = () => {
     }
   };
 
-  const onUploadProgress = (progressEvent: any) => {
-    const { loaded, total } = progressEvent;
-    setUploadProgress((loaded / total) * 100);
-    
-    if (uploadToastId) {
-      calculateSpeedAndTime(loaded, total, Date.now(), uploadToastId);
-    }
-  };
-
   const handleUpload = async () => {
     if (!selectedFile) return;
 
@@ -133,10 +126,9 @@ const Home: React.FC = () => {
     lastLoadedRef.current = 0;
     lastTimeRef.current = Date.now();
 
-    const toastId = toast.loading('Starting upload...', {
+    const uploadToastId = toast.loading('Starting upload...', {
       position: "top-right",
     });
-    setUploadToastId(toastId);
 
     // Create a new cancel token
     cancelTokenRef.current = axios.CancelToken.source();
@@ -152,13 +144,26 @@ const Home: React.FC = () => {
           'Content-Type': 'multipart/form-data',
         },
         cancelToken: cancelTokenRef.current.token,
-        onUploadProgress,
+        onUploadProgress: (progressEvent) => {
+          const currentTime = Date.now();
+          const progress = progressEvent.total
+            ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
+            : 0;
+
+          setUploadProgress(progress);
+          calculateSpeedAndTime(
+            progressEvent.loaded,
+            progressEvent.total || 0,
+            currentTime,
+            uploadToastId
+          );
+        },
       });
 
       setShowConfetti(true);
       stopConfetti();
 
-      toast.update(toastId, {
+      toast.update(uploadToastId, {
         render: 'Upload completed successfully!',
         type: 'success',
         isLoading: false,
@@ -171,7 +176,7 @@ const Home: React.FC = () => {
       }
     } catch (error) {
       if (axios.isCancel(error)) {
-        toast.update(toastId, {
+        toast.update(uploadToastId, {
           render: 'Upload cancelled',
           type: 'info',
           isLoading: false,
@@ -179,7 +184,7 @@ const Home: React.FC = () => {
         });
       } else {
         console.error('Upload failed:', error);
-        toast.update(toastId, {
+        toast.update(uploadToastId, {
           render: 'Upload failed!',
           type: 'error',
           isLoading: false,
@@ -192,40 +197,9 @@ const Home: React.FC = () => {
       setUploadSpeed('0 KB/s');
       setTimeRemaining('Calculating...');
       cancelTokenRef.current = null;
-      setUploadToastId(null);
     }
   };
 
-  // Show welcome message for users without a role
-  if (!user?.role || user.role === 'user') {
-    return (
-      <div className="min-h-screen bg-gray-100">
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <div className="px-4 py-6 sm:px-0">
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="px-4 py-5 sm:p-6">
-                <h1 className="text-2xl font-bold text-gray-900 mb-4">Welcome to TapeX</h1>
-                <p className="text-gray-600">
-                  Thank you for joining TapeX! To get started, please contact your administrator to assign you a role.
-                  Once you have a role, you'll be able to access the file management features.
-                </p>
-                <div className="mt-6">
-                  <button
-                    onClick={handleLogout}
-                    className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
-                  >
-                    Logout
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show full interface for users with roles
   return (
     <div className="app">
       {showConfetti && <Confetti
@@ -258,7 +232,7 @@ const Home: React.FC = () => {
               )}
 
               <button
-                onClick={handleLogout}
+                onClick={logout}
                 className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
               >
                 Logout
