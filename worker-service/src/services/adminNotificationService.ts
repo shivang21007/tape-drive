@@ -1,6 +1,10 @@
 import nodemailer from 'nodemailer';
 import { logger } from '../utils/logger';
 import { tapeLogger } from '../utils/tapeLogger';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 export class AdminNotificationService {
   private transporter: nodemailer.Transporter;
