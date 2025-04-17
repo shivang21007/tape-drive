@@ -31,15 +31,17 @@ export class EmailService {
   ): Promise<void> {
     try {
       const subject = status === 'success' 
-        ? `File Successfully Archived to Tape - ${options?.requestedAt}`
-        : `File Archive Failed - ${options?.requestedAt}`;
+        ? `File Successfully Archived to Tape - ${fileName}`
+        : `File Archive Failed - ${fileName}`;
 
       const message = status === 'success'
         ? `Your file "${fileName}" has been successfully archived to tape.\n\n` +
           `Tape Location: ${options?.tapeLocation}\n` +
           `Tape Number: ${options?.tapeNumber}`
         : `Failed to archive your file "${fileName}" to tape.\n\n` +
-          `Error: ${options?.errorMessage || 'Unknown error'}`;
+          `Error: ${options?.errorMessage || 'Unknown error'}` +
+          `\n\nPlease try again or contact admin if the problem persists.` +
+          `Admin Email: ${process.env.ADMIN_EMAIL}`;
 
       await this.transporter.sendMail({
         from: process.env.SMTP_FROM,
