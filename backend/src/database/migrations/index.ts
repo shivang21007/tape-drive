@@ -73,6 +73,23 @@ const createTables = async () => {
       )
     `);
 
+    // Create download_requests table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS download_requests (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        file_id INT NOT NULL,
+        user_name VARCHAR(255) NOT NULL,
+        group_name VARCHAR(255) NOT NULL,
+        status ENUM('pending', 'processing', 'completed', 'failed') DEFAULT 'pending',
+        local_file_location VARCHAR(255),
+        tape_location VARCHAR(255),
+        tape_number VARCHAR(50),
+        requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP NULL,
+        FOREIGN KEY (file_id) REFERENCES upload_details(id) ON DELETE CASCADE
+      )
+    `);
+
     console.log('Database tables created successfully');
   } catch (error) {
     console.error('Error creating database tables:', error);
