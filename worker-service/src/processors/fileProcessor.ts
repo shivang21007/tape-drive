@@ -50,6 +50,16 @@ export async function processFile(job: FileProcessingJob) {
       tapeLogger.startOperation('file-copy');
       const tapePath = await tapeManager.createTapePath(job);
       logger.info(`Copying file to tape path: ${tapePath}`);
+
+      // Verify source file exists
+      try {
+        await fs.access(filePath);
+        logger.info(`Source file exists at: ${filePath}`);
+      } catch (error) {
+        logger.error(`Source file not found at: ${filePath}`);
+        throw new Error(`Source file not found: ${filePath}`);
+      }
+
       await fs.copyFile(filePath, tapePath);
       logger.info('File copied successfully');
       tapeLogger.endOperation('file-copy');

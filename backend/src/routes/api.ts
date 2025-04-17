@@ -64,7 +64,8 @@ const storage = multer.diskStorage({
       return cb(new Error('User not authenticated'), '');
     }
 
-    const uploadDir = path.join(__dirname, '../../uploadfiles', user.role, user.name);
+    const uploadDir = path.join(process.env.UPLOAD_DIR || 
+      '/home/octro/google-auth-login-page/tape-drive/backend/uploadfiles', user.role, user.name);
     
     // Create directory structure if it doesn't exist
     if (!fs.existsSync(uploadDir)) {

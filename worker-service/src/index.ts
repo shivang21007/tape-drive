@@ -18,7 +18,7 @@ async function startWorker() {
       async (job) => {
         try {
           logger.info(`Processing job ${job.id}: ${job.name}`);
-          logger.info('Job data:', job.data);
+          // logger.info('Job data:', job.data);
 
           if (job.name === 'file-processing') {
             return await processFile(job.data as FileProcessingJob);
