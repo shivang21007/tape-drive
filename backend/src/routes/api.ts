@@ -239,8 +239,9 @@ router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res)
         [user.name, user.role, req.file.originalname, formattedSize, 'queueing', req.file.path]
       );
 
-      // Push event to BullMQ queue
+      // Push event to BullMQ queue with upload label
       const jobData: FileProcessingJob = {
+        type: 'upload',
         fileId: result.insertId,
         fileName: req.file.originalname,
         fileSize: formattedSize,
@@ -252,9 +253,19 @@ router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res)
         requestedAt: Date.now()
       };
 
-      await fileQueue.add('file-processing', jobData, {
-        priority: user.role === 'admin' ? 1 : 2 // Higher priority for admin files
-      });
+      console.log('Adding job to queue with data:', jobData);
+      
+      try {
+        const job = await fileQueue.add('file-processing', jobData, {
+          priority: user.role === 'admin' ? 1 : 2, // Higher priority for admin files
+          // jobId: `upload-${result.insertId}`
+        });
+        
+        console.log('Job added successfully with ID:', job.id);
+      } catch (error) {
+        console.error('Failed to add job to queue:', error);
+        throw error;
+      }
 
       res.json({ 
         message: 'File uploaded successfully and queued for processing',
@@ -327,7 +338,7 @@ router.get('/files', hasFeatureAccess, async (req, res) => {
   }
 });
 
-// File download endpoint
+// File download request endpoint
 router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
@@ -337,6 +348,7 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
   const { id } = req.params;
 
   try {
+    // Get file details
     const [files] = await mysqlPool.query(
       'SELECT * FROM upload_details WHERE id = ?',
       [id]
@@ -353,16 +365,91 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const filePath = path.join(__dirname, '../../uploadfiles', file.group_name, file.user_name, file.file_name);
-
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'File not found on server' });
+    // Check if file exists in local cache
+    if (file.local_file_location && fs.existsSync(file.local_file_location)) {
+      // File is in cache, serve it directly
+      res.download(file.local_file_location, file.file_name);
+      return;
     }
 
-    res.download(filePath, file.file_name);
+    // File not in cache, create download request
+    const connection = await mysqlPool.getConnection();
+    
+    try {
+      // Insert download request
+      const [result] = await connection.query<ResultSetHeader>(
+        'INSERT INTO download_requests (file_id, user_name, group_name, tape_location, tape_number) VALUES (?, ?, ?, ?, ?)',
+        [file.id, user.name, user.role, file.tape_location, file.tape_number]
+      );
+
+      // Push download job to queue with download label
+      const jobData = {
+        type: 'download',
+        requestId: result.insertId,
+        fileId: file.id,
+        fileName: file.file_name,
+        userName: user.name,
+        userEmail: user.email,
+        groupName: user.role,
+        tapeLocation: file.tape_location,
+        tapeNumber: file.tape_number,
+        requestedAt: Date.now()
+      };
+
+      await fileQueue.add('file-processing', jobData, {
+        priority: user.role === 'admin' ? 1 : 2, // Higher priority for admin files
+        // jobId: `download-${result.insertId}`
+      });
+
+      res.json({ 
+        message: 'Download request has been queued. You will be notified when the file is available.',
+        requestId: result.insertId
+      });
+    } finally {
+      connection.release();
+    }
   } catch (error) {
-    console.error('Error downloading file:', error);
-    res.status(500).json({ error: 'Failed to download file' });
+    console.error('Error processing download request:', error);
+    res.status(500).json({ error: 'Failed to process download request' });
+  }
+});
+
+// Check download request status
+router.get('/download-requests/:id/status', hasFeatureAccess, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  const { id } = req.params;
+  const user = req.user as User;
+
+  try {
+    const [requests] = await mysqlPool.query(
+      'SELECT * FROM download_requests WHERE id = ? AND user_name = ?',
+      [id, user.name]
+    );
+
+    if ((requests as any[]).length === 0) {
+      return res.status(404).json({ error: 'Download request not found' });
+    }
+
+    const request = (requests as any[])[0];
+
+    // If request is completed and file exists, return the file path
+    if (request.status === 'completed' && request.local_file_location && fs.existsSync(request.local_file_location)) {
+      res.json({ 
+        status: 'completed',
+        filePath: request.local_file_location
+      });
+    } else {
+      res.json({ 
+        status: request.status,
+        message: request.status === 'failed' ? 'Failed to process download request' : 'Request is being processed'
+      });
+    }
+  } catch (error) {
+    console.error('Error checking download status:', error);
+    res.status(500).json({ error: 'Failed to check download status' });
   }
 });
 
