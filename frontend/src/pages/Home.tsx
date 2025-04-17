@@ -24,6 +24,36 @@ const formatFileSize = (bytes: number): string => {
 const Home: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  // Show welcome message for users without a role
+  if (!user?.role || user.role === 'user') {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="px-4 py-5 sm:p-6">
+                <h1 className="text-2xl font-bold text-gray-900 mb-4">Welcome to TapeX</h1>
+                <p className="text-gray-600">
+                  Thank you for joining TapeX! To get started, please contact your administrator to assign you a role.
+                  Once you have a role, you'll be able to access the file management features.
+                </p>
+                <div className="mt-6">
+                  <button
+                    onClick={logout}
+                    className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+                  >
+                    Logout
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadSpeed, setUploadSpeed] = useState<string>('0 KB/s');
