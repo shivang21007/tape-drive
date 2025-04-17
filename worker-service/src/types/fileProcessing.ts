@@ -1,4 +1,5 @@
 export interface FileProcessingJob {
+  type: 'upload';
   fileId: number;
   fileName: string;
   fileSize: string;

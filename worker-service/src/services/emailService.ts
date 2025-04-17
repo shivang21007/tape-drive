@@ -1,5 +1,7 @@
 import nodemailer from 'nodemailer';
 import { logger } from '../utils/logger';
+import path from 'path';
+import fs from 'fs/promises';
 
 interface EmailOptions {
   tapeLocation?: string;
@@ -54,6 +56,33 @@ export class EmailService {
     } catch (error) {
       logger.error('Failed to send email notification:', error);
       // Don't throw the error as email failure shouldn't stop the process
+    }
+  }
+
+  async sendDownloadAvailableEmail(
+    userEmail: string,
+    userName: string,
+    fileName: string
+  ): Promise<void> {
+    try {
+      const templatePath = path.join(__dirname, '../templates/downloadAvailable.html');
+      let htmlContent = await fs.readFile(templatePath, 'utf-8');
+      
+      // Replace placeholders with actual values
+      htmlContent = htmlContent
+        .replace('{{userName}}', userName)
+        .replace('{{fileName}}', fileName);
+
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM,
+        to: userEmail,
+        subject: 'File Ready for Download',
+        html: htmlContent
+      });
+      logger.info(`Download available email sent to ${userEmail}`);
+    } catch (error) {
+      logger.error(`Failed to send download available email to ${userEmail}:`, error);
+      throw error;
     }
   }
 } 

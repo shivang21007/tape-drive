@@ -67,4 +67,28 @@ export class DatabaseService {
       throw error;
     }
   }
+
+  async updateDownloadRequestStatus(
+    requestId: number,
+    status: 'pending' | 'processing' | 'completed' | 'failed',
+    localPath?: string
+  ): Promise<void> {
+    const connection = await this.pool.getConnection();
+    try {
+      if (status === 'completed' && localPath) {
+        await connection.query(
+          'UPDATE download_requests SET status = ?, local_file_location = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [status, localPath, requestId]
+        );
+      } else {
+        await connection.query(
+          'UPDATE download_requests SET status = ? WHERE id = ?',
+          [status, requestId]
+        );
+      }
+      logger.info(`Updated download request ${requestId} status to ${status}`);
+    } finally {
+      connection.release();
+    }
+  }
 } 

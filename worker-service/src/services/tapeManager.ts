@@ -13,9 +13,10 @@ interface TapeConfig {
 }
 
 export class TapeManager {
-  private tapeDevice: string;
+  private currentTape: string | null = null;
   private mountPoint: string;
   private tapeConfig: TapeConfig;
+  private tapeDevice: string;
 
   constructor() {
     this.tapeDevice = process.env.TAPE_DEVICE || '/dev/sg2';
@@ -34,15 +35,26 @@ export class TapeManager {
     }
   }
 
-  private async getCurrentTape(): Promise<string | null> {
-    try {
-      const { stdout } = await execAsync(`mtx -f ${this.tapeDevice} status`);
-      const match = stdout.match(/VolumeTag = (\d+)/);
-      return match ? match[1] : null;
-    } catch (error) {
-      logger.error('Failed to get current tape:', error);
-      throw error;
-    }
+  public async getCurrentTape(): Promise<string | null> {
+    return this.currentTape;
+  }
+
+  public async loadTape(tapeNumber: string): Promise<void> {
+    // Implementation for loading tape
+    this.currentTape = tapeNumber;
+  }
+
+  public async unloadTape(): Promise<void> {
+    // Implementation for unloading tape
+    this.currentTape = null;
+  }
+
+  public async mountTape(): Promise<void> {
+    // Implementation for mounting tape
+  }
+
+  public async unmountTape(): Promise<void> {
+    // Implementation for unmounting tape
   }
 
   private async findEmptySlot(): Promise<number> {
