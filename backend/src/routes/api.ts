@@ -11,6 +11,25 @@ import { FileProcessingJob } from '../types/fileProcessing';
 
 const router = express.Router();
 
+// Middleware to check if user has access to features
+const hasFeatureAccess = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const user = (req as any).user as User;
+  
+  if (!user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  // Check if user has a valid role (not the default 'user' role)
+  if (user.role === 'user') {
+    return res.status(403).json({ 
+      error: 'Access denied',
+      message: 'Please contact the administrator to get assigned to a team or role'
+    });
+  }
+
+  next();
+};
+
 // Function to format file size with appropriate unit
 export const formatFileSize = (bytes: number | string | undefined): string => {
   if (bytes === undefined || bytes === null) {
@@ -184,7 +203,7 @@ router.post('/processes', isAdmin, async (req, res) => {
 });
 
 // File upload endpoint
-router.post('/upload', upload.single('file'), async (req, res) => {
+router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
@@ -283,7 +302,7 @@ router.post('/cancel-upload', async (req, res) => {
 });
 
 // Get files endpoint
-router.get('/files', async (req, res) => {
+router.get('/files', hasFeatureAccess, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
@@ -309,7 +328,7 @@ router.get('/files', async (req, res) => {
 });
 
 // File download endpoint
-router.get('/files/:id/download', async (req, res) => {
+router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
