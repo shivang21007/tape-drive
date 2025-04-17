@@ -32,12 +32,14 @@ export async function processFile(job: FileProcessingJob) {
         throw new Error('Failed to get current tape number');
       }
       
-      // Verify tape is actually mounted
+      // Create group directory if it doesn't exist
+      const groupDir = path.join(tapeManager.mountPoint, groupName);
       try {
-        await fs.access(path.join(tapeManager.mountPoint, groupName));
-        logger.info(`Verified tape ${currentTape} is mounted for group ${groupName}`);
+        await fs.mkdir(groupDir, { recursive: true });
+        logger.info(`Created/verified group directory: ${groupDir}`);
       } catch (error) {
-        throw new Error(`Tape ${currentTape} is not properly mounted for group ${groupName}`);
+        logger.error(`Failed to create group directory: ${groupDir}`, error);
+        throw new Error(`Failed to create group directory for tape ${currentTape}`);
       }
       
       // Add delay to ensure tape is stable

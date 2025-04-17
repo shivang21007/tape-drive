@@ -20,13 +20,12 @@ async function startWorker() {
           logger.info(`Processing job ${job.id}: ${job.name}`);
           logger.info('Job data:', job.data);
 
-          // Check job type from data
-          if (job.data.type === 'download') {
-            // Handle file download processing
+          if (job.name === 'file-processing') {
+            return await processFile(job.data as FileProcessingJob);
+          } else if (job.name === 'download') {
             return await processDownload(job.data as DownloadProcessingJob);
           } else {
-            // Handle file upload processing
-            return await processFile(job.data as FileProcessingJob);
+            throw new Error(`Unknown job type: ${job.name}`);
           }
         } catch (error) {
           logger.error(`Job ${job.id} failed:`, error);
@@ -39,14 +38,16 @@ async function startWorker() {
           port: parseInt(process.env.REDIS_PORT || '6379'),
           password: process.env.REDIS_PASSWORD
         },
-        concurrency: 1, // Process one job at a time
-        lockDuration: 30000, // 30 seconds
-        removeOnComplete: {
-          age: 3600 // Remove completed jobs after 1 hour
+        limiter: {
+          max: 1,
+          duration: 1000
         },
-        removeOnFail: {
-          age: 24 * 3600 * 5 //// Remove failed jobs after 5 days
-        }
+        settings: {
+          backoffStrategy: (attemptsMade: number) => {
+            return Math.min(attemptsMade * 1000, 10000);
+          }
+        },
+        maxStalledCount: 3 // Maximum number of times a job can be retried
       }
     );
 
