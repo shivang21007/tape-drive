@@ -8,10 +8,9 @@ import { downloadFile, isFileTypeSupported } from '../utils/downloadUtils';
 interface FileDownloadProps {
   fileId: number;
   fileName: string;
-  isAdmin: boolean;
 }
 
-export const FileDownload: React.FC<FileDownloadProps> = ({ fileId, fileName, isAdmin }) => {
+export const FileDownload: React.FC<FileDownloadProps> = ({ fileId, fileName }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [requestId, setRequestId] = useState<number | null>(null);
   const { status, isPolling } = useDownloadStatus(requestId);

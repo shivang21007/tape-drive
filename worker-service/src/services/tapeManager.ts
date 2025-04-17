@@ -14,7 +14,7 @@ interface TapeConfig {
 
 export class TapeManager {
   private currentTape: string | null = null;
-  private mountPoint: string;
+  public mountPoint: string;
   private tapeConfig: TapeConfig;
   private tapeDevice: string;
 
@@ -36,25 +36,64 @@ export class TapeManager {
   }
 
   public async getCurrentTape(): Promise<string | null> {
-    return this.currentTape;
+    try {
+      const { stdout } = await execAsync(`mtx -f ${this.tapeDevice} status`);
+      const currentTapeMatch = stdout.match(/Data Transfer Element 0:Full.*VolumeTag = (\d+)/);
+      if (currentTapeMatch) {
+        this.currentTape = currentTapeMatch[1];
+        return this.currentTape;
+      }
+      this.currentTape = null;
+      return null;
+    } catch (error) {
+      logger.error('Failed to get current tape:', error);
+      throw error;
+    }
   }
 
   public async loadTape(tapeNumber: string): Promise<void> {
-    // Implementation for loading tape
-    this.currentTape = tapeNumber;
+    try {
+      const tapeSlot = await this.findTapeSlot(tapeNumber);
+      await execAsync(`sudo mtx -f ${this.tapeDevice} load ${tapeSlot} 0`);
+      this.currentTape = tapeNumber;
+      logger.info(`Loaded tape ${tapeNumber} from slot ${tapeSlot}`);
+    } catch (error) {
+      logger.error(`Failed to load tape ${tapeNumber}:`, error);
+      throw error;
+    }
   }
 
   public async unloadTape(): Promise<void> {
-    // Implementation for unloading tape
-    this.currentTape = null;
+    try {
+      const emptySlot = await this.findEmptySlot();
+      await execAsync(`sudo mtx -f ${this.tapeDevice} unload ${emptySlot} 0`);
+      this.currentTape = null;
+      logger.info(`Unloaded tape to slot ${emptySlot}`);
+    } catch (error) {
+      logger.error('Failed to unload tape:', error);
+      throw error;
+    }
   }
 
   public async mountTape(): Promise<void> {
-    // Implementation for mounting tape
+    try {
+      await execAsync(`sudo ltfs -o devname=/dev/sg1 -o eject ${this.mountPoint}`);
+      logger.info('Tape mounted successfully');
+    } catch (error) {
+      logger.error('Failed to mount tape:', error);
+      throw error;
+    }
   }
 
   public async unmountTape(): Promise<void> {
-    // Implementation for unmounting tape
+    try {
+      await execAsync(`sudo umount ${this.mountPoint}`);
+      await this.waitForNoLtfsProcess();
+      logger.info('Tape unmounted successfully');
+    } catch (error) {
+      logger.error('Failed to unmount tape:', error);
+      throw error;
+    }
   }
 
   private async findEmptySlot(): Promise<number> {

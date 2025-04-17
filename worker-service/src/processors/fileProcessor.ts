@@ -31,23 +31,43 @@ export async function processFile(job: FileProcessingJob) {
       if (!currentTape) {
         throw new Error('Failed to get current tape number');
       }
+      
+      // Verify tape is actually mounted
+      try {
+        await fs.access(path.join(tapeManager.mountPoint, groupName));
+        logger.info(`Verified tape ${currentTape} is mounted for group ${groupName}`);
+      } catch (error) {
+        throw new Error(`Tape ${currentTape} is not properly mounted for group ${groupName}`);
+      }
+      
+      // Add delay to ensure tape is stable
+      await new Promise(resolve => setTimeout(resolve, 5000));
       tapeLogger.endOperation('tape-mounting');
 
       // Create tape path and copy file
       tapeLogger.startOperation('file-copy');
       const tapePath = await tapeManager.createTapePath(job);
+      logger.info(`Copying file to tape path: ${tapePath}`);
       await fs.copyFile(filePath, tapePath);
+      logger.info('File copied successfully');
       tapeLogger.endOperation('file-copy');
+
+      // Add delay before verification
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Verify the copy
       tapeLogger.startOperation('file-verification');
       const sourceStats = await fs.stat(filePath);
       const destStats = await fs.stat(tapePath);
       
+      logger.info(`Source file size: ${sourceStats.size}, Destination file size: ${destStats.size}`);
+      
       if (sourceStats.size !== destStats.size) {
+        logger.error('File verification failed: size mismatch');
         await fs.unlink(tapePath);
         throw new Error('File verification failed: size mismatch');
       }
+      logger.info('File verification successful');
       tapeLogger.endOperation('file-verification');
 
       // Update database with tape location and tape number
