@@ -51,10 +51,67 @@ export class TapeManager {
     }
   }
 
+  private async waitForUnmount(): Promise<void> {
+    let attempts = 0;
+    const maxAttempts = 10;
+    const delay = 5000; // 5 seconds
+
+    while (attempts < maxAttempts) {
+      try {
+        await execAsync(`sudo umount ${this.mountPoint}`);
+        logger.info('Successfully unmounted tape');
+        return;
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('target is busy')) {
+          attempts++;
+          if (attempts >= maxAttempts) {
+            logger.error('Failed to unmount tape after multiple attempts');
+            throw new Error('Tape is busy and could not be unmounted');
+          }
+          logger.warn(`Tape is busy, waiting ${delay/1000} seconds before retry (attempt ${attempts}/${maxAttempts})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          throw error;
+        }
+      }
+    }
+  }
+
+  public async unmountTape(): Promise<void> {
+    try {
+      await this.waitForUnmount();
+      await this.waitForNoLtfsProcess();
+      logger.info('Tape unmounted successfully');
+    } catch (error) {
+      logger.error('Failed to unmount tape:', error);
+      throw error;
+    }
+  }
+
+  private async executeTapeCommand(command: string, retryCount = 3): Promise<void> {
+    let attempts = 0;
+    const delay = 5000; // 5 seconds
+
+    while (attempts < retryCount) {
+      try {
+        await execAsync(command);
+        return;
+      } catch (error) {
+        attempts++;
+        if (attempts >= retryCount) {
+          logger.error(`Failed to execute tape command after ${retryCount} attempts: ${command}`);
+          throw error;
+        }
+        logger.warn(`Tape command failed, retrying in ${delay/1000} seconds (attempt ${attempts}/${retryCount})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
   public async loadTape(tapeNumber: string): Promise<void> {
     try {
       const tapeSlot = await this.findTapeSlot(tapeNumber);
-      await execAsync(`sudo mtx -f ${this.tapeDevice} load ${tapeSlot} 0`);
+      await this.executeTapeCommand(`sudo mtx -f ${this.tapeDevice} load ${tapeSlot} 0`);
       this.currentTape = tapeNumber;
       logger.info(`Loaded tape ${tapeNumber} from slot ${tapeSlot}`);
     } catch (error) {
@@ -66,7 +123,7 @@ export class TapeManager {
   public async unloadTape(): Promise<void> {
     try {
       const emptySlot = await this.findEmptySlot();
-      await execAsync(`sudo mtx -f ${this.tapeDevice} unload ${emptySlot} 0`);
+      await this.executeTapeCommand(`sudo mtx -f ${this.tapeDevice} unload ${emptySlot} 0`);
       this.currentTape = null;
       logger.info(`Unloaded tape to slot ${emptySlot}`);
     } catch (error) {
@@ -77,21 +134,10 @@ export class TapeManager {
 
   public async mountTape(): Promise<void> {
     try {
-      await execAsync(`sudo ltfs -o devname=/dev/sg1 -o eject ${this.mountPoint}`);
+      await this.executeTapeCommand(`sudo ltfs -o devname=/dev/sg1 -o eject ${this.mountPoint}`);
       logger.info('Tape mounted successfully');
     } catch (error) {
       logger.error('Failed to mount tape:', error);
-      throw error;
-    }
-  }
-
-  public async unmountTape(): Promise<void> {
-    try {
-      await execAsync(`sudo umount ${this.mountPoint}`);
-      await this.waitForNoLtfsProcess();
-      logger.info('Tape unmounted successfully');
-    } catch (error) {
-      logger.error('Failed to unmount tape:', error);
       throw error;
     }
   }
