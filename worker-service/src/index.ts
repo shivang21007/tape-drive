@@ -6,8 +6,15 @@ import { logger } from './utils/logger';
 import { FileProcessingJob } from './types/fileProcessing';
 import { DownloadProcessingJob } from './types/downloadProcessing';
 import dotenv from 'dotenv';
+import { FileCleanupService } from './services/fileCleanupService';
 
 dotenv.config();
+
+// Initialize cleanup service
+const cleanupService = new FileCleanupService();
+cleanupService.startCleanupService().catch(error => {
+  logger.error('Failed to start cleanup service:', error);
+});
 
 async function startWorker() {
   try {
