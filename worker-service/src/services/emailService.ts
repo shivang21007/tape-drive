@@ -59,30 +59,43 @@ export class EmailService {
     }
   }
 
-  async sendDownloadAvailableEmail(
-    userEmail: string,
-    userName: string,
-    fileName: string
-  ): Promise<void> {
-    try {
-      const templatePath = path.join(__dirname, '../templates/downloadAvailable.html');
-      let htmlContent = await fs.readFile(templatePath, 'utf-8');
-      
-      // Replace placeholders with actual values
-      htmlContent = htmlContent
-        .replace('{{userName}}', userName)
-        .replace('{{fileName}}', fileName);
-
-      await this.transporter.sendMail({
-        from: process.env.SMTP_FROM,
-        to: userEmail,
-        subject: 'File Ready for Download',
-        html: htmlContent
-      });
-      logger.info(`Download available email sent to ${userEmail}`);
-    } catch (error) {
-      logger.error(`Failed to send download available email to ${userEmail}:`, error);
-      throw error;
+  public async sendDownloadReadyEmail(
+    to: string,
+    fileName: string,
+    data: {
+      status: 'success' | 'failed';
+      localFilePath?: string;
+      tapeNumber?: string;
+      requestedAt?: number;
+      error?: string;
     }
+  ) {
+    const subject = data.status === 'success' 
+      ? 'Your file is ready to download'
+      : 'File download failed';
+
+    const html = data.status === 'success'
+      ? `
+        <h2>File Ready for Download</h2>
+        <p>Your file "${fileName}" is now ready to download.</p>
+        <p>File was retrieved from tape ${data.tapeNumber}.</p>
+        <p>You can now download the file from the application.</p>
+        <p>Requested at: ${new Date(data.requestedAt || Date.now()).toLocaleString()}</p>
+        <p>Admin Email: ${process.env.ADMIN_EMAIL}</p>
+      `
+      : `
+        <h2>File Download Failed</h2>
+        <p>We were unable to process your download request for "${fileName}".</p>
+        <p>Error: ${data.error || 'Unknown error'}</p>
+        <p>Please try again later or contact the administrator if the problem persists.</p>
+        <p>Admin Email: ${process.env.ADMIN_EMAIL}</p>
+      `;
+
+    await this.transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to,
+      subject,
+      html
+    });
   }
 } 

@@ -253,4 +253,13 @@ export class TapeManager {
     await fs.mkdir(tapePath, { recursive: true });
     return path.join(tapePath, job.fileName);
   }
+
+  public async isTapeMounted(): Promise<boolean> {
+    try {
+      const { stdout } = await execAsync('mount | grep ltfs');
+      return stdout?.toString().includes(this.mountPoint) || false;
+    } catch (error) {
+      return false;
+    }
+  }
 } 

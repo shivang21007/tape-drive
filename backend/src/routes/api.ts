@@ -368,22 +368,38 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
 
     // Check if file exists in local cache
     if (file.local_file_location && fs.existsSync(file.local_file_location)) {
-      // File is in cache, serve it directly
-      res.download(file.local_file_location, file.file_name);
+      // File is in cache, create download request with cache source
+      const connection = await mysqlPool.getConnection();
+      
+      try {
+        const [result] = await connection.query<ResultSetHeader>(
+          'INSERT INTO download_requests (file_id, user_name, group_name, status, served_from, completed_at) VALUES (?, ?, ?, ?, ?, ?)',
+          [file.id, user.name, user.role, 'completed', 'cache', new Date()]
+        );
+
+        res.json({ 
+          status: 'completed',
+          servedFrom: 'cache',
+          filePath: file.local_file_location,
+          requestId: result.insertId
+        });
+      } finally {
+        connection.release();
+      }
       return;
     }
 
-    // File not in cache, create download request
+    // File not in cache, create download request and queue job
     const connection = await mysqlPool.getConnection();
     
     try {
       // Insert download request
       const [result] = await connection.query<ResultSetHeader>(
-        'INSERT INTO download_requests (file_id, user_name, group_name, tape_location, tape_number) VALUES (?, ?, ?, ?, ?)',
-        [file.id, user.name, user.role, file.tape_location, file.tape_number]
+        'INSERT INTO download_requests (file_id, user_name, group_name, status) VALUES (?, ?, ?, ?)',
+        [file.id, user.name, user.role, 'pending']
       );
 
-      // Push download job to queue with download label
+      // Push download job to queue
       const jobData = {
         type: 'download',
         requestId: result.insertId,
@@ -399,10 +415,11 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
 
       await fileQueue.add('file-processing', jobData, {
         priority: user.role === 'admin' ? 1 : 2, // Higher priority for admin files
-        // jobId: `download-${result.insertId}`
+        jobId: `download-${result.insertId}`
       });
 
       res.json({ 
+        status: 'pending',
         message: 'Download request has been queued. You will be notified when the file is available.',
         requestId: result.insertId
       });
@@ -436,18 +453,30 @@ router.get('/download-requests/:id/status', hasFeatureAccess, async (req, res) =
 
     const request = (requests as any[])[0];
 
-    // If request is completed and file exists, return the file path
-    if (request.status === 'completed' && request.local_file_location && fs.existsSync(request.local_file_location)) {
-      res.json({ 
-        status: 'completed',
-        filePath: request.local_file_location
-      });
-    } else {
-      res.json({ 
-        status: request.status,
-        message: request.status === 'failed' ? 'Failed to process download request' : 'Request is being processed'
-      });
+    // If request is completed, get the file path from upload_details
+    if (request.status === 'completed') {
+      const [files] = await mysqlPool.query(
+        'SELECT local_file_location FROM upload_details WHERE id = ?',
+        [request.file_id]
+      );
+      
+      if ((files as any[]).length > 0) {
+        const file = (files as any[])[0];
+        if (file.local_file_location && fs.existsSync(file.local_file_location)) {
+          res.json({ 
+            status: 'completed',
+            servedFrom: request.served_from,
+            filePath: file.local_file_location
+          });
+          return;
+        }
+      }
     }
+
+    res.json({ 
+      status: request.status,
+      message: request.status === 'failed' ? 'Failed to process download request' : 'Request is being processed'
+    });
   } catch (error) {
     console.error('Error checking download status:', error);
     res.status(500).json({ error: 'Failed to check download status' });

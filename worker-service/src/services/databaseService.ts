@@ -91,4 +91,35 @@ export class DatabaseService {
       connection.release();
     }
   }
+
+  public async updateDownloadStatus(requestId: number, status: 'pending' | 'processing' | 'completed' | 'failed', servedFrom?: 'cache' | 'tape') {
+    const connection = await this.pool.getConnection();
+    try {
+      if (status === 'completed') {
+        await connection.query(
+          'UPDATE download_requests SET status = ?, served_from = ?, completed_at = ? WHERE id = ?',
+          [status, servedFrom, new Date(), requestId]
+        );
+      } else {
+        await connection.query(
+          'UPDATE download_requests SET status = ? WHERE id = ?',
+          [status, requestId]
+        );
+      }
+    } finally {
+      connection.release();
+    }
+  }
+
+  public async updateUploadLocalFileLocation(fileId: number, localFilePath: string) {
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.query(
+        'UPDATE upload_details SET local_file_location = ? WHERE id = ?',
+        [localFilePath, fileId]
+      );
+    } finally {
+      connection.release();
+    }
+  }
 } 
