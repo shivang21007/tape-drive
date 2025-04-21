@@ -228,16 +228,27 @@ export class TapeManager {
   }
 
   private async waitForNoLtfsProcess(): Promise<void> {
-    while (true) {
+    let attempts = 0;
+    const maxAttempts = 20;
+    const delay = 5000; // 5 seconds
+
+    while (attempts < maxAttempts) {
       try {
         const { stdout } = await execAsync('pidof ltfs');
-        if (!stdout.trim()) break;
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        if (!stdout.trim()) {
+          logger.info('LTFS process terminated');
+          return;
+        }
+        logger.info(`Waiting for LTFS process to terminate (attempt ${attempts + 1}/${maxAttempts})...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        attempts++;
       } catch (error) {
         // pidof returns non-zero when no process is found
-        break;
+        logger.info('LTFS process terminated');
+        return;
       }
     }
+    throw new Error('LTFS process did not terminate in time');
   }
 
   public async isTapeMounted(): Promise<boolean> {
