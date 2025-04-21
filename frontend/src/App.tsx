@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Home from './pages/Home';
 import Admin from './pages/Admin';
 import Files from './pages/Files';
+import History from './pages/History';
 import './index.css';
 
 const App: React.FC = () => {
@@ -35,6 +36,14 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute>
                 <Files />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/history"
+            element={
+              <ProtectedRoute>
+                <History />
               </ProtectedRoute>
             }
           />
