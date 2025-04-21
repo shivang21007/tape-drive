@@ -79,11 +79,28 @@ export class TapeManager {
 
   public async unmountTape(): Promise<void> {
     try {
-      await this.waitForUnmount();
-      await this.waitForNoLtfsProcess();
+      // Check if tape is mounted
+      if (!await this.isTapeMounted()) {
+        logger.info('Tape is not mounted');
+        return;
+      }
+
+      // Unmount the tape
+      logger.info('Unmounting tape...');
+      await execAsync(`sudo umount ${this.mountPoint}`);
+
+      // Wait for unmount to complete
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // Verify unmount was successful
+      if (await this.isTapeMounted()) {
+        throw new Error('Tape unmount verification failed');
+      }
+
       logger.info('Tape unmounted successfully');
     } catch (error) {
-      logger.error('Failed to unmount tape:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logger.error(`Failed to unmount tape: ${errorMessage}`);
       throw error;
     }
   }
@@ -134,10 +151,46 @@ export class TapeManager {
 
   public async mountTape(): Promise<void> {
     try {
-      await this.executeTapeCommand(`sudo ltfs -o devname=/dev/sg1 -o eject ${this.mountPoint}`);
+      // Check if tape is already mounted
+      if (await this.isTapeMounted()) {
+        logger.info('Tape is already mounted');
+        return;
+      }
+
+      // Check if mount point exists
+      if (!fsSync.existsSync(this.mountPoint)) {
+        await fs.mkdir(this.mountPoint, { recursive: true });
+        logger.info(`Created mount point directory: ${this.mountPoint}`);
+      }
+
+      // Check if tape is present in drive
+      const { stdout: tapeStatus } = await execAsync('mt -f /dev/nst0 status');
+      if (!tapeStatus.includes('ONLINE')) {
+        throw new Error('No tape present in drive');
+      }
+
+      // Mount the tape
+      logger.info('Mounting tape...');
+      const { stdout: mountOutput } = await execAsync(
+        `sudo ltfs -o devname=/dev/sg1 -o eject ${this.mountPoint}`
+      );
+
+      if (!mountOutput.includes('LTFS starting')) {
+        throw new Error('Failed to mount tape');
+      }
+
+      // Wait for mount to complete
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      // Verify mount was successful
+      if (!await this.isTapeMounted()) {
+        throw new Error('Tape mount verification failed');
+      }
+
       logger.info('Tape mounted successfully');
     } catch (error) {
-      logger.error('Failed to mount tape:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logger.error(`Failed to mount tape: ${errorMessage}`);
       throw error;
     }
   }
@@ -184,55 +237,59 @@ export class TapeManager {
     }
   }
 
-  async ensureCorrectTape(groupName: string): Promise<string> {
+  public async isTapeMounted(): Promise<boolean> {
     try {
-      const groupTapes = this.tapeConfig[groupName];
-      if (!groupTapes || groupTapes.length === 0) {
-        throw new Error(`No tapes configured for group: ${groupName}`);
-      }
-
-      const currentTape = await this.getCurrentTape();
-      if (currentTape && groupTapes.includes(currentTape)) {
-        logger.info(`Correct tape ${currentTape} already loaded for group ${groupName}`);
-        return currentTape;
-      }
-
-      // Unmount current tape if mounted
-      try {
-        await execAsync(`sudo umount ${this.mountPoint}`);
-        await this.waitForNoLtfsProcess();
-      } catch (error) {
-        logger.warn('Failed to unmount or no mount point:', error);
-      }
-
-      // Unload current tape if exists
-      if (currentTape) {
-        const emptySlot = await this.findEmptySlot();
-        await execAsync(`sudo mtx -f ${this.tapeDevice} unload ${emptySlot} 0`);
-      }
-
-      // Load first available group tape
-      for (const tapeId of groupTapes) {
-        try {
-          const tapeSlot = await this.findTapeSlot(tapeId);
-          await execAsync(`sudo mtx -f ${this.tapeDevice} load ${tapeSlot} 0`);
-          logger.info(`Loaded tape ${tapeId} for group ${groupName}`);
-          
-          // Mount the tape
-          await execAsync(`sudo ltfs -o devname=/dev/sg1 -o eject ${this.mountPoint}`);
-          logger.info('Tape mounted successfully');
-          
-          return tapeId;
-        } catch (error) {
-          logger.warn(`Failed to load tape ${tapeId}, trying next...`, error);
-        }
-      }
-
-      throw new Error(`No available tapes for group ${groupName}`);
+      const { stdout } = await execAsync(`mount | grep ${this.mountPoint}`);
+      return stdout.includes(this.mountPoint);
     } catch (error) {
-      logger.error('Failed to ensure correct tape:', error);
+      // If the command fails, it means the mount point is not mounted
+      return false;
+    }
+  }
+
+  public async ensureCorrectTape(groupName: string): Promise<string> {
+    try {
+      // Check if tape is mounted
+      if (!await this.isTapeMounted()) {
+        logger.info('Tape is not mounted, attempting to mount...');
+        await this.mountTape();
+      }
+
+      // Get current tape number
+      const currentTape = await this.getCurrentTape();
+      if (!currentTape) {
+        throw new Error('Failed to get current tape number');
+      }
+
+      // Check if current tape matches group
+      const tapeGroup = await this.getTapeGroup(currentTape);
+      if (tapeGroup !== groupName) {
+        logger.info(`Current tape (${currentTape}) does not match required group (${groupName})`);
+        await this.unmountTape();
+        await this.loadTape(groupName);
+        await this.mountTape();
+        const newTape = await this.getCurrentTape();
+        if (!newTape) {
+          throw new Error('Failed to get new tape number after loading');
+        }
+        return newTape;
+      }
+
+      return currentTape;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logger.error(`Failed to ensure correct tape: ${errorMessage}`);
       throw error;
     }
+  }
+
+  public async getTapeGroup(tapeNumber: string): Promise<string | null> {
+    for (const [group, tapes] of Object.entries(this.tapeConfig)) {
+      if (tapes.includes(tapeNumber)) {
+        return group;
+      }
+    }
+    return null;
   }
 
   async createTapePath(job: FileProcessingJob): Promise<string> {
@@ -252,14 +309,5 @@ export class TapeManager {
 
     await fs.mkdir(tapePath, { recursive: true });
     return path.join(tapePath, job.fileName);
-  }
-
-  public async isTapeMounted(): Promise<boolean> {
-    try {
-      const { stdout } = await execAsync('mount | grep ltfs');
-      return stdout?.toString().includes(this.mountPoint) || false;
-    } catch (error) {
-      return false;
-    }
   }
 } 
