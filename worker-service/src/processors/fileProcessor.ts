@@ -8,6 +8,10 @@ import { EmailService } from '../services/emailService';
 import { AdminNotificationService } from '../services/adminNotificationService';
 import fs from 'fs/promises';
 import path from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 const tapeManager = new TapeManager();
 const databaseService = new DatabaseService();
@@ -29,9 +33,10 @@ export async function processFile(job: FileProcessingJob) {
     // Verify source file exists and matches expected size
     try {
       const stats = await fs.stat(filePath);
-      const expectedSize = typeof fileSize === 'string' ? parseInt(fileSize) : fileSize;
-      if (stats.size !== expectedSize) {
-        throw new Error(`File size mismatch: expected ${expectedSize}, got ${stats.size}`);
+      const expectedSizeInBytes = parseFloat(fileSize) * 1024;
+      const actualSize = stats.size;
+      if (Math.abs(actualSize - expectedSizeInBytes) > 1024) { // Allow 1KB difference
+        throw new Error(`Source file verification failed: File size mismatch: expected ${expectedSizeInBytes} bytes, got ${actualSize} bytes`);
       }
       logger.info(`Source file verified: ${filePath} (${stats.size} bytes)`);
     } catch (error) {
