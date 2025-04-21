@@ -30,20 +30,48 @@ export async function processFile(job: FileProcessingJob) {
     // Update status to processing
     await databaseService.updateUploadStatus(fileId, 'processing');
 
-    // Verify source file exists and matches expected size
+    // Verify source file
     try {
-      const stats = await fs.stat(filePath);
-      const expectedSizeInBytes = parseFloat(fileSize) * 1024;
-      const actualSize = stats.size;
-      if (Math.abs(actualSize - expectedSizeInBytes) > 1024) { // Allow 1KB difference
-        throw new Error(`Source file verification failed: File size mismatch: expected ${expectedSizeInBytes} bytes, got ${actualSize} bytes`);
-      }
-      logger.info(`Source file verified: ${filePath} (${stats.size} bytes)`);
+      await fs.access(filePath);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error(`Source file verification failed: ${errorMessage}`);
-      throw new Error(`Source file verification failed: ${errorMessage}`);
+      throw new Error(`Source file not found: ${filePath}`);
     }
+
+    // Parse file size from string (e.g., "37.76 KB")
+    const sizeMatch = fileSize.match(/^(\d+\.?\d*)\s*(KB|MB|GB)$/i);
+    if (!sizeMatch) {
+      throw new Error(`Invalid file size format: ${fileSize}`);
+    }
+
+    const sizeValue = parseFloat(sizeMatch[1]);
+    const sizeUnit = sizeMatch[2].toUpperCase();
+    
+    // Convert to bytes
+    let expectedSizeInBytes: number;
+    switch (sizeUnit) {
+      case 'KB':
+        expectedSizeInBytes = sizeValue * 1024;
+        break;
+      case 'MB':
+        expectedSizeInBytes = sizeValue * 1024 * 1024;
+        break;
+      case 'GB':
+        expectedSizeInBytes = sizeValue * 1024 * 1024 * 1024;
+        break;
+      default:
+        throw new Error(`Unsupported file size unit: ${sizeUnit}`);
+    }
+
+    const stats = await fs.stat(filePath);
+    const actualSize = stats.size;
+    
+    // Allow 1% difference in file size
+    const tolerance = expectedSizeInBytes * 0.01;
+    if (Math.abs(actualSize - expectedSizeInBytes) > tolerance) {
+      throw new Error(`Source file verification failed: File size mismatch: expected ${expectedSizeInBytes} bytes (${fileSize}), got ${actualSize} bytes`);
+    }
+
+    logger.info(`Source file verified: ${filePath} (${actualSize} bytes)`);
 
     // Ensure correct tape is loaded and mounted
     tapeLogger.startOperation('tape-mounting');
