@@ -33,7 +33,10 @@ export async function processFile(job: FileProcessingJob) {
     // Verify source file
     try {
       await fs.access(filePath);
+      const stats = await fs.stat(filePath);
+      logger.info(`Source file verified: ${filePath} (${stats.size} bytes)`);
     } catch (error) {
+      logger.error(`Source file not found: ${filePath}`, error);
       throw new Error(`Source file not found: ${filePath}`);
     }
 
@@ -71,36 +74,48 @@ export async function processFile(job: FileProcessingJob) {
       throw new Error(`Source file verification failed: File size mismatch: expected ${expectedSizeInBytes} bytes (${fileSize}), got ${actualSize} bytes`);
     }
 
-    logger.info(`Source file verified: ${filePath} (${actualSize} bytes)`);
-
     // Ensure correct tape is loaded and mounted
     tapeLogger.startOperation('tape-mounting');
-    currentTape = await tapeManager.ensureCorrectTape(groupName);
-    if (!currentTape) {
-      throw new Error('Failed to get current tape number');
-    }
-
-    // Create group directory after tape is mounted
-    const groupDir = path.join(tapeManager.mountPoint, groupName);
     try {
-      await fs.mkdir(groupDir, { recursive: true });
-      logger.info(`Created/verified group directory: ${groupDir}`);
-    } catch (error) {
-      logger.error(`Failed to create group directory: ${groupDir}`, error);
-      throw new Error(`Failed to create group directory for tape ${currentTape}`);
-    }
+      currentTape = await tapeManager.ensureCorrectTape(groupName);
+      if (!currentTape) {
+        throw new Error('Failed to get current tape number');
+      }
 
-    // Add delay to ensure tape is stable
-    await new Promise(resolve => setTimeout(resolve, 3000));
+      // Create group directory after tape is mounted
+      const groupDir = path.join(tapeManager.mountPoint, groupName);
+      try {
+        await fs.mkdir(groupDir, { recursive: true });
+        logger.info(`Created/verified group directory: ${groupDir}`);
+      } catch (error) {
+        logger.error(`Failed to create group directory: ${groupDir}`, error);
+        throw new Error(`Failed to create group directory for tape ${currentTape}`);
+      }
+
+      // Add delay to ensure tape is stable
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    } catch (error) {
+      logger.error('Failed to mount tape:', error);
+      throw new Error(`Failed to mount tape: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
     tapeLogger.endOperation('tape-mounting');
 
     // Create tape path and copy file
     tapeLogger.startOperation('file-copy');
-    tapePath = await tapeManager.createTapePath(job);
-    logger.info(`Copying file to tape path: ${tapePath}`);
-
-    await fs.copyFile(filePath, tapePath);
-    logger.info('File copied successfully');
+    try {
+      tapePath = await tapeManager.createTapePath(job);
+      logger.info(`Copying file to tape path: ${tapePath}`);
+      
+      // Ensure parent directories exist
+      await fs.mkdir(path.dirname(tapePath), { recursive: true });
+      
+      // Copy file to tape
+      await fs.copyFile(filePath, tapePath);
+      logger.info(`File copied to tape: ${tapePath}`);
+    } catch (error) {
+      logger.error('Failed to copy file to tape:', error);
+      throw new Error(`Failed to copy file to tape: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
     tapeLogger.endOperation('file-copy');
 
     // Add delay before verification

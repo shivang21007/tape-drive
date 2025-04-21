@@ -130,6 +130,13 @@ export class TapeManager {
 
   public async loadTape(tapeNumber: string): Promise<void> {
     try {
+      // Verify tape is configured for a group
+      const tapeGroup = await this.getTapeGroup(tapeNumber);
+      if (!tapeGroup) {
+        throw new Error(`Tape ${tapeNumber} is not configured for any group`);
+      }
+
+      // Find and load the tape
       const tapeSlot = await this.findTapeSlot(tapeNumber);
       await this.executeTapeCommand(`sudo mtx -f ${this.tapeDevice} load ${tapeSlot} 0`);
       this.currentTape = tapeNumber;
@@ -280,7 +287,15 @@ export class TapeManager {
       if (tapeGroup !== groupName) {
         logger.info(`Current tape (${currentTape}) does not match required group (${groupName})`);
         await this.unmountTape();
-        await this.loadTape(groupName);
+        
+        // Get the first configured tape for the group
+        const groupTapes = this.tapeConfig[groupName];
+        if (!groupTapes || groupTapes.length === 0) {
+          throw new Error(`No tapes configured for group ${groupName}`);
+        }
+        
+        // Load the first configured tape for the group
+        await this.loadTape(groupTapes[0]);
         await this.mountTape();
         const newTape = await this.getCurrentTape();
         if (!newTape) {

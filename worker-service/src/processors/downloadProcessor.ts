@@ -45,21 +45,31 @@ export async function processDownload(job: DownloadProcessingJob) {
     if (currentTape !== tapeNumber) {
       logger.info(`Switching from tape ${currentTape} to tape ${tapeNumber}`);
       
-      // Unmount current tape if mounted
-      if (await tapeManager.isTapeMounted()) {
-        await tapeManager.unmountTape();
-        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for unmount
+      try {
+        // Unmount current tape if mounted
+        if (await tapeManager.isTapeMounted()) {
+          await tapeManager.unmountTape();
+          await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for unmount
+        }
+
+        // Unload current tape
+        await tapeManager.unloadTape();
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for unload
+
+        // Load and mount new tape
+        await tapeManager.loadTape(tapeNumber);
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for load
+        await tapeManager.mountTape();
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for mount
+
+        // Verify new tape is mounted
+        if (!await tapeManager.isTapeMounted()) {
+          throw new Error('Failed to mount new tape after switching');
+        }
+      } catch (error) {
+        logger.error('Failed to switch tapes:', error);
+        throw new Error(`Failed to switch tapes: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
-
-      // Unload current tape
-      await tapeManager.unloadTape();
-      await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for unload
-
-      // Load and mount new tape
-      await tapeManager.loadTape(tapeNumber);
-      await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for load
-      await tapeManager.mountTape();
-      await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for mount
     }
 
     tapeLogger.endOperation('tape-mounting');
@@ -73,26 +83,44 @@ export async function processDownload(job: DownloadProcessingJob) {
     );
 
     // Ensure directory exists
-    await fs.mkdir(path.dirname(localFilePath), { recursive: true });
+    try {
+      await fs.mkdir(path.dirname(localFilePath), { recursive: true });
+      logger.info(`Created directory: ${path.dirname(localFilePath)}`);
+    } catch (error) {
+      logger.error(`Failed to create directory: ${path.dirname(localFilePath)}`, error);
+      throw new Error(`Failed to create directory for download: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
     
-    // Copy file
-    await fs.copyFile(tapeLocation, localFilePath);
-    logger.info(`File copied to local storage: ${localFilePath}`);
+    // Copy file with verification
+    tapeLogger.startOperation('file-copy');
+    try {
+      await fs.copyFile(tapeLocation, localFilePath);
+      logger.info(`File copied to local storage: ${localFilePath}`);
+    } catch (error) {
+      logger.error(`Failed to copy file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Failed to copy file from tape: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
     tapeLogger.endOperation('file-copy');
 
     // Verify the copy
     tapeLogger.startOperation('file-verification');
-    const sourceStats = await fs.stat(tapeLocation);
-    const destStats = await fs.stat(localFilePath);
-    
-    logger.info(`Source file size: ${sourceStats.size}, Destination file size: ${destStats.size}`);
-    
-    if (sourceStats.size !== destStats.size) {
-      logger.error('File verification failed: size mismatch');
-      await fs.unlink(localFilePath);
-      throw new Error('File verification failed: size mismatch');
+    try {
+      const sourceStats = await fs.stat(tapeLocation);
+      const destStats = await fs.stat(localFilePath);
+      
+      logger.info(`Source file size: ${sourceStats.size}, Destination file size: ${destStats.size}`);
+      
+      if (sourceStats.size !== destStats.size) {
+        logger.error('File verification failed: size mismatch');
+        await fs.unlink(localFilePath);
+        throw new Error('File verification failed: size mismatch');
+      }
+      logger.info('File verification successful');
+    } catch (error) {
+      logger.error('File verification failed:', error);
+      await fs.unlink(localFilePath).catch(() => {});
+      throw new Error(`File verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    logger.info('File verification successful');
     tapeLogger.endOperation('file-verification');
 
     // Update database with local file location
