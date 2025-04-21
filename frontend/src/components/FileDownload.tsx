@@ -25,29 +25,41 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ fileId, fileName }) 
     const loadingToast = toast.loading('Checking file availability...');
 
     try {
-      const response = await axios.get(`/api/files/${fileId}/download`, {
-        responseType: 'blob'
-      });
+      const response = await axios.get(`/api/files/${fileId}/download`);
 
-      // If we get a blob response, the file was in cache
-      if (response.data instanceof Blob) {
+      // If file is in cache, it will return a completed status
+      if (response.data.status === 'completed' && response.data.filePath) {
+        // Download the file from the cache
+        const fileResponse = await axios.get(`/api/files/${fileId}/download`, {
+          responseType: 'blob'
+        });
+        
         setIsDownloading(false);
         toast.dismiss(loadingToast);
         toast.success('File found in cache!');
-        downloadFile(response.data, fileName);
+        downloadFile(fileResponse.data, fileName);
         return;
       }
 
-      // If we get a JSON response, the file is not in cache
-      const { requestId: newRequestId, message } = response.data;
-      setRequestId(newRequestId);
-      toast.dismiss(loadingToast);
-      toast.success(message);
+      // If file is not in cache, start polling
+      if (response.data.status === 'pending' && response.data.requestId) {
+        setRequestId(response.data.requestId);
+        toast.dismiss(loadingToast);
+        toast.success(response.data.message);
+      } else {
+        throw new Error('Unexpected response from server');
+      }
     } catch (error) {
       setIsDownloading(false);
       toast.dismiss(loadingToast);
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
-        toast.error('File not found');
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 404) {
+          toast.error('File not found');
+        } else if (error.response?.status === 403) {
+          toast.error('Access denied');
+        } else {
+          toast.error('Failed to initiate download');
+        }
       } else {
         toast.error('Failed to initiate download');
       }

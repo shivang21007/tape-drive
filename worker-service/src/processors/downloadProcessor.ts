@@ -64,10 +64,14 @@ export async function processDownload(job: DownloadProcessingJob) {
 
     tapeLogger.endOperation('tape-mounting');
 
-    // Copy file from tape to local storage
-    tapeLogger.startOperation('file-copy');
-    const localFilePath = path.join(process.env.UPLOAD_DIR || '/home/octro/google-auth-login-page/tape-drive/backend/uploadfiles', groupName, userName, fileName);
-    
+    // Create local file path
+    const localFilePath = path.join(
+      process.env.UPLOAD_DIR || '/home/octro/google-auth-login-page/tape-drive/backend/uploadfiles',
+      groupName,
+      userName,
+      fileName
+    );
+
     // Ensure directory exists
     await fs.mkdir(path.dirname(localFilePath), { recursive: true });
     
