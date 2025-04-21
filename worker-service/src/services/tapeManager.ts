@@ -92,6 +92,9 @@ export class TapeManager {
       // Wait for unmount to complete
       await new Promise(resolve => setTimeout(resolve, 3000));
 
+      // Wait for LTFS process to terminate
+      await this.waitForNoLtfsProcess();
+
       // Verify unmount was successful
       if (await this.isTapeMounted()) {
         throw new Error('Tape unmount verification failed');
@@ -229,7 +232,7 @@ export class TapeManager {
       try {
         const { stdout } = await execAsync('pidof ltfs');
         if (!stdout.trim()) break;
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
       } catch (error) {
         // pidof returns non-zero when no process is found
         break;
