@@ -183,19 +183,20 @@ export class TapeManager {
 
       // Mount the tape
       logger.info('Mounting tape...');
-      const { stdout: mountOutput } = await execAsync(
-        `sudo ltfs -o devname=/dev/sg1 -o eject ${this.mountPoint}`
-      );
-
-      if (!mountOutput.includes('LTFS starting')) {
-        throw new Error('Failed to mount tape');
+      try {
+        // Run LTFS mount command
+        await execAsync(`sudo ltfs -o devname=/dev/sg1 -o eject ${this.mountPoint}`);
+      } catch (error) {
+        // LTFS command might return error even if mount is successful
+        logger.warn('LTFS mount command returned error, checking if mount was successful...');
       }
 
       // Wait for mount to complete
       await new Promise(resolve => setTimeout(resolve, 5000));
       
-      // Verify mount was successful
-      if (!await this.isTapeMounted()) {
+      // Verify mount was successful by checking mount point
+      const { stdout } = await execAsync(`mount | grep ltfs`);
+      if (!stdout.includes(this.mountPoint)) {
         throw new Error('Tape mount verification failed');
       }
 
