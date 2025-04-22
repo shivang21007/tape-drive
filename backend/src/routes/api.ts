@@ -489,4 +489,43 @@ router.get('/download-requests/:id/status', hasFeatureAccess, async (req, res) =
   }
 });
 
+// Get download history
+router.get('/history', hasFeatureAccess, async (req, res) => {
+  try {
+    const { group_name } = req.query;
+    const user = (req as any).user;
+
+    let query = `
+      SELECT 
+        dr.id,
+        dr.file_id,
+        dr.user_name,
+        dr.group_name,
+        ud.file_name,
+        ud.file_size,
+        dr.status,
+        dr.requested_at,
+        dr.completed_at
+      FROM download_requests dr
+      JOIN upload_details ud ON dr.file_id = ud.id
+    `;
+
+    const params = [];
+
+    // If user is not admin, filter by their group
+    if (user.role !== 'admin') {
+      query += ' WHERE dr.group_name = ?';
+      params.push(user.role);
+    }
+
+    query += ' ORDER BY dr.requested_at DESC';
+
+    const [rows] = await mysqlPool.query(query, params);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching history:', error);
+    res.status(500).json({ error: 'Failed to fetch history' });
+  }
+});
+
 export default router; 

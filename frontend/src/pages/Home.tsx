@@ -320,6 +320,12 @@ const Home: React.FC = () => {
           >
             View Files
           </button>
+          <button
+            onClick={() => navigate('/history')}
+            className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+          >
+            History
+          </button>
         </div>
         <div className="file-input-container">
           <input

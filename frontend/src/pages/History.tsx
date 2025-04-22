@@ -1,88 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-interface FileData {
+interface HistoryItem {
   id: number;
+  file_id: number;
   user_name: string;
   group_name: string;
   file_name: string;
   file_size: string;
-  created_at: string;
-  status: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  requested_at: string;
+  completed_at: string | null;
 }
 
-const Files: React.FC = () => {
-  const [files, setFiles] = useState<FileData[]>([]);
+const History: React.FC = () => {
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchFiles = async () => {
-      try {
-        const response = await axios.get('/api/files', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-
-        if (response.data) {
-          setFiles(response.data);
-        }
-      } catch (error) {
-        toast.error('Error fetching files');
-        console.error('Error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFiles();
-  }, []);
-
-  const handleDownload = async (id: number, filename: string) => {
-    try {
-      const response = await axios.get(`/api/files/${id}/download`, {
-        responseType: 'blob',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      toast.error('Error downloading file');
-      console.error('Error:', error);
-    }
-  };
-
   const handleRefresh = async () => {
+    setLoading(true);
     try {
-      const response = await axios.get('/api/files', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      const response = await axios.get('/api/history', {
+        params: {
+          group_name: user?.role === 'admin' ? undefined : user?.role
         }
       });
-
-      if (response.data) {
-        setFiles(response.data);
-        toast.success('Files refreshed');
-      }
+      setHistory(response.data);
+      toast.success('History refreshed successfully');
     } catch (error) {
-      toast.error('Error refreshing files');
-      console.error('Error:', error);
+      toast.error('Failed to refresh history');
+      console.error('Error refreshing history:', error);
+    } finally {
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    handleRefresh();
+  }, [user?.role]);
 
   if (loading) {
     return (
@@ -108,19 +69,13 @@ const Files: React.FC = () => {
       />
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Files</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Download History</h1>
           <div className="space-x-4">
             <button
               onClick={handleRefresh}
               className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
             >
               Refresh
-            </button>
-            <button
-              onClick={() => navigate('/history')}
-              className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-            >
-              See Download History
             </button>
             <button
               onClick={() => navigate('/')}
@@ -139,6 +94,9 @@ const Files: React.FC = () => {
                   ID
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  File ID
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Username
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -151,54 +109,51 @@ const Files: React.FC = () => {
                   Size
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Uploaded Date
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  Requested At
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Completed At
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {files.map((file) => (
-                <tr key={file.id} className="hover:bg-gray-50">
+              {history.map((item) => (
+                <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {file.id}
+                    {item.id}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {file.user_name || 'N/A'}
+                    {item.file_id}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {file.group_name || 'N/A'}
+                    {item.user_name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {file.file_name || 'N/A'}
+                    {item.group_name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {file.file_size || '0 B'}
+                    {item.file_name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(file.created_at).toLocaleString() || 'N/A'}
+                    {item.file_size}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${file.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                        file.status === 'failed' ? 'bg-red-100 text-red-800' : 
-                        'bg-yellow-100 text-yellow-800'}`}>
-                      {file.status}
+                      ${item.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                        item.status === 'failed' ? 'bg-red-100 text-red-800' : 
+                        item.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'}`}>
+                      {item.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <button
-                      onClick={() => handleDownload(file.id, file.file_name)}
-                      className="text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md transition-colors"
-                      disabled={file.status !== 'completed'}
-                      style={{ cursor: file.status !== 'completed' ? 'not-allowed' : 'pointer' }}
-                     > 
-                      Download
-                    </button>
+                    {new Date(item.requested_at).toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {item.completed_at ? new Date(item.completed_at).toLocaleString() : '-'}
                   </td>
                 </tr>
               ))}
@@ -210,4 +165,4 @@ const Files: React.FC = () => {
   );
 };
 
-export default Files; 
+export default History; 
