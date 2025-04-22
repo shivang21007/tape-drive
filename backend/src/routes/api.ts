@@ -367,11 +367,22 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
+    console.log('file.local_file_location : ', file.local_file_location);
     // Check if file exists in local cache
     if (file.local_file_location && fs.existsSync(file.local_file_location)) {
       // If download=true, serve the file
       if (download === 'true') {
-        return res.download(file.local_file_location, file.file_name);
+        const fileStream = fs.createReadStream(file.local_file_location);
+        const stat = fs.statSync(file.local_file_location);
+        console.log('stat : ', stat);
+        res.writeHead(200, {
+          'Content-Length': stat.size,
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(file.file_name)}"`
+        });
+        
+        fileStream.pipe(res);
+        return;
       }
 
       // File is in cache, create download request with cache source
