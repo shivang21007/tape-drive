@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 
 interface DownloadStatus {
   status: 'pending' | 'processing' | 'completed' | 'failed';
+  servedFrom?: 'cache' | 'tape';
   filePath?: string;
   message?: string;
 }
@@ -11,63 +12,58 @@ interface DownloadStatus {
 export const useDownloadStatus = (requestId: number | null) => {
   const [status, setStatus] = useState<DownloadStatus | null>(null);
   const [isPolling, setIsPolling] = useState(false);
-  const [loadingToast, setLoadingToast] = useState<string | null>(null);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
+    let intervalId: NodeJS.Timeout | null = null;
 
-    const startPolling = () => {
+    const checkStatus = async () => {
       if (!requestId) return;
 
-      setIsPolling(true);
-      const toastId = toast.loading('Checking download status...');
-      setLoadingToast(toastId);
+      try {
+        const response = await axios.get(`/api/download-requests/${requestId}/status`);
+        const data = response.data;
 
-      interval = setInterval(async () => {
-        try {
-          const response = await axios.get(`/api/download-requests/${requestId}/status`);
-          const newStatus = response.data;
+        setStatus(data);
 
-          setStatus(newStatus);
+        // If the request is completed or failed, stop polling
+        if (data.status === 'completed' || data.status === 'failed') {
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+          setIsPolling(false);
 
-          if (newStatus.status === 'completed' && newStatus.filePath) {
-            clearInterval(interval!);
-            setIsPolling(false);
-            if (loadingToast) {
-              toast.dismiss(loadingToast);
-            }
+          if (data.status === 'completed') {
             toast.success('File is ready for download!');
-          } else if (newStatus.status === 'failed') {
-            clearInterval(interval!);
-            setIsPolling(false);
-            if (loadingToast) {
-              toast.dismiss(loadingToast);
-            }
+          } else if (data.status === 'failed') {
             toast.error('Failed to process download request');
           }
-        } catch (error) {
-          console.error('Error checking download status:', error);
-          if (loadingToast) {
-            toast.dismiss(loadingToast);
-          }
-          toast.error('Error checking download status');
         }
-      }, 5000); // Poll every 5 seconds
+      } catch (error) {
+        console.error('Error checking download status:', error);
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+        setIsPolling(false);
+      }
     };
 
     if (requestId) {
-      startPolling();
+      setIsPolling(true);
+      // Initial check
+      checkStatus();
+      // Start polling every 5 seconds
+      intervalId = setInterval(checkStatus, 5000);
     }
 
     return () => {
-      if (interval) {
-        clearInterval(interval);
+      if (intervalId) {
+        clearInterval(intervalId);
       }
-      if (loadingToast) {
-        toast.dismiss(loadingToast);
-      }
+      setIsPolling(false);
     };
-  }, [requestId, loadingToast]);
+  }, [requestId]); // Only re-run when requestId changes
 
   return { status, isPolling };
 }; 

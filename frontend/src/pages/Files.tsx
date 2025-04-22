@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import axios from 'axios';
 import { ToastContainer } from 'react-toastify';
+import { FileDownload } from '../components/FileDownload';
 
 interface FileData {
   id: number;
@@ -42,29 +43,6 @@ const Files: React.FC = () => {
 
     fetchFiles();
   }, []);
-
-  const handleDownload = async (id: number, filename: string) => {
-    try {
-      const response = await axios.get(`/api/files/${id}/download`, {
-        responseType: 'blob',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      toast.error('Error downloading file');
-      console.error('Error:', error);
-    }
-  };
 
   const handleRefresh = async () => {
     try {
@@ -191,14 +169,10 @@ const Files: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <button
-                      onClick={() => handleDownload(file.id, file.file_name)}
-                      className="text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md transition-colors"
-                      disabled={file.status !== 'completed'}
-                      style={{ cursor: file.status !== 'completed' ? 'not-allowed' : 'pointer' }}
-                     > 
-                      Download
-                    </button>
+                    <FileDownload 
+                      fileId={file.id}
+                      fileName={file.file_name}
+                    />
                   </td>
                 </tr>
               ))}

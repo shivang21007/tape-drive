@@ -367,14 +367,13 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    console.log('file.local_file_location : ', file.local_file_location);
     // Check if file exists in local cache
     if (file.local_file_location && fs.existsSync(file.local_file_location)) {
+      console.log('file.local_file_location is true ....');
       // If download=true, serve the file
       if (download === 'true') {
         const fileStream = fs.createReadStream(file.local_file_location);
         const stat = fs.statSync(file.local_file_location);
-        console.log('stat : ', stat);
         res.writeHead(200, {
           'Content-Length': stat.size,
           'Content-Type': 'application/octet-stream',
@@ -406,14 +405,15 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
       return;
     }
 
+    console.log('file.local_file_location is false ....');
     // File not in cache, create download request and queue job
     const connection = await mysqlPool.getConnection();
     
     try {
-      // Insert download request
+      // Insert download request with requested status
       const [result] = await connection.query<ResultSetHeader>(
         'INSERT INTO download_requests (file_id, user_name, group_name, status) VALUES (?, ?, ?, ?)',
-        [file.id, user.name, user.role, 'pending']
+        [file.id, user.name, user.role, 'processing']
       );
 
       // Push download job to queue
@@ -430,14 +430,18 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
         requestedAt: Date.now()
       };
 
-      await fileQueue.add('file-processing', jobData, {
+      console.log('jobData : ', jobData);
+
+      const job = await fileQueue.add('file-processing', jobData, {
         priority: user.role === 'admin' ? 1 : 2, // Higher priority for admin files
         jobId: `download-${result.insertId}`
       });
 
+      console.log('Job added successfully with ID:', job.id); 
+      
       res.json({ 
-        status: 'pending',
-        message: 'Download request has been queued. You will be notified when the file is available.',
+        status: 'processing',
+        message: 'Your request has been taken. You will be notified by email when the file is available.',
         requestId: result.insertId
       });
     } finally {
@@ -515,6 +519,7 @@ router.get('/history', hasFeatureAccess, async (req, res) => {
         ud.file_name,
         ud.file_size,
         dr.status,
+        dr.served_from,
         dr.requested_at,
         dr.completed_at
       FROM download_requests dr
@@ -536,6 +541,50 @@ router.get('/history', hasFeatureAccess, async (req, res) => {
   } catch (error) {
     console.error('Error fetching history:', error);
     res.status(500).json({ error: 'Failed to fetch history' });
+  }
+});
+
+// Check download request status by fileId
+router.get('/download-requests/status', hasFeatureAccess, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  const { fileId } = req.query;
+  const user = req.user as User;
+
+  if (!fileId) {
+    return res.status(400).json({ error: 'File ID is required' });
+  }
+
+  try {
+    const [requests] = await mysqlPool.query(
+      `SELECT * FROM download_requests 
+       WHERE file_id = ? AND user_name = ? 
+       ORDER BY requested_at DESC 
+       LIMIT 1`,
+      [fileId, user.name]
+    );
+
+    if ((requests as any[]).length === 0) {
+      return res.json({ 
+        status: 'none',
+        message: 'No download request found'
+      });
+    }
+
+    const request = (requests as any[])[0];
+
+    res.json({ 
+      status: request.status,
+      requestId: request.id,
+      message: request.status === 'completed' ? 'File is ready for download' : 
+               request.status === 'failed' ? 'Download request failed' :
+               'Request is being processed'
+    });
+  } catch (error) {
+    console.error('Error checking download status:', error);
+    res.status(500).json({ error: 'Failed to check download status' });
   }
 });
 

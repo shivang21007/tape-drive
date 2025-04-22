@@ -80,7 +80,7 @@ const createTables = async () => {
         file_id INT NOT NULL,
         user_name VARCHAR(255) NOT NULL,
         group_name VARCHAR(255) NOT NULL,
-        status ENUM('pending', 'processing', 'completed', 'failed') DEFAULT 'pending',
+        status ENUM('none', 'requested', 'processing', 'completed', 'failed') DEFAULT 'none',
         served_from ENUM('cache', 'tape') DEFAULT NULL,
         requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         completed_at TIMESTAMP NULL,

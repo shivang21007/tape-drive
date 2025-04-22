@@ -1,12 +1,13 @@
 import { mysqlPool } from '../index';
+import fs from 'fs';
+import path from 'path';
 
 async function runMigration() {
   const connection = await mysqlPool.getConnection();
   try {
-    await connection.query(`
-      ALTER TABLE upload_details 
-      MODIFY COLUMN status VARCHAR(20) NOT NULL DEFAULT 'pending'
-    `);
+    const migrationPath = path.join(__dirname, 'alter_download_requests.sql');
+    const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
+    await connection.query(migrationSQL);
     console.log('Alter table completed successfully');
     connection.release();
   } catch (error) {
