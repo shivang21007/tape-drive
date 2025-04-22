@@ -259,7 +259,7 @@ router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res)
       try {
         const job = await fileQueue.add('file-processing', jobData, {
           priority: user.role === 'admin' ? 1 : 2, // Higher priority for admin files
-          // jobId: `upload-${result.insertId}`
+          jobId: `upload-${result.insertId}`
         });
         
         console.log('Job added successfully with ID:', job.id);
@@ -369,7 +369,6 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
 
     // Check if file exists in local cache
     if (file.local_file_location && fs.existsSync(file.local_file_location)) {
-      console.log('file.local_file_location is true ....');
       // If download=true, serve the file
       if (download === 'true') {
         const fileStream = fs.createReadStream(file.local_file_location);
@@ -405,7 +404,7 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
       return;
     }
 
-    console.log('file.local_file_location is false ....');
+
     // File not in cache, create download request and queue job
     const connection = await mysqlPool.getConnection();
     
@@ -438,7 +437,7 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
       });
 
       console.log('Job added successfully with ID:', job.id); 
-      
+
       res.json({ 
         status: 'processing',
         message: 'Your request has been taken. You will be notified by email when the file is available.',
