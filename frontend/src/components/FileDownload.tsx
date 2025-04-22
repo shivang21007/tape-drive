@@ -28,14 +28,14 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
     const loadingToast = toast.loading('Checking file availability...');
 
     try {
+      // First check if file is in cache
       const response = await axios.get(`/api/files/${fileId}/download`);
       const data = response.data;
 
       if (data.status === 'completed' && data.servedFrom === 'cache') {
         // File is in cache, download it
-        const fileResponse = await axios.get(`/api/files/${fileId}/download`, {
-          responseType: 'blob',
-          params: { download: true }
+        const fileResponse = await axios.get(`/api/files/${fileId}/download?download=true`, {
+          responseType: 'blob'
         });
         
         setIsDownloading(false);

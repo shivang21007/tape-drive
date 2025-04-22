@@ -347,6 +347,7 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
 
   const user = req.user as User;
   const { id } = req.params;
+  const { download } = req.query;
 
   try {
     // Get file details
@@ -368,6 +369,11 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
 
     // Check if file exists in local cache
     if (file.local_file_location && fs.existsSync(file.local_file_location)) {
+      // If download=true, serve the file
+      if (download === 'true') {
+        return res.download(file.local_file_location, file.file_name);
+      }
+
       // File is in cache, create download request with cache source
       const connection = await mysqlPool.getConnection();
       
