@@ -8,9 +8,16 @@ import { downloadFile, isFileTypeSupported } from '../utils/downloadUtils';
 interface FileDownloadProps {
   fileId: number;
   fileName: string;
+  userName: string;
+  groupName: string;
 }
 
-export const FileDownload: React.FC<FileDownloadProps> = ({ fileId, fileName }) => {
+export const FileDownload: React.FC<FileDownloadProps> = ({ 
+  fileId, 
+  fileName,
+  userName,
+  groupName 
+}) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [requestId, setRequestId] = useState<number | null>(null);
   const { status, isPolling } = useDownloadStatus(requestId);
@@ -25,10 +32,11 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ fileId, fileName }) 
     const loadingToast = toast.loading('Checking file availability...');
 
     try {
+      // Step 1: Check if file exists in local cache
       const response = await axios.get(`/api/files/${fileId}/download`);
 
-      // If file is in cache, it will return a completed status
-      if (response.data.status === 'completed' && response.data.filePath) {
+      // If file is in cache (served_from: 'cache')
+      if (response.data.status === 'completed' && response.data.served_from === 'cache') {
         // Download the file from the cache
         const fileResponse = await axios.get(`/api/files/${fileId}/download`, {
           responseType: 'blob'
@@ -41,11 +49,11 @@ export const FileDownload: React.FC<FileDownloadProps> = ({ fileId, fileName }) 
         return;
       }
 
-      // If file is not in cache, start polling
+      // If file is not in cache (served_from: 'tape')
       if (response.data.status === 'pending' && response.data.requestId) {
         setRequestId(response.data.requestId);
         toast.dismiss(loadingToast);
-        toast.success(response.data.message);
+        toast.success('Your request has been taken. You will be notified by email when the file is ready.');
       } else {
         throw new Error('Unexpected response from server');
       }
