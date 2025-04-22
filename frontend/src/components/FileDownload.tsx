@@ -28,44 +28,26 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
     const loadingToast = toast.loading('Checking file availability...');
 
     try {
-      // Single API call to check status and get file if available
-      const response = await axios.get(`/api/files/${fileId}/download`, {
-        responseType: 'blob',
-        headers: {
-          'Accept': 'application/json, application/octet-stream'
-        }
-      });
+      const response = await axios.get(`/api/files/${fileId}/download`);
+      const data = response.data;
 
-      // Check if the response is a JSON (status response) or a blob (file)
-      const contentType = response.headers['content-type'];
-      
-      if (contentType?.includes('application/json')) {
-        // Handle status response
-        const data = JSON.parse(await response.data.text());
+      if (data.status === 'completed' && data.servedFrom === 'cache') {
+        // File is in cache, download it
+        const fileResponse = await axios.get(`/api/files/${fileId}/download`, {
+          responseType: 'blob',
+          params: { download: true }
+        });
         
-        if (data.status === 'completed' && data.served_from === 'cache') {
-          // File is in cache, make another request to download
-          const fileResponse = await axios.get(`/api/files/${fileId}/download`, {
-            responseType: 'blob'
-          });
-          
-          setIsDownloading(false);
-          toast.dismiss(loadingToast);
-          toast.success('File found in cache!');
-          downloadFile(fileResponse.data, fileName);
-        } else if (data.status === 'pending' && data.requestId) {
-          setRequestId(data.requestId);
-          toast.dismiss(loadingToast);
-          toast.success('Your request has been taken. You will be notified by email when the file is ready.');
-        } else {
-          throw new Error('Unexpected response from server');
-        }
-      } else {
-        // Direct file download
         setIsDownloading(false);
         toast.dismiss(loadingToast);
         toast.success('File found in cache!');
-        downloadFile(response.data, fileName);
+        downloadFile(fileResponse.data, fileName);
+      } else if (data.status === 'pending' && data.requestId) {
+        setRequestId(data.requestId);
+        toast.dismiss(loadingToast);
+        toast.success('Your request has been taken. You will be notified by email when the file is ready.');
+      } else {
+        throw new Error('Unexpected response from server');
       }
     } catch (error) {
       setIsDownloading(false);
