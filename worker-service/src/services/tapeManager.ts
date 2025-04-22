@@ -85,13 +85,18 @@ export class TapeManager {
         return;
       }
 
-      // Unmount the tape
+      // Unmount the tape with retries for busy target
       logger.info('Unmounting tape...');
-      await execAsync(`sudo umount ${this.mountPoint}`);
+      await this.waitForUnmount();
 
       // Wait for LTFS process to terminate
       await this.waitForNoLtfsProcess();
 
+      // check isTapeMounted
+      if (await this.isTapeMounted()) {
+        throw new Error('Tape is still mounted after unmounting .......');
+      }
+    
       logger.info('Tape unmounted successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
