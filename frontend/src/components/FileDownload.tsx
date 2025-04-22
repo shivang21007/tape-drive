@@ -8,15 +8,11 @@ import { downloadFile, isFileTypeSupported } from '../utils/downloadUtils';
 interface FileDownloadProps {
   fileId: number;
   fileName: string;
-  userName: string;
-  groupName: string;
 }
 
 export const FileDownload: React.FC<FileDownloadProps> = ({ 
   fileId, 
-  fileName,
-  userName,
-  groupName 
+  fileName
 }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [requestId, setRequestId] = useState<number | null>(null);
@@ -32,39 +28,56 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
     const loadingToast = toast.loading('Checking file availability...');
 
     try {
-      // Step 1: Check if file exists in local cache
-      const response = await axios.get(`/api/files/${fileId}/download`);
+      // Single API call to check status and get file if available
+      const response = await axios.get(`/api/files/${fileId}/download`, {
+        responseType: 'blob',
+        headers: {
+          'Accept': 'application/json, application/octet-stream'
+        }
+      });
 
-      // If file is in cache (served_from: 'cache')
-      if (response.data.status === 'completed' && response.data.served_from === 'cache') {
-        // Download the file from the cache
-        const fileResponse = await axios.get(`/api/files/${fileId}/download`, {
-          responseType: 'blob'
-        });
+      // Check if the response is a JSON (status response) or a blob (file)
+      const contentType = response.headers['content-type'];
+      
+      if (contentType?.includes('application/json')) {
+        // Handle status response
+        const data = JSON.parse(await response.data.text());
         
+        if (data.status === 'completed' && data.served_from === 'cache') {
+          // File is in cache, make another request to download
+          const fileResponse = await axios.get(`/api/files/${fileId}/download`, {
+            responseType: 'blob'
+          });
+          
+          setIsDownloading(false);
+          toast.dismiss(loadingToast);
+          toast.success('File found in cache!');
+          downloadFile(fileResponse.data, fileName);
+        } else if (data.status === 'pending' && data.requestId) {
+          setRequestId(data.requestId);
+          toast.dismiss(loadingToast);
+          toast.success('Your request has been taken. You will be notified by email when the file is ready.');
+        } else {
+          throw new Error('Unexpected response from server');
+        }
+      } else {
+        // Direct file download
         setIsDownloading(false);
         toast.dismiss(loadingToast);
         toast.success('File found in cache!');
-        downloadFile(fileResponse.data, fileName);
-        return;
-      }
-
-      // If file is not in cache (served_from: 'tape')
-      if (response.data.status === 'pending' && response.data.requestId) {
-        setRequestId(response.data.requestId);
-        toast.dismiss(loadingToast);
-        toast.success('Your request has been taken. You will be notified by email when the file is ready.');
-      } else {
-        throw new Error('Unexpected response from server');
+        downloadFile(response.data, fileName);
       }
     } catch (error) {
       setIsDownloading(false);
       toast.dismiss(loadingToast);
+      
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 404) {
           toast.error('File not found');
         } else if (error.response?.status === 403) {
           toast.error('Access denied');
+        } else if (error.response?.status === 500) {
+          toast.error('Server error. Please try again later.');
         } else {
           toast.error('Failed to initiate download');
         }
