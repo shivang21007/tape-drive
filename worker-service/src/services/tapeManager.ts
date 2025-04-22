@@ -89,16 +89,8 @@ export class TapeManager {
       logger.info('Unmounting tape...');
       await execAsync(`sudo umount ${this.mountPoint}`);
 
-      // Wait for unmount to complete
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
       // Wait for LTFS process to terminate
       await this.waitForNoLtfsProcess();
-
-      // Verify unmount was successful
-      if (await this.isTapeMounted()) {
-        throw new Error('Tape unmount verification failed');
-      }
 
       logger.info('Tape unmounted successfully');
     } catch (error) {
@@ -136,9 +128,20 @@ export class TapeManager {
         throw new Error(`Tape ${tapeNumber} is not configured for any group`);
       }
 
-      // Find and load the tape
+      // Find tape slot
       const tapeSlot = await this.findTapeSlot(tapeNumber);
-      await this.executeTapeCommand(`sudo mtx -f ${this.tapeDevice} load ${tapeSlot} 0`);
+      logger.info(`Loading tape ${tapeNumber} from slot ${tapeSlot}...`);
+      
+      // Load the tape
+      await execAsync(`sudo mtx -f ${this.tapeDevice} load ${tapeSlot} 0`);
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for load
+      
+      // Verify tape is loaded
+      const { stdout } = await execAsync(`mtx -f ${this.tapeDevice} status`);
+      if (!stdout.includes(`Data Transfer Element 0:Full (Storage Element ${tapeSlot} Loaded):VolumeTag = ${tapeNumber}`)) {
+        throw new Error(`Failed to verify tape ${tapeNumber} is loaded`);
+      }
+      
       this.currentTape = tapeNumber;
       logger.info(`Loaded tape ${tapeNumber} from slot ${tapeSlot}`);
     } catch (error) {
@@ -149,10 +152,15 @@ export class TapeManager {
 
   public async unloadTape(): Promise<void> {
     try {
+      // Find empty slot
       const emptySlot = await this.findEmptySlot();
-      await this.executeTapeCommand(`sudo mtx -f ${this.tapeDevice} unload ${emptySlot} 0`);
-      this.currentTape = null;
-      logger.info(`Unloaded tape to slot ${emptySlot}`);
+      logger.info(`Unloading tape to slot ${emptySlot}...`);
+      
+      // Unload the tape
+      await execAsync(`sudo mtx -f ${this.tapeDevice} unload ${emptySlot} 0`);
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for unload
+      
+      logger.info(`Tape unloaded to slot ${emptySlot}`);
     } catch (error) {
       logger.error('Failed to unload tape:', error);
       throw error;
@@ -171,12 +179,6 @@ export class TapeManager {
       if (!fsSync.existsSync(this.mountPoint)) {
         await fs.mkdir(this.mountPoint, { recursive: true });
         logger.info(`Created mount point directory: ${this.mountPoint}`);
-      }
-
-      // Check if tape is present in drive
-      const { stdout: tapeStatus } = await execAsync('mt -f /dev/nst0 status');
-      if (!tapeStatus.includes('ONLINE')) {
-        throw new Error('No tape present in drive');
       }
 
       // Mount the tape
@@ -235,27 +237,21 @@ export class TapeManager {
   }
 
   private async waitForNoLtfsProcess(): Promise<void> {
-    let attempts = 0;
-    const maxAttempts = 20;
-    const delay = 5000; // 5 seconds
-
-    while (attempts < maxAttempts) {
+    while (true) {
       try {
         const { stdout } = await execAsync('pidof ltfs');
         if (!stdout.trim()) {
           logger.info('LTFS process terminated');
           return;
         }
-        logger.info(`Waiting for LTFS process to terminate (attempt ${attempts + 1}/${maxAttempts})...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        attempts++;
+        logger.info('Waiting for LTFS process to terminate...');
+        await new Promise(resolve => setTimeout(resolve, 5000));
       } catch (error) {
         // pidof returns non-zero when no process is found
         logger.info('LTFS process terminated');
         return;
       }
     }
-    throw new Error('LTFS process did not terminate in time');
   }
 
   public async isTapeMounted(): Promise<boolean> {
@@ -270,12 +266,6 @@ export class TapeManager {
 
   public async ensureCorrectTape(groupName: string): Promise<string> {
     try {
-      // Check if tape is mounted
-      if (!await this.isTapeMounted()) {
-        logger.info('Tape is not mounted, attempting to mount...');
-        await this.mountTape();
-      }
-
       // Get current tape number
       const currentTape = await this.getCurrentTape();
       if (!currentTape) {
@@ -286,7 +276,6 @@ export class TapeManager {
       const tapeGroup = await this.getTapeGroup(currentTape);
       if (tapeGroup !== groupName) {
         logger.info(`Current tape (${currentTape}) does not match required group (${groupName})`);
-        await this.unmountTape();
         
         // Get the first configured tape for the group
         const groupTapes = this.tapeConfig[groupName];
@@ -294,9 +283,13 @@ export class TapeManager {
           throw new Error(`No tapes configured for group ${groupName}`);
         }
         
-        // Load the first configured tape for the group
+        // Follow exact tape switching workflow
+        await this.unmountTape();
+        await this.unloadTape();
         await this.loadTape(groupTapes[0]);
         await this.mountTape();
+        
+        // Verify new tape is loaded
         const newTape = await this.getCurrentTape();
         if (!newTape) {
           throw new Error('Failed to get new tape number after loading');
