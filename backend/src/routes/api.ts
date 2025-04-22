@@ -386,7 +386,7 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
         res.json({ 
           status: 'completed',
           servedFrom: 'cache',
-          filePath: file.local_file_location,
+          local_file_location: file.local_file_location,
           requestId: result.insertId
         });
       } finally {
