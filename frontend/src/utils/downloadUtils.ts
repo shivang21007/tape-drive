@@ -23,6 +23,6 @@ export const getFileExtension = (fileName: string): string => {
 
 export const isFileTypeSupported = (fileName: string): boolean => {
   const extension = getFileExtension(fileName);
-  const supportedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'jpg', 'jpeg', 'png', 'gif','.tar','.zip'];
+  const supportedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'jpg', 'jpeg', 'png', 'gif','tar','zip','iso','tar.gz'];
   return supportedTypes.includes(extension);
 }; 
