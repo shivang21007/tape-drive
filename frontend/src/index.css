@@ -161,7 +161,7 @@ button:active {
   align-items: center;
   padding: 1rem 2rem;
   background-color: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #4a78a6;
 }
 
 .header-left {
@@ -430,7 +430,7 @@ button:active {
 main {
   flex: 1;
   padding: 2rem;
-  background-color: #f8f9fa;
+  background-color: #ffffff;
 }
 
 .max-w-7xl {

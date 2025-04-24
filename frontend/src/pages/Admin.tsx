@@ -4,12 +4,12 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { User } from '../types/user';
 import { Group } from '../types/group';
-import { Process } from '../types/process';
+// import { Process } from '../types/process';
 import { UsersTable } from '../components/admin/UsersTable';
 import { GroupsTable } from '../components/admin/GroupsTable';
-import { ProcessesTable } from '../components/admin/ProcessesTable';
+// import { ProcessesTable } from '../components/admin/ProcessesTable';
 import { AddGroupForm } from '../components/admin/AddGroupForm';
-import { AddProcessForm } from '../components/admin/AddProcessForm';
+// import { AddProcessForm } from '../components/admin/AddProcessForm';
 import octroLogo from '../assets/octro-logo.png';
 
 const Admin: React.FC = () => {
@@ -17,12 +17,12 @@ const Admin: React.FC = () => {
   const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [processes, setProcesses] = useState<Process[]>([]);
+  // const [processes, setProcesses] = useState<Process[]>([]);
   const [activeTab, setActiveTab] = useState<'users' | 'groups' | 'processes'>('users');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddGroup, setShowAddGroup] = useState(false);
-  const [showAddProcess, setShowAddProcess] = useState(false);
+  // const [showAddProcess, setShowAddProcess] = useState(false);
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
@@ -33,15 +33,15 @@ const Admin: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [usersRes, groupsRes, processesRes] = await Promise.all([
+        const [usersRes, groupsRes] = await Promise.all([
           axios.get(`${import.meta.env.VITE_API_URL}/api/users`, { withCredentials: true }),
           axios.get(`${import.meta.env.VITE_API_URL}/api/groups`, { withCredentials: true }),
-          axios.get(`${import.meta.env.VITE_API_URL}/api/processes`, { withCredentials: true }),
+          // axios.get(`${import.meta.env.VITE_API_URL}/api/processes`, { withCredentials: true }),
         ]);
 
         setUsers(usersRes.data);
         setGroups(groupsRes.data);
-        setProcesses(processesRes.data);
+        // setProcesses(processesRes.data);
       } catch (error) {
         setError('Failed to load data');
         console.error('Error fetching data:', error);
@@ -103,31 +103,6 @@ const Admin: React.FC = () => {
     }
   };
 
-  const handleAddProcess = async (name: string, description: string) => {
-    try {
-      const response = await fetch('/api/processes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({ name, description })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create process');
-      }
-
-      const newProcess = await response.json();
-      setProcesses([...processes, newProcess]);
-      setShowAddProcess(false);
-    } catch (err) {
-      setError('Failed to create process');
-      console.error('Error creating process:', err);
-    }
-  };
-
   const handleLogout = async () => {
     try {
       await logout();
@@ -162,7 +137,7 @@ const Admin: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="header bg-white shadow-sm py-4 px-6">
+      <header className="header bg-white shadow-sm py-4 px-6 border-b border-black">
         <div className="header-right">
           <img src={octroLogo} alt="Octro Logo" className="h-8" />
         </div>
@@ -205,7 +180,7 @@ const Admin: React.FC = () => {
             >
               Groups
             </button>
-            <button
+            {/* <button
               onClick={() => setActiveTab("processes")}
               className={`px-6 py-2 rounded-lg transition-all duration-200 font-medium
                 ${activeTab === "processes" 
@@ -213,62 +188,48 @@ const Admin: React.FC = () => {
                   : "text-gray-600 hover:bg-gray-100"}`}
             >
               Processes
-            </button>
+            </button> */}
           </div>
 
-          {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="text-lg font-medium text-gray-600">Loading...</div>
+          {activeTab === 'users' && <UsersTable users={users} onRoleChange={handleRoleChange} />}
+          {activeTab === 'groups' && (
+            <div>
+              <div className="mb-4">
+                <button
+                  onClick={() => setShowAddGroup(true)}
+                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                >
+                  Add Group
+                </button>
+              </div>
+              <GroupsTable groups={groups} />
+              {showAddGroup && (
+                <AddGroupForm
+                  onAddGroup={handleAddGroup}
+                  onCancel={() => setShowAddGroup(false)}
+                />
+              )}
             </div>
-          ) : (
-            <>
-              {activeTab === 'users' && <UsersTable users={users} onRoleChange={handleRoleChange} />}
-              {activeTab === 'groups' && (
-                <>
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold">Groups</h2>
-                    <button
-                      onClick={() => setShowAddGroup(true)}
-                      className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                    >
-                      Add New Group
-                    </button>
-                  </div>
-                  {showAddGroup && (
-                    <div className="mb-4">
-                      <AddGroupForm
-                        onAddGroup={handleAddGroup}
-                        onCancel={() => setShowAddGroup(false)}
-                      />
-                    </div>
-                  )}
-                  <GroupsTable groups={groups} />
-                </>
-              )}
-              {activeTab === 'processes' && (
-                <>
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold">Processes</h2>
-                    <button
-                      onClick={() => setShowAddProcess(true)}
-                      className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                    >
-                      Add New Process
-                    </button>
-                  </div>
-                  {showAddProcess && (
-                    <div className="mb-4">
-                      <AddProcessForm
-                        onAddProcess={handleAddProcess}
-                        onCancel={() => setShowAddProcess(false)}
-                      />
-                    </div>
-                  )}
-                  <ProcessesTable processes={processes} />
-                </>
-              )}
-            </>
           )}
+          {/* {activeTab === 'processes' && (
+            <div>
+              <div className="mb-4">
+                <button
+                  onClick={() => setShowAddProcess(true)}
+                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                >
+                  Add Process
+                </button>
+              </div>
+              <ProcessesTable processes={processes} />
+              {showAddProcess && (
+                <AddProcessForm
+                  onAdd={handleAddProcess}
+                  onCancel={() => setShowAddProcess(false)}
+                />
+              )}
+            </div>
+          )} */}
         </div>
       </main>
     </div>
