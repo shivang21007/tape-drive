@@ -70,7 +70,7 @@ export class DatabaseService {
 
   async updateDownloadRequestStatus(
     requestId: number,
-    status: 'pending' | 'processing' | 'completed' | 'failed',
+    status: 'none' | 'requested' | 'processing' | 'completed' | 'failed',
     localPath?: string
   ): Promise<void> {
     const connection = await this.pool.getConnection();
@@ -92,7 +92,11 @@ export class DatabaseService {
     }
   }
 
-  public async updateDownloadStatus(requestId: number, status: 'pending' | 'processing' | 'completed' | 'failed', servedFrom?: 'cache' | 'tape') {
+  public async updateDownloadStatus(
+    requestId: number, 
+    status: 'none' | 'requested' | 'processing' | 'completed' | 'failed', 
+    servedFrom?: 'cache' | 'tape'
+  ) {
     const connection = await this.pool.getConnection();
     try {
       if (status === 'completed') {
