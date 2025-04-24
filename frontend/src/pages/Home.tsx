@@ -46,6 +46,12 @@ const Home: React.FC = () => {
                     Logout
                   </button>
                 </div>
+                <button 
+                  className="contact-admin"
+                  onClick={() => window.open(`https://mail.google.com/mail/u/0/?view=cm&fs=1&to=${import.meta.env.VITE_ADMIN_EMAIL}`, '_blank')}
+                >
+                  Contact Admin
+                </button>
               </div>
             </div>
           </div>
@@ -377,6 +383,12 @@ const Home: React.FC = () => {
       <footer className="footer">
         Made with <span className="heart">❤</span> by DevOps Team
       </footer>
+      <button 
+        className="contact-admin"
+        onClick={() => window.open(`https://mail.google.com/mail/u/0/?view=cm&fs=1&to=${import.meta.env.VITE_ADMIN_EMAIL}`, '_blank')}
+      >
+        Contact Admin
+      </button>
     </div>
   );
 };
