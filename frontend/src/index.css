@@ -622,3 +622,45 @@ label {
   background: rgba(245, 158, 11, 0.1);
   border-color: rgba(245, 158, 11, 0.2);
 }
+
+/* Contact Admin Button */
+.contact-admin {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 10px 20px;
+  background-color: #2c455c;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 200px;
+  text-align: center;
+}
+
+.contact-admin:hover {
+  background-color: #3a5a78;
+  transform: translateY(-2px);
+}
+
+.contact-admin::after {
+  content: attr(data-email);
+  position: absolute;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  left: 0;
+  right: 0;
+  padding: 10px 20px;
+  text-align: center;
+}
+
+.contact-admin:hover::after {
+  opacity: 1;
+}
+
+.contact-admin:hover span {
+  opacity: 0;
+}
