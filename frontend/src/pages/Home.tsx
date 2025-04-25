@@ -24,6 +24,7 @@ const formatFileSize = (bytes: number): string => {
 const Home: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'piyush.sharma@octrotalk.com';
 
   // Show welcome message for users without a role
   if (!user?.role || user.role === 'user') {
@@ -38,20 +39,20 @@ const Home: React.FC = () => {
                   Thank you for joining TapeX! To get started, please contact your administrator to assign you a role.
                   Once you have a role, you'll be able to access the file management features.
                 </p>
-                <div className="mt-6">
+                <div className="mt-6 flex">
                   <button
                     onClick={logout}
                     className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
                   >
                     Logout
                   </button>
+                  <button
+                    className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+                    onClick={() => window.open(`https://mail.google.com/mail/u/0/?view=cm&fs=1&to=${adminEmail}`, '_blank')}
+                  >
+                    Contact Admin
+                  </button>
                 </div>
-                <button 
-                  className="contact-admin"
-                  onClick={() => window.open(`https://mail.google.com/mail/u/0/?view=cm&fs=1&to=${import.meta.env.VITE_ADMIN_EMAIL}`, '_blank')}
-                >
-                  Contact Admin
-                </button>
               </div>
             </div>
           </div>
@@ -266,13 +267,20 @@ const Home: React.FC = () => {
                   Admin Panel
                 </button>
               )}
-
+              {user?.role != 'admin' && (
+                <button
+                  onClick={() => window.open(`https://mail.google.com/mail/u/0/?view=cm&fs=1&to=${adminEmail}`, '_blank')}
+                  className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+                >
+                  Contact Admin
+                </button>
+              )}
               <button
                 onClick={logout}
                 className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
               >
                 Logout
-              </button>
+              </button>              
             </div>
           </div>
         </div>
@@ -344,8 +352,8 @@ const Home: React.FC = () => {
           <button
             onClick={() => fileInputRef.current?.click()}
             className={`rounded-md px-4 py-2 text-sm font-medium text-white transition-colors duration-1000 ${selectedFile
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-gray-800 hover:bg-gray-700"
+              ? "bg-green-600 hover:bg-green-700"
+              : "bg-gray-800 hover:bg-gray-700"
               }`}
             disabled={isUploading}
           >
@@ -383,12 +391,6 @@ const Home: React.FC = () => {
       <footer className="footer">
         Made with <span className="heart">❤</span> by DevOps Team
       </footer>
-      <button 
-        className="contact-admin"
-        onClick={() => window.open(`https://mail.google.com/mail/u/0/?view=cm&fs=1&to=${import.meta.env.VITE_ADMIN_EMAIL}`, '_blank')}
-      >
-        Contact Admin
-      </button>
     </div>
   );
 };
