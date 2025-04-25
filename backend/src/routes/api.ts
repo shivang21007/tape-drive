@@ -8,6 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileQueue } from '../queue/fileQueue';
 import { FileProcessingJob } from '../types/fileProcessing';
+import csv from 'csv-parse/sync';
 
 const router = express.Router();
 
@@ -585,6 +586,60 @@ router.get('/download-requests/status', hasFeatureAccess, async (req, res) => {
     console.error('Error checking download status:', error);
     res.status(500).json({ error: 'Failed to check download status' });
   }
+});
+
+// Get server list for secure copy
+router.get('/securecopy/servers', hasFeatureAccess, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  const user = req.user as User;
+  
+  // Only allow non-user roles
+  if (user.role === 'user') {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  try {
+    // Read the CSV file
+    const csvPath = process.env.SERVER_LIST_CSV || path.join(__dirname, '../../IP-Address-Allocation.csv');
+    const fileContent = fs.readFileSync(csvPath, 'utf8');
+    
+    // Parse CSV
+    const records = csv.parse(fileContent, {
+      columns: true,
+      skip_empty_lines: true
+    });
+
+    // Filter servers by user's group
+    const userServers = records
+      .filter((record: any) => record.group === user.role)
+      .map((record: any) => record['server name']);
+
+    res.json({ servers: userServers });
+  } catch (error) {
+    console.error('Error reading server list:', error);
+    res.status(500).json({ error: 'Failed to get server list' });
+  }
+});
+
+// Handle secure copy upload
+router.post('/securecopy/upload', hasFeatureAccess, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  const { server, filePath } = req.body;
+
+  if (!server || !filePath) {
+    return res.status(400).json({ error: 'Server and file path are required' });
+  }
+
+  // TODO: Implement secure copy logic
+  console.log('Secure copy request:', { server, filePath, user: req.user.name, userRole: req.user.role });
+
+  res.json({ message: 'Secure copy request received' });
 });
 
 export default router; 
