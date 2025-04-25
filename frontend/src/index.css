@@ -128,8 +128,8 @@ button:disabled {
 /* Focus state */
 button:focus {
   outline: none;
-  ring: 2px solid rgba(44, 69, 92, 0.5);
-  ring-offset: 2px;
+  border: 2px solid rgba(44, 69, 92, 0.5);
+  border-radius: 8px;
 }
 
 /* Active state */
