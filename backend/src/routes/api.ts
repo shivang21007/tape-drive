@@ -8,7 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileQueue, secureCopyQueue } from '../queue/fileQueue';
 import { FileProcessingJob, SecureCopyJob } from '../types/fileProcessing';
-import csv from 'csv-parse/sync';
+import { getServerList } from '../utils/serverList';
 
 const router = express.Router();
 
@@ -588,7 +588,7 @@ router.get('/download-requests/status', hasFeatureAccess, async (req, res) => {
   }
 });
 
-// Get server list for secure copy
+ // Get server list for secure copy through local csv file
 router.get('/securecopy/servers', hasFeatureAccess, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
@@ -596,33 +596,29 @@ router.get('/securecopy/servers', hasFeatureAccess, async (req, res) => {
 
   const user = req.user as User;
 
-  // Only allow non-user roles
   if (user.role === 'user') {
     return res.status(403).json({ error: 'Access denied' });
   }
 
   try {
-    // Read the CSV file
-    const csvPath = process.env.SERVER_LIST_CSV || path.join(__dirname, '../../IP-Address-Allocation.csv');
-    const fileContent = fs.readFileSync(csvPath, 'utf8');
+    const records = await getServerList();
 
-    // Parse CSV
-    const records = csv.parse(fileContent, {
-      columns: true,
-      skip_empty_lines: true
-    });
+    if (user.role === 'admin') {
+      return res.json({ servers: records.map(record => record.server_name) });
+    }
 
-    // Filter servers by user's group
     const userServers = records
-      .filter((record: any) => record.group === user.role)
-      .map((record: any) => record['server name']);
+      .filter(record => record.group === user.role)
+      .map(record => record.server_name);
 
     res.json({ servers: userServers });
+
   } catch (error) {
-    console.error('Error reading server list:', error);
+    console.error('Error getting server list:', error);
     res.status(500).json({ error: 'Failed to get server list' });
   }
 });
+
 
 // Handle secure copy upload
 router.post('/securecopy/upload', hasFeatureAccess, async (req, res) => {
