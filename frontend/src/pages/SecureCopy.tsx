@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useAuth } from '../contexts/AuthContext';
+import {toast, ToastContainer } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
 
-interface Server {
-  name: string;
-}
 
 const SecureCopy: React.FC = () => {
-  const { user } = useAuth();
+  const navigate = useNavigate();
   const [servers, setServers] = useState<string[]>([]);
   const [selectedServer, setSelectedServer] = useState('');
   const [filePath, setFilePath] = useState('');
@@ -36,20 +34,42 @@ const SecureCopy: React.FC = () => {
         server: selectedServer,
         filePath
       });
+      toast.success('File uploaded successfully');
       console.log('Upload successful :', response.data);
+
       // TODO: Handle successful upload
     } catch (error) {
       console.error('Error uploading file:', error);
       setError('Failed to upload file');
     }
+    setSelectedServer('');
+    setFilePath('');
   };
 
   return (
     <div className="min-h-screen bg-gray-100">
+      <ToastContainer 
+      position="top-right"
+      autoClose={3000}
+      hideProgressBar={false}
+      newestOnTop
+      closeOnClick
+      rtl={false}
+      pauseOnFocusLoss
+      draggable
+      pauseOnHover
+       />
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+        <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-6">Secure Copy</h1>
-          
+          <div className="space-x-4">
+            <button
+              onClick={() => navigate('/')}
+              className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+            >
+              Back to Home
+            </button>
+          </div>
           <div className="bg-white shadow sm:rounded-lg p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/Button';
-// import { toast } from 'react-hot-toast';
 import axios from 'axios';
 import { downloadFile, isFileTypeSupported } from '../utils/downloadUtils';
 
