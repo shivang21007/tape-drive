@@ -105,25 +105,25 @@ export class TapeManager {
     }
   }
 
-  private async executeTapeCommand(command: string, retryCount = 3): Promise<void> {
-    let attempts = 0;
-    const delay = 5000; // 5 seconds
+  // private async executeTapeCommand(command: string, retryCount = 3): Promise<void> {
+  //   let attempts = 0;
+  //   const delay = 5000; // 5 seconds
 
-    while (attempts < retryCount) {
-      try {
-        await execAsync(command);
-        return;
-      } catch (error) {
-        attempts++;
-        if (attempts >= retryCount) {
-          logger.error(`Failed to execute tape command after ${retryCount} attempts: ${command}`);
-          throw error;
-        }
-        logger.warn(`Tape command failed, retrying in ${delay/1000} seconds (attempt ${attempts}/${retryCount})`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  }
+  //   while (attempts < retryCount) {
+  //     try {
+  //       await execAsync(command);
+  //       return;
+  //     } catch (error) {
+  //       attempts++;
+  //       if (attempts >= retryCount) {
+  //         logger.error(`Failed to execute tape command after ${retryCount} attempts: ${command}`);
+  //         throw error;
+  //       }
+  //       logger.warn(`Tape command failed, retrying in ${delay/1000} seconds (attempt ${attempts}/${retryCount})`);
+  //       await new Promise(resolve => setTimeout(resolve, delay));
+  //     }
+  //   }
+  // }
 
   public async loadTape(tapeNumber: string): Promise<void> {
     try {
