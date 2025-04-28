@@ -10,6 +10,15 @@ interface EmailOptions {
   requestedAt?: number;
 }
 
+interface SecureCopyOptions {
+  server: string;
+  localPath: string;
+  jobId: string;
+  requestedAt?: number;
+  errorMessage?: string;
+  
+}
+
 export class EmailService {
   private transporter: nodemailer.Transporter;
 
@@ -25,7 +34,7 @@ export class EmailService {
     });
   }
 
-  async sendFileProcessedEmail(
+  public async sendFileProcessedEmail(
     to: string,
     fileName: string,
     status: 'success' | 'failed',
@@ -43,6 +52,41 @@ export class EmailService {
         : `Failed to archive your file "${fileName}" to tape.\n\n` +
           `Error: ${options?.errorMessage || 'Unknown error'}` +
           `\n\nPlease try again or contact admin if the problem persists.` +
+          `Admin Email: ${process.env.ADMIN_EMAIL}`;
+
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM,
+        to,
+        subject,
+        text: message
+      });
+
+      logger.info(`Sent ${status} email notification to ${to}`);
+    } catch (error) {
+      logger.error('Failed to send email notification:', error);
+      // Don't throw the error as email failure shouldn't stop the process
+    }
+  }
+
+  public async sendSecureCopyEmail(
+    to: string,
+    status: 'success' | 'failed',
+    options?: SecureCopyOptions
+  ): Promise<void> {
+    try {
+      const subject = status === 'success' 
+        ? `Files Successfully Copied from ${options?.server} and Queued for Processing `
+        : `Failed to copy files from ${options?.server}`;
+
+      const message = status === 'success'
+        ? `Files Successfully Copied from ${options?.server} to ${options?.localPath} \n` +
+          `Queued for processing with job id: ${options?.jobId} \n` + 
+          `You will receive an email when the file is processed to tape . \n` +
+          `Requested at: ${new Date(options?.requestedAt || Date.now()).toLocaleString()}`
+        : `Failed to copy files from ${options?.server} to ${options?.localPath} \n` +
+          `Requested at: ${new Date(options?.requestedAt || Date.now()).toLocaleString()} \n` +
+          `Error: ${options?.errorMessage || 'Unknown error'} \n` +
+          `Please contact admin \n` +
           `Admin Email: ${process.env.ADMIN_EMAIL}`;
 
       await this.transporter.sendMail({
