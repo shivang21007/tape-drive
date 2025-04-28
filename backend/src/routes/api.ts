@@ -6,8 +6,8 @@ import { ResultSetHeader } from 'mysql2';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { fileQueue } from '../queue/fileQueue';
-import { FileProcessingJob } from '../types/fileProcessing';
+import { fileQueue, secureCopyQueue } from '../queue/fileQueue';
+import { FileProcessingJob, SecureCopyJob } from '../types/fileProcessing';
 import csv from 'csv-parse/sync';
 
 const router = express.Router();
@@ -15,14 +15,14 @@ const router = express.Router();
 // Middleware to check if user has access to features
 const hasFeatureAccess = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const user = (req as any).user as User;
-  
+
   if (!user) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
   // Check if user has a valid role (not the default 'user' role)
   if (user.role === 'user') {
-    return res.status(403).json({ 
+    return res.status(403).json({
       error: 'Access denied',
       message: 'Please contact the administrator to get assigned to a team or role'
     });
@@ -39,7 +39,7 @@ export const formatFileSize = (bytes: number | string | undefined): string => {
 
   // Convert to number if it's a string
   const numBytes = typeof bytes === 'string' ? parseFloat(bytes) : bytes;
-  
+
   if (isNaN(numBytes) || numBytes < 0) {
     return '0 B';
   }
@@ -65,9 +65,9 @@ const storage = multer.diskStorage({
       return cb(new Error('User not authenticated'), '');
     }
 
-    const uploadDir = path.join(process.env.UPLOAD_DIR || 
+    const uploadDir = path.join(process.env.UPLOAD_DIR ||
       '/home/octro/google-auth-login-page/tape-drive/backend/uploadfiles', user.role, user.name);
-    
+
     // Create directory structure if it doesn't exist
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
@@ -80,7 +80,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: {
     fileSize: 100 * 1024 * 1024 * 1024 // 100GB limit
@@ -233,12 +233,12 @@ router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res)
     }
 
     const connection = await mysqlPool.getConnection();
-    
+
     try {
       // Insert into database with 'queueing' status
       const [result] = await connection.query<ResultSetHeader>(
-        'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location) VALUES (?, ?, ?, ?, ?, ?)',
-        [user.name, user.role, req.file.originalname, formattedSize, 'queueing', req.file.path]
+        'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location, method) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [user.name, user.role, req.file.originalname, formattedSize, 'queueing', req.file.path, 'direct_upload']
       );
 
       // Push event to BullMQ queue with upload label
@@ -256,20 +256,20 @@ router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res)
       };
 
       console.log('Adding job to queue with data:', jobData);
-      
+
       try {
         const job = await fileQueue.add('file-processing', jobData, {
           priority: user.role === 'admin' ? 1 : 2, // Higher priority for admin files
           jobId: `upload-${result.insertId}`
         });
-        
+
         console.log('Job added successfully with ID:', job.id);
       } catch (error) {
         console.error('Failed to add job to queue:', error);
         throw error;
       }
 
-      res.json({ 
+      res.json({
         message: 'File uploaded successfully and queued for processing',
         file: {
           name: req.file.originalname,
@@ -293,7 +293,7 @@ router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res)
 // Cancel upload endpoint
 router.post('/cancel-upload', async (req, res) => {
   const { fileName, userName, groupName } = req.body;
-  
+
   if (!fileName || !userName || !groupName) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
@@ -301,7 +301,7 @@ router.post('/cancel-upload', async (req, res) => {
   try {
     // Construct the path to the partial upload
     const filePath = path.join(__dirname, '../../uploadfiles', groupName, userName, fileName);
-    
+
     // Check if file exists and delete it
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
@@ -379,21 +379,21 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
           'Content-Type': 'application/octet-stream',
           'Content-Disposition': `attachment; filename="${encodeURIComponent(file.file_name)}"`
         });
-        
+
         fileStream.pipe(res);
         return;
       }
 
       // File is in cache, create download request with cache source
       const connection = await mysqlPool.getConnection();
-      
+
       try {
         const [result] = await connection.query<ResultSetHeader>(
           'INSERT INTO download_requests (file_id, user_name, group_name, status, served_from, completed_at) VALUES (?, ?, ?, ?, ?, ?)',
           [file.id, user.name, user.role, 'completed', 'cache', new Date()]
         );
 
-        res.json({ 
+        res.json({
           status: 'completed',
           servedFrom: 'cache',
           local_file_location: file.local_file_location,
@@ -408,7 +408,7 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
 
     // File not in cache, create download request and queue job
     const connection = await mysqlPool.getConnection();
-    
+
     try {
       // Insert download request with requested status
       const [result] = await connection.query<ResultSetHeader>(
@@ -437,9 +437,9 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
         jobId: `download-${result.insertId}`
       });
 
-      console.log('Job added successfully with ID:', job.id); 
+      console.log('Job added successfully with ID:', job.id);
 
-      res.json({ 
+      res.json({
         status: 'processing',
         message: 'Your request has been taken. You will be notified by email when the file is available.',
         requestId: result.insertId
@@ -480,11 +480,11 @@ router.get('/download-requests/:id/status', hasFeatureAccess, async (req, res) =
         'SELECT local_file_location FROM upload_details WHERE id = ?',
         [request.file_id]
       );
-      
+
       if ((files as any[]).length > 0) {
         const file = (files as any[])[0];
         if (file.local_file_location && fs.existsSync(file.local_file_location)) {
-          res.json({ 
+          res.json({
             status: 'completed',
             servedFrom: request.served_from,
             filePath: file.local_file_location
@@ -494,7 +494,7 @@ router.get('/download-requests/:id/status', hasFeatureAccess, async (req, res) =
       }
     }
 
-    res.json({ 
+    res.json({
       status: request.status,
       message: request.status === 'failed' ? 'Failed to process download request' : 'Request is being processed'
     });
@@ -567,7 +567,7 @@ router.get('/download-requests/status', hasFeatureAccess, async (req, res) => {
     );
 
     if ((requests as any[]).length === 0) {
-      return res.json({ 
+      return res.json({
         status: 'none',
         message: 'No download request found'
       });
@@ -575,12 +575,12 @@ router.get('/download-requests/status', hasFeatureAccess, async (req, res) => {
 
     const request = (requests as any[])[0];
 
-    res.json({ 
+    res.json({
       status: request.status,
       requestId: request.id,
-      message: request.status === 'completed' ? 'File is ready for download' : 
-               request.status === 'failed' ? 'Download request failed' :
-               'Request is being processed'
+      message: request.status === 'completed' ? 'File is ready for download' :
+        request.status === 'failed' ? 'Download request failed' :
+          'Request is being processed'
     });
   } catch (error) {
     console.error('Error checking download status:', error);
@@ -595,7 +595,7 @@ router.get('/securecopy/servers', hasFeatureAccess, async (req, res) => {
   }
 
   const user = req.user as User;
-  
+
   // Only allow non-user roles
   if (user.role === 'user') {
     return res.status(403).json({ error: 'Access denied' });
@@ -605,7 +605,7 @@ router.get('/securecopy/servers', hasFeatureAccess, async (req, res) => {
     // Read the CSV file
     const csvPath = process.env.SERVER_LIST_CSV || path.join(__dirname, '../../IP-Address-Allocation.csv');
     const fileContent = fs.readFileSync(csvPath, 'utf8');
-    
+
     // Parse CSV
     const records = csv.parse(fileContent, {
       columns: true,
@@ -629,17 +629,57 @@ router.post('/securecopy/upload', hasFeatureAccess, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
-
   const { server, filePath } = req.body;
 
   if (!server || !filePath) {
     return res.status(400).json({ error: 'Server and file path are required' });
   }
 
-  // TODO: Implement secure copy logic
-  console.log('Secure copy request:', { server, filePath, user: req.user.name, userRole: req.user.role });
+  const connection = await mysqlPool.getConnection();
+  const fileName = req.body.filePath.split('/').pop();
+  // add a entry in upload_details table
+  try {
+    const [result] = await connection.query<ResultSetHeader>(
+      'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location, method) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [req.user.name, req.user.role, fileName, 'unknown', 'pending', req.body.filePath, req.body.server]
+    );
+    console.log('result : ', result);
+
+    const jobData: SecureCopyJob = {
+      type: 'upload',
+      fileId: result.insertId,
+      fileName: fileName,
+      userName: req.user.name,
+      userEmail: req.user.email,
+      groupName: req.user.role,
+      filePath: req.body.filePath,
+      server: req.body.server,
+      isAdmin: req.user.role === 'admin',
+      requestedAt: Date.now()
+    };
+
+    console.log('Secure CopyjobData : ', jobData);
+
+    try{
+      const job = await secureCopyQueue.add('SecureCopy', jobData, {
+        priority: req.user.role === 'admin' ? 1 : 2, // Higher priority for admin files
+        jobId: `secureCopy-${result.insertId}`
+      });
+
+      console.log('Job added successfully with ID:', job.id);
+    } catch (error) {
+      console.error('Failed to add job to queue:', error);
+      throw error;
+    }
+
+
+  } catch (error) {
+    console.error('Error adding entry to upload_details table:', error);
+    res.status(500).json({ error: 'Failed to add entry to upload_details table' });
+  }
 
   res.json({ message: 'Secure copy request received' });
+
 });
 
 export default router; 
