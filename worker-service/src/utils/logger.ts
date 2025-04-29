@@ -19,6 +19,14 @@ const logger = winston.createLogger({
     }),
     new winston.transports.File({ 
       filename: 'logs/combined.log' 
+    }),
+    new winston.transports.File({ 
+      filename: 'logs/secure-copy.log',
+      level: 'info',
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json()
+      )
     })
   ]
 });

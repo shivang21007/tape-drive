@@ -119,8 +119,50 @@ const worker = new Worker<SecureCopyJob>(
                 logger.info('SCP output:', stdout);
                 if (stderr) logger.warn('SCP warnings:', stderr);
             } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
                 logger.error('SCP command failed:', error);
-                throw new Error(`SCP command failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                
+                // Check if it's an authentication error
+                if (errorMessage.includes('Permission denied')) {
+                    // Send authentication failure email
+                    await emailService.sendSecureCopyEmail(userEmail, 'failed', {
+                        server: server,
+                        localPath: filePath,
+                        jobId: job.id || 'unknown',
+                        requestedAt: Date.now(),
+                        errorMessage: 'Authentication failed. Please ensure SSH keys are properly configured and have access to the server or file location.'
+                    });
+                    
+                    // Log and discard the job
+                    logger.error('Authentication failed for SCP transfer. Discarding job.');
+                    return { 
+                        success: false, 
+                        message: 'Authentication failed for SCP transfer',
+                        error: 'Authentication failed'
+                    };
+                }
+                
+                // Check for file-related errors
+                if (errorMessage.includes('not a regular file') || errorMessage.includes('No such file or directory')) {
+                    // Send file error email
+                    await emailService.sendSecureCopyEmail(userEmail, 'failed', {
+                        server: server,
+                        localPath: filePath,
+                        jobId: job.id || 'unknown',
+                        requestedAt: Date.now(),
+                        errorMessage: 'File not found or not accessible. Please verify the file exists and has correct permissions.'
+                    });
+                    
+                    // Log and discard the job
+                    logger.error('File not found or not accessible. Discarding job.');
+                    return { 
+                        success: false, 
+                        message: 'File not found or not accessible',
+                        error: 'File error'
+                    };
+                }
+                
+                throw new Error(`SCP command failed: ${errorMessage}`);
             }
             tapeLogger.endOperation('scp-transfer');
 
@@ -243,6 +285,7 @@ worker.on('completed', (job) => {
 
 worker.on('failed', (job, error) => {
     logger.error(`Secure copy job ${job?.id} failed:`, error);
+    // failed the job and send email to user
 });
 
 logger.info('Secure copy worker started and ready to process jobs'); 
