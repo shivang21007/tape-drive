@@ -21,3 +21,17 @@ export const formatFileSize = (bytes: number | string | undefined): string => {
 
   return `${size.toFixed(2)} ${units[unitIndex]}`;
 }; 
+
+// function to convert file size (string) to bytes
+export const convertFileSizeToBytes = (fileSize: string): number => {
+  const unitsmap = {
+    'B': 1,
+    'KB': 1024,
+    'MB': 1024 * 1024,
+    'GB': 1024 * 1024 * 1024,
+    'TB': 1024 * 1024 * 1024 * 1024
+  }
+  const unit = fileSize.match(/[A-Z]+$/)?.[0];
+  const size = parseFloat(fileSize);
+  return size * unitsmap[unit as keyof typeof unitsmap];
+};
