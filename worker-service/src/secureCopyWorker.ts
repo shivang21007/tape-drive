@@ -162,7 +162,11 @@ const worker = new Worker<SecureCopyJob>(
                     };
                 }
                 
-                throw new Error(`SCP command failed: ${errorMessage}`);
+                return {
+                    success: false,
+                    message: 'SCP failed to transfer the file',
+                    error: errorMessage
+                };
             }
             tapeLogger.endOperation('scp-transfer');
 
