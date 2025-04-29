@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/Button';
 import axios from 'axios';
-import { downloadFile, isFileTypeSupported } from '../utils/downloadUtils';
+import { isFileTypeSupported } from '../utils/downloadUtils';
+import { useNavigate } from 'react-router-dom';
+import { convertFileSizeToBytes } from '../utils/format';
 
 interface FileDownloadProps {
   fileId: number;
   fileName: string;
+  fileSize?: string; // File size in bytes
 }
 
 interface DownloadStatus {
@@ -14,15 +17,22 @@ interface DownloadStatus {
   message: string;
 }
 
+const LARGE_FILE_THRESHOLD = 6 * 1024 * 1024 * 1024; // 5GB 
+
 export const FileDownload: React.FC<FileDownloadProps> = ({ 
   fileId, 
-  fileName
+  fileName,
+  fileSize
 }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus>({ 
     status: 'none',
     message: ''
   });
+  const navigate = useNavigate();
+
+  // Check if file is too large
+  const isLargeFile = fileSize ? convertFileSizeToBytes(fileSize) > LARGE_FILE_THRESHOLD : false;
 
   // Check download request status
   useEffect(() => {
@@ -50,7 +60,6 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
     }
 
     setIsDownloading(true);
-    // const loadingToast = toast.loading('Checking file availability...');
 
     try {
       // First check if file is in cache
@@ -58,16 +67,10 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
       const data = response.data;
 
       if (data.status === 'completed' && data.servedFrom === 'cache') {
-        // File is in cache, download it
-        const fileResponse = await axios.get(`/api/files/${fileId}/download?download=true`, {
-          responseType: 'blob'
-        });
-        
-        setIsDownloading(false);
         alert('File found in cache!');
-        // toast.dismiss(loadingToast);
-        // toast.success('File found in cache!');
-        downloadFile(fileResponse.data, fileName);
+        // File is in cache, download it directly
+        window.location.href = `/api/files/${fileId}/download?download=true`;
+        setIsDownloading(false);
       } else if (data.status === 'processing') {
         setIsDownloading(false);
         setDownloadStatus({
@@ -76,14 +79,11 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
           message: data.message
         });
         alert(data.message);
-        // toast.dismiss(loadingToast);
-        // toast.success(data.message);
       } else {
         throw new Error('Unexpected response from server');
       }
     } catch (error) {
       setIsDownloading(false);
-      // toast.dismiss(loadingToast);
       
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 404) {
@@ -101,10 +101,15 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
     }
   };
 
+  const handleSecureCopy = () => {
+    navigate(`/securecopy?fileId=${fileId}&fileName=${encodeURIComponent(fileName)}`);
+  };
+
   const isButtonDisabled = isDownloading || 
     downloadStatus.status === 'processing';
 
   const getButtonText = () => {
+    if (isLargeFile) return 'LargeFile';
     if (isDownloading) return 'Checking...';
     if (downloadStatus.status === 'processing') {
       return 'requested';
@@ -115,9 +120,13 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
   return (
     <div className="flex items-center gap-2">
       <Button
-        onClick={handleDownload}
-        disabled={isButtonDisabled}
-        className="bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+        onClick={isLargeFile ? handleSecureCopy : handleDownload}
+        disabled={isLargeFile || isButtonDisabled}
+        className={`${
+          isLargeFile 
+            ? 'bg-green-500 hover:bg-green-600' 
+            : 'bg-blue-500 hover:bg-blue-600'
+        } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
       >
         {getButtonText()}
       </Button>

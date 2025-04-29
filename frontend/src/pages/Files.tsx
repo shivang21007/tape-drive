@@ -172,6 +172,7 @@ const Files: React.FC = () => {
                     <FileDownload 
                       fileId={file.id}
                       fileName={file.file_name}
+                      fileSize={file.file_size}
                     />
                   </td>
                 </tr>
