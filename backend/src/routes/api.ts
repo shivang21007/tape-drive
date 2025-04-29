@@ -56,6 +56,8 @@ export const formatFileSize = (bytes: number | string | undefined): string => {
   return `${size.toFixed(2)} ${units[unitIndex]}`;
 };
 
+
+
 // Configure multer for file upload
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -368,26 +370,28 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Check if file exists in local cache
-    if (file.local_file_location && fs.existsSync(file.local_file_location)) {
-      // If download=true, serve the file
-      if (download === 'true') {
-        const fileStream = fs.createReadStream(file.local_file_location);
-        const stat = fs.statSync(file.local_file_location);
-        res.writeHead(200, {
-          'Content-Length': stat.size,
-          'Content-Type': 'application/octet-stream',
-          'Content-Disposition': `attachment; filename="${encodeURIComponent(file.file_name)}"`
-        });
+    const connection = await mysqlPool.getConnection();
 
-        fileStream.pipe(res);
-        return;
-      }
+    try {
+      // Check if file exists in local cache
+      const isInCache = file.local_file_location && fs.existsSync(file.local_file_location);
 
-      // File is in cache, create download request with cache source
-      const connection = await mysqlPool.getConnection();
+      if (isInCache) {
+        // If download=true, serve the file
+        if (download === 'true') {
+          const fileStream = fs.createReadStream(file.local_file_location);
+          const stat = fs.statSync(file.local_file_location);
+          res.writeHead(200, {
+            'Content-Length': stat.size,
+            'Content-Type': 'application/octet-stream',
+            'Content-Disposition': `attachment; filename="${encodeURIComponent(file.file_name)}"`
+          });
 
-      try {
+          fileStream.pipe(res);
+          return;
+        }
+
+        // File is in cache, create download request with cache source
         const [result] = await connection.query<ResultSetHeader>(
           'INSERT INTO download_requests (file_id, user_name, group_name, status, served_from, completed_at) VALUES (?, ?, ?, ?, ?, ?)',
           [file.id, user.name, user.role, 'completed', 'cache', new Date()]
@@ -399,18 +403,10 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
           local_file_location: file.local_file_location,
           requestId: result.insertId
         });
-      } finally {
-        connection.release();
+        return;
       }
-      return;
-    }
 
-
-    // File not in cache, create download request and queue job
-    const connection = await mysqlPool.getConnection();
-
-    try {
-      // Insert download request with requested status
+      // File not in cache, create download request and queue job
       const [result] = await connection.query<ResultSetHeader>(
         'INSERT INTO download_requests (file_id, user_name, group_name, status) VALUES (?, ?, ?, ?)',
         [file.id, user.name, user.role, 'processing']
