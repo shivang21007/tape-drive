@@ -124,6 +124,8 @@ const worker = new Worker<SecureCopyJob>(
                 
                 // Check if it's an authentication error
                 if (errorMessage.includes('Permission denied')) {
+                    // Update database status to failed
+                    await databaseService.updateUploadStatus(fileId, 'failed');
                     // Send authentication failure email
                     await emailService.sendSecureCopyEmail(userEmail, 'failed', {
                         server: server,
@@ -138,12 +140,14 @@ const worker = new Worker<SecureCopyJob>(
                     return { 
                         success: false, 
                         message: 'Authentication failed for SCP transfer',
-                        error: 'Authentication failed'
+                        error: errorMessage
                     };
                 }
                 
                 // Check for file-related errors
                 if (errorMessage.includes('not a regular file') || errorMessage.includes('No such file or directory')) {
+                    // Update database status to failed
+                    await databaseService.updateUploadStatus(fileId, 'failed');
                     // Send file error email
                     await emailService.sendSecureCopyEmail(userEmail, 'failed', {
                         server: server,
@@ -158,9 +162,19 @@ const worker = new Worker<SecureCopyJob>(
                     return { 
                         success: false, 
                         message: 'File not found or not accessible',
-                        error: 'File error'
+                        error: errorMessage
                     };
                 }
+                // Update database status to failed
+                await databaseService.updateUploadStatus(fileId, 'failed');
+                // Send failure email to user
+                await emailService.sendSecureCopyEmail(userEmail, 'failed', {
+                    server: server,
+                    localPath: filePath,
+                    jobId: job.id || 'unknown',
+                    requestedAt: Date.now(),
+                    errorMessage: errorMessage
+                });
                 
                 return {
                     success: false,
