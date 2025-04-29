@@ -3,7 +3,7 @@
 
 */node_modules
 *.log
-*/.env*
+*/.env
 *.env
 */.env.docker
 *.env.docker
@@ -41,6 +41,7 @@ node_modules
 */nginx.conf
 */docker-compose.yml
 */*/.DS_Store
+.DS_Store
 # IP Address Allocation
 */IP-Address-Allocation.csv
 */*.csv
