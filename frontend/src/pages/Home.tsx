@@ -332,13 +332,13 @@ const Home: React.FC = () => {
             onClick={() => navigate('/files')}
             className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
           >
-            View Files
+            Upload-History
           </button>
           <button
             onClick={() => navigate('/history')}
             className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
           >
-            History
+            Download-History
           </button>
           <button
             onClick={() => navigate('/securecopy')}
