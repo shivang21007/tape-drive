@@ -12,6 +12,7 @@ interface FileData {
   group_name: string;
   file_name: string;
   file_size: string;
+  method: string;
   created_at: string;
   status: string;
 }
@@ -129,6 +130,9 @@ const Files: React.FC = () => {
                   Size
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Method
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Uploaded Date
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
@@ -156,6 +160,9 @@ const Files: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {file.file_size || '0 B'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {file.method || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {new Date(file.created_at).toLocaleString() || 'N/A'}
