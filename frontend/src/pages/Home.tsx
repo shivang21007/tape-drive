@@ -289,64 +289,52 @@ const Home: React.FC = () => {
       <main className="main-content">
         <h1>TapeX</h1>
         <h4>Tape Management demystified</h4>
-        <div className="button-group">
+        {/* Upload Actions Row */}
+        <div className="flex flex-row gap-4 justify-center items-center mt-8">
+          {/* Choose File Button */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="rounded-md px-4 py-2 text-sm font-medium text-white"
+            disabled={isUploading}
+          >
+            Choose File
+          </button>
+          {/* Upload Button */}
           <button
             onClick={handleUpload}
             disabled={!selectedFile || isUploading}
-            className={`rounded-md px-4 py-2 text-sm font-medium text-white transition-colors
-            ${selectedFile ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}
-            ${!selectedFile || isUploading ? 'bg-gray-400 cursor-not-allowed' : 'cursor-pointer'}
-            `}
+            className={`rounded-md px-4 py-2 text-sm font-medium text-white ${selectedFile ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} ${!selectedFile || isUploading ? 'bg-gray-400 cursor-not-allowed' : 'cursor-pointer'}`}
           >
             {isUploading ? 'Uploading...' : 'Upload'}
           </button>
+          {/* Cancel Upload Button (only during upload) */}
           {isUploading && (
             <button
               onClick={handleCancelUpload}
+              className="rounded-md px-4 py-2 text-sm font-medium text-white"
               style={{
-                padding: '0.8rem',
-                fontSize: '1.1rem',
-                fontWeight: 500,
-                borderRadius: '8px',
-                border: 'none',
-                cursor: 'pointer',
-                marginRight: '1rem',
-                position: 'relative',
-                overflow: 'hidden',
                 background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                color: 'white',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 2px 4px rgba(239, 68, 68, 0.1)',
-                width: '3.2rem',
-                height: '3.2rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
+                marginLeft: '0.25rem'
               }}
               title="Cancel upload"
             >
-              <ImCross size={20} color="white" />
+              <ImCross size={16} color="white" />
             </button>
           )}
-          <button
-            onClick={() => navigate('/files')}
-            className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
-          >
-            View Files
-          </button>
-          <button
-            onClick={() => navigate('/history')}
-            className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
-          >
-            History
-          </button>
+          {/* Upload through Server Button with animated gradient */}
           <button
             onClick={() => navigate('/securecopy')}
-            className="rounded-md px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
+            className="rounded-md px-4 py-2 text-sm font-medium text-white animated-gradient-btn"
+            style={{
+              background: 'linear-gradient(90deg, #22d3ee, #16a34a)',
+              backgroundSize: '200% 100%',
+              fontWeight: 800
+            }}
           >
-            Upload from Server
+            Upload through Server <span style={{ color: '#111', fontWeight: 700, marginLeft: '0.5ch' }}>fastest</span>
           </button>
         </div>
+        {/* File Input (hidden) */}
         <div className="file-input-container">
           <input
             type="file"
@@ -355,16 +343,7 @@ const Home: React.FC = () => {
             style={{ display: 'none', position: 'absolute', visibility: 'hidden', width: 0, height: 0 }}
             aria-hidden="true"
           />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className={`rounded-md px-4 py-2 text-sm font-medium text-white transition-colors duration-1000 ${selectedFile
-              ? "bg-green-600 hover:bg-green-700"
-              : "bg-gray-800 hover:bg-gray-700"
-              }`}
-            disabled={isUploading}
-          >
-            Choose File
-          </button>
+          {/* Progress Bar (if uploading) */}
           {isUploading && (
             <div className="mt-4 w-full relative">
               <div className="h-2 w-full bg-gray-200 rounded-full">
@@ -382,7 +361,21 @@ const Home: React.FC = () => {
             </div>
           )}
         </div>
-
+        {/* Row 2: Navigation Buttons */}
+        <div className="flex flex-row gap-4 justify-center mt-8">
+          <button
+            onClick={() => navigate('/files')}
+            className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+          >
+            View Files
+          </button>
+          <button
+            onClick={() => navigate('/history')}
+            className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+          >
+            History
+          </button>
+        </div>
         {/* Selected File Display */}
         {selectedFile && (
           <div className="mt-4 flex flex-col items-center justify-center">
