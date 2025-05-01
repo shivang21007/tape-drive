@@ -3,13 +3,13 @@ import axios from 'axios';
 import {toast, ToastContainer } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 
-
 const SecureUpload: React.FC = () => {
   const navigate = useNavigate();
   const [servers, setServers] = useState<string[]>([]);
   const [selectedServer, setSelectedServer] = useState('');
   const [filePath, setFilePath] = useState('');
   const [error, setError] = useState('');
+  const [pathError, setPathError] = useState('');
 
   useEffect(() => {
     const fetchServers = async () => {
@@ -25,9 +25,39 @@ const SecureUpload: React.FC = () => {
     fetchServers();
   }, []);
 
+  const validatePath = (path: string): boolean => {
+    // Check if path contains any special characters or spaces
+    const specialChars = ['\\', ':', '*', '?', '<', '>', '|', ';', '&','@','%','!','&','#','^'," ",' '];
+    const isValid = !specialChars.some(char => path.includes(char));
+    
+    if (!isValid) {
+      setPathError('Path cannot contain special characters or spaces');
+    } else {
+      setPathError('');
+    }
+    
+    return isValid;
+  };
+
+  const handlePathChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPath = e.target.value;
+    setFilePath(newPath);
+    validatePath(newPath);
+  };
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!selectedServer || !filePath) {
+      setError('Please fill all fields');
+      return;
+    }
+
+    if (!validatePath(filePath)) {
+      setError('Invalid file path');
+      return;
+    }
 
     try {
       const response = await axios.post('/api/secureupload', {
@@ -41,7 +71,6 @@ const SecureUpload: React.FC = () => {
           navigate('/files');
         }, 3000);
       }
-      // TODO: Handle successful upload
     } catch (error) {
       console.error('Error uploading file:', error);
       setError('Failed to upload file');
@@ -80,59 +109,64 @@ const SecureUpload: React.FC = () => {
               Upload-History
             </button>
           </div>
-          <div className="bg-white shadow sm:rounded-lg p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label htmlFor="server" className="block text-sm font-medium text-gray-700">
-                  Choose Server
-                </label>
-                <select
-                  id="server"
-                  value={selectedServer}
-                  onChange={(e) => setSelectedServer(e.target.value)}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                  required
-                >
-                  <option value="">Select a server</option>
-                  {servers.map((server) => (
-                    <option key={server} value={server}>
-                      {server}
-                    </option>
-                  ))}
-                </select>
-              </div>
+        </div>
+        <div className="bg-white shadow sm:rounded-lg p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="server" className="block text-sm font-medium text-gray-700">
+                Choose Server
+              </label>
+              <select
+                id="server"
+                value={selectedServer}
+                onChange={(e) => setSelectedServer(e.target.value)}
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                required
+              >
+                <option value="">Select a server</option>
+                {servers.map((server) => (
+                  <option key={server} value={server}>
+                    {server}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              <div>
-                <label htmlFor="filePath" className="block text-sm font-medium text-gray-700">
-                  Full File Path
-                </label>
-                <input
-                  type="text"
-                  id="filePath"
-                  value={filePath}
-                  onChange={(e) => setFilePath(e.target.value)}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Enter full file path"
-                  required
-                />
-              </div>
-
-              {error && (
-                <div className="text-red-600 text-sm">
-                  {error}
-                </div>
+            <div>
+              <label htmlFor="filePath" className="block text-sm font-medium text-gray-700">
+                Full File Path
+              </label>
+              <input
+                type="text"
+                id="filePath"
+                value={filePath}
+                onChange={handlePathChange}
+                className={`mt-1 block w-full border ${
+                  pathError ? 'border-red-500' : 'border-gray-300'
+                } rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                placeholder="Enter full file path"
+                required
+              />
+              {pathError && (
+                <p className="mt-1 text-sm text-red-600">{pathError}</p>
               )}
+            </div>
 
-              <div>
-                <button
-                  type="submit"
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Upload
-                </button>
+            {error && (
+              <div className="text-red-600 text-sm">
+                {error}
               </div>
-            </form>
-          </div>
+            )}
+
+            <div>
+              <button
+                type="submit"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Upload
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
