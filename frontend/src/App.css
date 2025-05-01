@@ -40,3 +40,18 @@
 .read-the-docs {
   color: #888;
 }
+
+.animated-gradient-btn {
+  background: linear-gradient(90deg, #22d3ee, #16a34a, #22d3ee);
+  background-size: 200% 100%;
+  animation: gradient-move 1s linear infinite;
+}
+
+@keyframes gradient-move {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
