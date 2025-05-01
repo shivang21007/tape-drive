@@ -14,6 +14,7 @@ interface HistoryItem {
   file_size: string;
   status: 'requested' | 'processing' | 'completed' | 'failed';
   served_from: string | null;
+  served_to: string | null;
   requested_at: string;
   completed_at: string | null;
 }
@@ -116,6 +117,9 @@ const History: React.FC = () => {
                   Served From
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Served To
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Requested At
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
@@ -155,6 +159,9 @@ const History: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {item.served_from ? item.served_from : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {item.served_to ? item.served_to : '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {new Date(item.requested_at).toLocaleString()}

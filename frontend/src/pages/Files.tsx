@@ -85,7 +85,7 @@ const Files: React.FC = () => {
         pauseOnHover
         theme="light"
       />
-      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-8xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Files</h1>
           <div className="space-x-4">
@@ -175,11 +175,12 @@ const Files: React.FC = () => {
                       {file.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 ">
                     <FileDownload 
                       fileId={file.id}
                       fileName={file.file_name}
                       fileSize={file.file_size}
+                      method={file.method}
                     />
                   </td>
                 </tr>

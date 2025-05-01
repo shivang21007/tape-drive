@@ -4,7 +4,7 @@ import {toast, ToastContainer } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 
 
-const SecureCopy: React.FC = () => {
+const SecureUpload: React.FC = () => {
   const navigate = useNavigate();
   const [servers, setServers] = useState<string[]>([]);
   const [selectedServer, setSelectedServer] = useState('');
@@ -14,7 +14,7 @@ const SecureCopy: React.FC = () => {
   useEffect(() => {
     const fetchServers = async () => {
       try {
-        const response = await axios.get('/api/securecopy/servers');
+        const response = await axios.get('/api/secureservers');
         setServers(response.data.servers);
       } catch (error) {
         console.error('Error fetching servers:', error);
@@ -30,9 +30,10 @@ const SecureCopy: React.FC = () => {
     setError('');
 
     try {
-      const response = await axios.post('/api/securecopy/upload', {
+      const response = await axios.post('/api/secureupload', {
         server: selectedServer,
-        filePath
+        filePath: filePath,
+        type: 'upload'
       });
       toast.success('File uploaded successfully');
       console.log('Upload successful :', response.data);
@@ -129,4 +130,4 @@ const SecureCopy: React.FC = () => {
   );
 };
 
-export default SecureCopy; 
+export default SecureUpload; 
