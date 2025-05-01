@@ -330,13 +330,8 @@ const Home: React.FC = () => {
               backgroundSize: '200% 100%',
               fontWeight: 800
             }}
-            Upload through Server <span style={{ color: '#111', fontWeight: 700, marginLeft: '0.5ch' }}>fastest</span>
-          </button>
-          <button
-            onClick={() => navigate('/securedownload')}
-            className="rounded-md px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
           >
-            Download to Server
+            Upload through Server <span style={{ color: '#111', fontWeight: 700, marginLeft: '0.5ch' }}>fastest</span>
           </button>
         </div>
         {/* File Input (hidden) */}
@@ -372,13 +367,13 @@ const Home: React.FC = () => {
             onClick={() => navigate('/files')}
             className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
           >
-            View Files
+            Upload History
           </button>
           <button
             onClick={() => navigate('/history')}
             className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
           >
-            History
+            Download History
           </button>
         </div>
         {/* Selected File Display */}
@@ -386,7 +381,7 @@ const Home: React.FC = () => {
           <div className="mt-4 flex flex-col items-center justify-center">
             <div className="text-gray-700 font-medium">Selected File</div>
             <div className="text-gray-600 text-sm mt-1">
-              "{selectedFile.name}" ({formatFileSize(selectedFile.size)})
+              &quot;{selectedFile.name}&quot; ({formatFileSize(selectedFile.size)})
             </div>
           </div>
         )}
