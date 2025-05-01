@@ -240,7 +240,7 @@ router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res)
       // Insert into database with 'queueing' status
       const [result] = await connection.query<ResultSetHeader>(
         'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location, method) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [user.name, user.role, req.file.originalname, formattedSize, 'queueing', req.file.path, 'direct_upload']
+        [user.name, user.role, req.file.originalname, formattedSize, 'queueing', req.file.path, 'Browser']
       );
 
       // Push event to BullMQ queue with upload label
@@ -516,6 +516,7 @@ router.get('/history', hasFeatureAccess, async (req, res) => {
         ud.file_size,
         dr.status,
         dr.served_from,
+        dr.served_to,
         dr.requested_at,
         dr.completed_at
       FROM download_requests dr
@@ -585,7 +586,7 @@ router.get('/download-requests/status', hasFeatureAccess, async (req, res) => {
 });
 
  // Get server list for secure copy through local csv file
-router.get('/securecopy/servers', hasFeatureAccess, async (req, res) => {
+router.get('/secureservers', hasFeatureAccess, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
@@ -617,61 +618,164 @@ router.get('/securecopy/servers', hasFeatureAccess, async (req, res) => {
 
 
 // Handle secure copy upload
-router.post('/securecopy/upload', hasFeatureAccess, async (req, res) => {
+router.post('/secureupload', hasFeatureAccess, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
-  const { server, filePath } = req.body;
 
-  if (!server || !filePath) {
-    return res.status(400).json({ error: 'Server and file path are required' });
+  const connection = await mysqlPool.getConnection();
+
+  try {
+    // add a entry in upload_details table if type is upload
+    if(req.body.type === 'upload'){ 
+      const { server, filePath } = req.body;
+      const fileName = filePath.split('/').pop();
+      const type = 'upload';
+
+      const [result] = await connection.query<ResultSetHeader>(
+        'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location, method) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [req.user.name, req.user.role, fileName, 'unknown', 'pending', filePath, server]
+      );
+      console.log('result : ', result);
+      const jobData: SecureCopyJob = {
+        type: type,
+        fileId: result.insertId,
+        fileName: fileName,
+        userName: req.user.name,
+        userEmail: req.user.email,
+        groupName: req.user.role,
+        filePath: filePath,
+        server: server,
+        isAdmin: req.user.role === 'admin',
+        requestedAt: Date.now()
+      };
+  
+      console.log('Secure CopyjobData : ', jobData);
+
+      try{
+        const job = await secureCopyQueue.add('SecureCopy', jobData, {
+          priority: req.user.role === 'admin' ? 1 : 2, // Higher priority for admin files
+          jobId: `secureCopy-${result.insertId}`
+        });
+  
+        console.log('Job added successfully with ID:', job.id);
+      } catch (error) {
+        console.error('Failed to add job to queue:', error);
+        throw error;
+      }
+
+    }
+    else{
+      throw new Error('Invalid request type');
+    }
+  } 
+  catch (error) {
+    console.error('Error adding entry to upload_details table:', error);
+    res.status(500).json({ error: 'Failed to add entry to upload_details table' });
+  }
+  finally{
+    connection.release();
+  }
+});
+
+
+// Handle secure copy download
+router.post('/securedownload', hasFeatureAccess, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
   }
 
   const connection = await mysqlPool.getConnection();
-  const fileName = req.body.filePath.split('/').pop();
-  // add a entry in upload_details table
-  try {
-    const [result] = await connection.query<ResultSetHeader>(
-      'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location, method) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [req.user.name, req.user.role, fileName, 'unknown', 'pending', req.body.filePath, req.body.server]
-    );
-    console.log('result : ', result);
 
-    const jobData: SecureCopyJob = {
-      type: 'upload',
-      fileId: result.insertId,
-      fileName: fileName,
-      userName: req.user.name,
-      userEmail: req.user.email,
-      groupName: req.user.role,
-      filePath: req.body.filePath,
-      server: req.body.server,
-      isAdmin: req.user.role === 'admin',
-      requestedAt: Date.now()
-    };
+  try{
+    // add a entry in download_requests table if type is download
+    if(req.body.type === 'download'){
+     const type = 'download';
+      const {fileId, server, filePath } = req.body;
+      
+      if (!server || !filePath) {
+          return res.status(400).json({ error: 'Server and file path are required' });
+      }
 
-    console.log('Secure CopyjobData : ', jobData);
+      const [result] = await connection.query<ResultSetHeader>(
+        'INSERT INTO download_requests (file_id, user_name, group_name, status, served_from, served_to, served_to_location, requested_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
+        [fileId, req.user.name, req.user.role, 'requested', 'tape', server, filePath]
+      );
 
-    try{
+      console.log('Request body:', req.body);
+
+      const jobData: SecureCopyJob = {
+        type: 'download',
+        fileId: fileId,
+        fileName: req.body.fileName,
+        userName: req.user.name,
+        userEmail: req.user.email,
+        groupName: req.user.role,
+        filePath: filePath,
+        server: server,
+        isAdmin: req.user.role === 'admin',
+        requestedAt: Date.now()
+      };
+
+      console.log('Secure Copy jobData:', jobData);
+
       const job = await secureCopyQueue.add('SecureCopy', jobData, {
-        priority: req.user.role === 'admin' ? 1 : 2, // Higher priority for admin files
+        priority: req.user.role === 'admin' ? 1 : 2,
         jobId: `secureCopy-${result.insertId}`
       });
 
       console.log('Job added successfully with ID:', job.id);
-    } catch (error) {
-      console.error('Failed to add job to queue:', error);
-      throw error;
+
+      res.json({ success: true, message: 'Secure download request submitted successfully' });
     }
+    else {
+      throw new Error('Invalid request type');
+    }
+  }
+  catch(error){
+    console.error('Error adding entry to download_requests table:', error);
+    res.status(500).json({ error: 'Failed to add entry to download_requests table' });
+  }finally{
+    connection.release();
+  }
+});
 
 
-  } catch (error) {
-    console.error('Error adding entry to upload_details table:', error);
-    res.status(500).json({ error: 'Failed to add entry to upload_details table' });
+// Check if file is in cache without creating a download request
+router.get('/files/:id/check-cache', hasFeatureAccess, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
   }
 
-  res.json({ message: 'Secure copy request received' });
+  const user = req.user as User;
+  const { id } = req.params;
 
+  try {
+    // Get file details
+    const [files] = await mysqlPool.query(
+      'SELECT * FROM upload_details WHERE id = ?',
+      [id]
+    );
+
+    if ((files as any[]).length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const file = (files as any[])[0];
+
+    // Check if user has access to this file
+    if (user.role !== 'admin' && file.group_name !== user.role) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Check if file exists in local cache
+    const isInCache = file.local_file_location && fs.existsSync(file.local_file_location);
+
+    res.json({ isInCache });
+  } catch (error) {
+    console.error('Error checking file cache:', error);
+    res.status(500).json({ error: 'Failed to check file cache' });
+  }
 });
 
 export default router; 
