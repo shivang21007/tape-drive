@@ -131,4 +131,17 @@ export class DatabaseService {
       connection.release();
     }
   }
+
+  public async getUploadDetails(fileId: number) {
+    const connection = await this.pool.getConnection();
+    try {
+      const [rows] = await connection.query(
+        'SELECT * FROM upload_details WHERE id = ?',
+        [fileId]
+      );
+      return rows;
+    } finally {
+      connection.release();
+    }
+  }
 } 

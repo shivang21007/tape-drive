@@ -9,6 +9,7 @@ import { AdminNotificationService } from './services/adminNotificationService';
 import { fileQueue } from './queue/fileQueue';
 import path from 'path';
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import { FileProcessingJob, SecureCopyJob } from './types/fileProcessing';
 import { google } from 'googleapis';
 import dotenv from 'dotenv';
@@ -85,170 +86,255 @@ const getPrivateIp = async (group: string, serverName: string): Promise<string> 
 const worker = new Worker<SecureCopyJob>(
     'SecureCopy',
     async (job: Job<SecureCopyJob>) => {
-        const { fileId, fileName, userName, userEmail, groupName, filePath, server, isAdmin } = job.data;
+        const { type, fileId, fileName, userName, userEmail, groupName, filePath, server, isAdmin } = job.data;
+        console.log("job.data", job.data);
 
         try {
             logger.info(`Starting secure copy for file: ${fileName} from server: ${server}`);
             tapeLogger.startOperation('secure-copy');
 
             // Get private IP for the server
-            const privateIp = await getPrivateIp(groupName, server);
+            const privateIp: string = await getPrivateIp(groupName, server);
             logger.info(`Resolved private IP ${privateIp} for server ${server}`);
 
-            // Create the target directory
-            const uploadDir = process.env.UPLOAD_DIR || '/home/octro/google-auth-login-page/tape-drive/backend/uploadfiles';
-            const targetDir = path.join(uploadDir, groupName, userName);
+            if (type === 'upload') {
+                // Existing upload logic
+                const uploadDir = process.env.UPLOAD_DIR || '/home/octro/google-auth-login-page/tape-drive/backend/uploadfiles';
+                const targetDir = path.join(uploadDir, groupName, userName);
 
-            try {
-                await fs.mkdir(targetDir, { recursive: true });
-                logger.info(`Created target directory: ${targetDir}`);
-            } catch (error) {
-                logger.error(`Failed to create target directory: ${targetDir}`, error);
-                throw new Error(`Failed to create target directory: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
+                try {
+                    await fs.mkdir(targetDir, { recursive: true });
+                    logger.info(`Created target directory: ${targetDir}`);
+                } catch (error) {
+                    logger.error(`Failed to create target directory: ${targetDir}`, error);
+                    throw new Error(`Failed to create target directory: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                }
 
-            const targetPath = path.join(targetDir, fileName);
+                const targetPath = path.join(targetDir, fileName);
 
-            // Execute SCP command with private IP
-            const scpCommand = `scp octro@${privateIp}:${filePath} ${targetPath}`;
-            logger.info(`Executing SCP command: ${scpCommand}`);
+                // Execute SCP command with private IP (upload: remote -> local)
+                const scpCommand = `scp -r octro@${privateIp}:${filePath} ${targetPath}`;
+                logger.info(`Executing SCP command: ${scpCommand}`);
 
-            tapeLogger.startOperation('scp-transfer');
-            try {
-                const { stdout, stderr } = await execAsync(scpCommand);
-                logger.info('SCP output:', stdout);
-                if (stderr) logger.warn('SCP warnings:', stderr);
-            } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                logger.error('SCP command failed:', error);
-                
-                // Check if it's an authentication error
-                if (errorMessage.includes('Permission denied')) {
+                tapeLogger.startOperation('scp-transfer');
+                try {
+                    const { stdout, stderr } = await execAsync(scpCommand);
+                    logger.info('SCP output:', stdout);
+                    if (stderr) logger.warn('SCP warnings:', stderr);
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                    logger.error('SCP command failed:', error);
+                    
+                    // Check if it's an authentication error
+                    if (errorMessage.includes('Permission denied')) {
+                        // Update database status to failed
+                        await databaseService.updateUploadStatus(fileId, 'failed');
+                        // Send authentication failure email
+                        await emailService.sendSecureCopyUploadEmail(userEmail, 'failed', {
+                            server: server,
+                            localPath: filePath,
+                            jobId: job.id || 'unknown',
+                            requestedAt: Date.now(),
+                            errorMessage: 'Authentication failed. Please ensure SSH keys are properly configured and have access to the server or file location.'
+                        });
+                        
+                        // Log and discard the job
+                        logger.error('Authentication failed for SCP transfer. Discarding job.');
+                        return { 
+                            success: false, 
+                            message: 'Authentication failed for SCP transfer',
+                            error: errorMessage
+                        };
+                    }
+                    
+                    // Check for file-related errors
+                    if (errorMessage.includes('not a regular file') || errorMessage.includes('No such file or directory')) {
+                        // Update database status to failed
+                        await databaseService.updateUploadStatus(fileId, 'failed');
+                        // Send file error email
+                        await emailService.sendSecureCopyUploadEmail(userEmail, 'failed', {
+                            server: server,
+                            localPath: filePath,
+                            jobId: job.id || 'unknown',
+                            requestedAt: Date.now(),
+                            errorMessage: 'File not found or not accessible. Please verify the file exists and has correct permissions.'
+                        });
+                        
+                        // Log and discard the job
+                        logger.error('File not found or not accessible. Discarding job.');
+                        return { 
+                            success: false, 
+                            message: 'File not found or not accessible',
+                            error: errorMessage
+                        };
+                    }
                     // Update database status to failed
                     await databaseService.updateUploadStatus(fileId, 'failed');
-                    // Send authentication failure email
-                    await emailService.sendSecureCopyEmail(userEmail, 'failed', {
+                    // Send failure email to user
+                    await emailService.sendSecureCopyUploadEmail(userEmail, 'failed', {
                         server: server,
                         localPath: filePath,
                         jobId: job.id || 'unknown',
                         requestedAt: Date.now(),
-                        errorMessage: 'Authentication failed. Please ensure SSH keys are properly configured and have access to the server or file location.'
+                        errorMessage: errorMessage
                     });
                     
-                    // Log and discard the job
-                    logger.error('Authentication failed for SCP transfer. Discarding job.');
-                    return { 
-                        success: false, 
-                        message: 'Authentication failed for SCP transfer',
+                    return {
+                        success: false,
+                        message: 'SCP failed to transfer the file',
                         error: errorMessage
                     };
                 }
-                
-                // Check for file-related errors
-                if (errorMessage.includes('not a regular file') || errorMessage.includes('No such file or directory')) {
-                    // Update database status to failed
-                    await databaseService.updateUploadStatus(fileId, 'failed');
-                    // Send file error email
-                    await emailService.sendSecureCopyEmail(userEmail, 'failed', {
+                tapeLogger.endOperation('scp-transfer');
+
+                // Get file size
+                tapeLogger.startOperation('file-verification');
+                try {
+                    const stats = await fs.stat(targetPath);
+                    const fileSize = stats.size;
+                    logger.info(`File copied successfully. Size: ${fileSize} bytes`);
+
+                    // Format file size with appropriate unit
+                    let formattedSize: string;
+                    if (fileSize < 1024) {
+                        formattedSize = `${fileSize} B`;
+                    } else if (fileSize < 1024 * 1024) {
+                        formattedSize = `${(fileSize / 1024).toFixed(2)} KB`;
+                    } else if (fileSize < 1024 * 1024 * 1024) {
+                        formattedSize = `${(fileSize / (1024 * 1024)).toFixed(2)} MB`;
+                    } else {
+                        formattedSize = `${(fileSize / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+                    }
+
+                    // Update database with file size and local path
+                    await databaseService.updateUploadStatus(fileId, 'queueing', targetPath, formattedSize);
+                    logger.info(`Updated database with file details for ID: ${fileId}`);
+
+                    // Create a new job in the file processing queue
+                    const fileProcessingJob: FileProcessingJob = {
+                        type: 'upload',
+                        fileId,
+                        fileName,
+                        fileSize: formattedSize,
+                        userName,
+                        userEmail,
+                        groupName,
+                        isAdmin,
+                        filePath: targetPath,
+                        requestedAt: Date.now()
+                    };
+
+                    // Add to file processing queue
+                    const jobData = await fileQueue.add('file-processing', fileProcessingJob, {
+                        priority: isAdmin ? 1 : 2,
+                        jobId: `upload-${fileId}`
+                    });
+                    console.log("New job added to file processing queue: ", jobData.id);
+
+                    logger.info(`Added file to file-processing queue: ${fileName}`);
+
+                    // Send success email
+                    await emailService.sendSecureCopyUploadEmail(userEmail, 'success', {
                         server: server,
-                        localPath: filePath,
-                        jobId: job.id || 'unknown',
-                        requestedAt: Date.now(),
-                        errorMessage: 'File not found or not accessible. Please verify the file exists and has correct permissions.'
+                        localPath: targetPath,
+                        jobId: jobData.id || 'unknown',
+                        requestedAt: Date.now()
                     });
-                    
-                    // Log and discard the job
-                    logger.error('File not found or not accessible. Discarding job.');
-                    return { 
-                        success: false, 
-                        message: 'File not found or not accessible',
+
+                    tapeLogger.endOperation('file-verification');
+                    tapeLogger.endOperation('secure-copy');
+                    return {
+                        success: true,
+                        message: 'File securely copied and queued for processing',
+                        localPath: targetPath
+                    };
+
+                } catch (error) {
+                    logger.error('File verification failed:', error);
+                    throw new Error(`File verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                }
+
+            } else if (type === 'download') {
+                // Get local file location from upload_details
+                const files = await databaseService.getUploadDetails(fileId);
+
+                if (!files || (files as any[]).length === 0) {
+                    // Update download request status to failed
+                    await databaseService.updateDownloadStatus(fileId, 'failed', 'tape');
+                    throw new Error(`File not found in upload_details for ID: ${fileId}`);
+                }
+
+                const localFilePath = (files as any[])[0].local_file_location;
+                if (!localFilePath || !fsSync.existsSync(localFilePath)) {
+                    // Update download request status to failed
+                    await databaseService.updateDownloadStatus(fileId, 'failed', 'cache');
+                    throw new Error(`Local file not found at path: ${localFilePath}`);
+                }
+
+                // Update download request status to processing
+                await databaseService.updateDownloadStatus(fileId, 'processing', 'cache');
+
+                // Form SCP command for download (download: local -> remote)
+                const remotePath = filePath.startsWith('~') ? filePath : `~/${filePath}`;
+                const scpCommand = `scp -r ${localFilePath} octro@${privateIp}:${remotePath}`;
+                logger.info(`Executing SCP command for download: ${scpCommand}`);
+
+                tapeLogger.startOperation('scp-transfer');
+                try {
+                    const { stdout, stderr } = await execAsync(scpCommand);
+                    logger.info('SCP output:', stdout? stdout : "No output");
+                    if (stderr) logger.warn('SCP warnings:', stderr);
+
+                    // Verify file on remote server
+                    const verifyCommand = `ssh octro@${privateIp} "ls -l ${remotePath}"`;
+                    const { stdout: verifyOutput } = await execAsync(verifyCommand);
+                    logger.info('File verification output:', verifyOutput? verifyOutput : "No output");
+
+                    // Update download_requests table to completed
+                    await databaseService.updateDownloadStatus(fileId, 'completed', 'cache');
+
+                    // Send success email
+                    await emailService.sendSecureCopyDownloadEmail(userEmail, 'success', {
+                        server,
+                        remotePath: filePath,
+                        jobId: job.id || 'unknown',
+                        requestedAt: job.timestamp
+                    });
+
+                    tapeLogger.endOperation('scp-transfer');
+                    tapeLogger.endOperation('secure-copy');
+
+                    return {
+                        success: true,
+                        message: 'File successfully copied to remote server',
+                        remotePath: filePath
+                    };
+
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                    logger.error('SCP command failed:', error);
+
+                    // Update download_requests table with failure
+                    await databaseService.updateDownloadStatus(fileId, 'failed', 'cache');
+
+                    // Send failure email to user for SCP errors
+                    await emailService.sendSecureCopyDownloadEmail(userEmail, 'failed', {
+                        server,
+                        remotePath: filePath,
+                        jobId: job.id || 'unknown',
+                        requestedAt: job.timestamp,
+                        errorMessage
+                    });
+
+                    // Don't throw error to prevent retry
+                    return {
+                        success: false,
+                        message: 'Failed to copy file to remote server',
                         error: errorMessage
                     };
                 }
-                // Update database status to failed
-                await databaseService.updateUploadStatus(fileId, 'failed');
-                // Send failure email to user
-                await emailService.sendSecureCopyEmail(userEmail, 'failed', {
-                    server: server,
-                    localPath: filePath,
-                    jobId: job.id || 'unknown',
-                    requestedAt: Date.now(),
-                    errorMessage: errorMessage
-                });
-                
-                return {
-                    success: false,
-                    message: 'SCP failed to transfer the file',
-                    error: errorMessage
-                };
-            }
-            tapeLogger.endOperation('scp-transfer');
-
-            // Get file size
-            tapeLogger.startOperation('file-verification');
-            try {
-                const stats = await fs.stat(targetPath);
-                const fileSize = stats.size;
-                logger.info(`File copied successfully. Size: ${fileSize} bytes`);
-
-                // Format file size with appropriate unit
-                let formattedSize: string;
-                if (fileSize < 1024) {
-                    formattedSize = `${fileSize} B`;
-                } else if (fileSize < 1024 * 1024) {
-                    formattedSize = `${(fileSize / 1024).toFixed(2)} KB`;
-                } else if (fileSize < 1024 * 1024 * 1024) {
-                    formattedSize = `${(fileSize / (1024 * 1024)).toFixed(2)} MB`;
-                } else {
-                    formattedSize = `${(fileSize / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-                }
-
-                // Update database with file size and local path
-                await databaseService.updateUploadStatus(fileId, 'queueing', targetPath, formattedSize);
-                logger.info(`Updated database with file details for ID: ${fileId}`);
-
-                // Create a new job in the file processing queue
-                const fileProcessingJob: FileProcessingJob = {
-                    type: 'upload',
-                    fileId,
-                    fileName,
-                    fileSize: formattedSize,
-                    userName,
-                    userEmail,
-                    groupName,
-                    isAdmin,
-                    filePath: targetPath,
-                    requestedAt: Date.now()
-                };
-
-                // Add to file processing queue
-                const jobData = await fileQueue.add('file-processing', fileProcessingJob, {
-                    priority: isAdmin ? 1 : 2,
-                    jobId: `upload-${fileId}`
-                });
-                console.log("New job added to file processing queue: ", jobData.id);
-
-                logger.info(`Added file to file-processing queue: ${fileName}`);
-
-                // Send success email
-                await emailService.sendSecureCopyEmail(userEmail, 'success', {
-                    server: server,
-                    localPath: targetPath,
-                    jobId: jobData.id || 'unknown',
-                    requestedAt: Date.now()
-                });
-
-                tapeLogger.endOperation('file-verification');
-                tapeLogger.endOperation('secure-copy');
-                return {
-                    success: true,
-                    message: 'File securely copied and queued for processing',
-                    localPath: targetPath
-                };
-
-            } catch (error) {
-                logger.error('File verification failed:', error);
-                throw new Error(`File verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            } else {
+                throw new Error(`Invalid job type: ${type}`);
             }
 
         } catch (error) {
@@ -264,23 +350,12 @@ const worker = new Worker<SecureCopyJob>(
                 userEmail
             });
 
-            // Update database status
-            await databaseService.updateUploadStatus(fileId, 'failed');
-
-            // Send failure email to user
-            try {
-                await emailService.sendSecureCopyEmail(userEmail, 'failed', {
-                    server: server,
-                    localPath: filePath,
-                    jobId: job.id || 'unknown',
-                    requestedAt: Date.now(),
-                    errorMessage: errorMessage
-                });
-            } catch (emailError) {
-                logger.error('Failed to send failure email:', emailError);
-            }
-
-            throw error;
+            // Don't throw error to prevent retry
+            return {
+                success: false,
+                message: 'Secure copy operation failed',
+                error: errorMessage
+            };
         }
     },
     {
@@ -289,10 +364,14 @@ const worker = new Worker<SecureCopyJob>(
             port: parseInt(process.env.REDIS_PORT || '6379'),
             password: process.env.REDIS_PASSWORD
         },
-        concurrency: 1, // Process one job at a time
+        concurrency: 1,
         limiter: {
             max: 1,
             duration: 1000
+        },
+        // Disable retries
+        settings: {
+            backoffStrategy: undefined
         }
     }
 );
@@ -303,7 +382,6 @@ worker.on('completed', (job) => {
 
 worker.on('failed', (job, error) => {
     logger.error(`Secure copy job ${job?.id} failed:`, error);
-    // failed the job and send email to user
 });
 
 logger.info('Secure copy worker started and ready to process jobs'); 

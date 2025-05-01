@@ -699,7 +699,7 @@ router.post('/securedownload', hasFeatureAccess, async (req, res) => {
 
       const [result] = await connection.query<ResultSetHeader>(
         'INSERT INTO download_requests (file_id, user_name, group_name, status, served_from, served_to, served_to_location, requested_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
-        [fileId, req.user.name, req.user.role, 'requested', 'tape', server, filePath]
+        [fileId, req.user.name, req.user.role, 'requested', 'cache', server, filePath]
       );
 
       console.log('Request body:', req.body);

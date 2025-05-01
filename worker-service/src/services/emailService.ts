@@ -10,13 +10,20 @@ interface EmailOptions {
   requestedAt?: number;
 }
 
-interface SecureCopyOptions {
+interface SecureCopyUploadOptions {
   server: string;
   localPath: string;
   jobId: string;
   requestedAt?: number;
   errorMessage?: string;
-  
+}
+
+interface SecureCopyDownloadOptions {
+  server: string;
+  remotePath: string;
+  jobId: string;
+  requestedAt?: number;
+  errorMessage?: string;
 }
 
 export class EmailService {
@@ -68,10 +75,10 @@ export class EmailService {
     }
   }
 
-  public async sendSecureCopyEmail(
+  public async sendSecureCopyUploadEmail(
     to: string,
     status: 'success' | 'failed',
-    options?: SecureCopyOptions
+    options?: SecureCopyUploadOptions
   ): Promise<void> {
     try {
       const subject = status === 'success' 
@@ -141,5 +148,39 @@ export class EmailService {
       subject,
       html
     });
+  }
+
+  public async sendSecureCopyDownloadEmail(
+    to: string,
+    status: 'success' | 'failed',
+    options?: SecureCopyDownloadOptions
+  ): Promise<void> {
+    try {
+      const subject = status === 'success' 
+        ? `File Successfully Copied to ${options?.server}`
+        : `Failed to copy file to ${options?.server}`;
+
+      const message = status === 'success'
+        ? `Your file has been successfully copied to ${options?.server} at path: ${options?.remotePath}\n` +
+          `Job ID: ${options?.jobId}\n` +
+          `Requested at: ${new Date(options?.requestedAt || Date.now()).toLocaleString()}`
+        : `Failed to copy file to ${options?.server} at path: ${options?.remotePath}\n` +
+          `Requested at: ${new Date(options?.requestedAt || Date.now()).toLocaleString()}\n` +
+          `Error: ${options?.errorMessage || 'Unknown error'}\n` +
+          `Please contact admin\n` +
+          `Admin Email: ${process.env.ADMIN_EMAIL}`;
+
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM,
+        to,
+        subject,
+        text: message
+      });
+
+      logger.info(`Sent secure copy download ${status} email notification to ${to}`);
+    } catch (error) {
+      logger.error('Failed to send secure copy download email notification:', error);
+      // Don't throw the error as email failure shouldn't stop the process
+    }
   }
 } 
