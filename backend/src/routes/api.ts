@@ -668,7 +668,7 @@ router.post('/secureupload', hasFeatureAccess, async (req, res) => {
       try{
         const job = await secureCopyQueue.add('SecureCopy', jobData, {
           priority: req.user.role === 'admin' ? 1 : 2, // Higher priority for admin files
-          jobId: `secureCopy-${result.insertId}`
+          jobId: `secureCopy-upload-${result.insertId}`
         });
         
         console.log('Job added successfully with ID:', job.id);
@@ -735,7 +735,7 @@ router.post('/securedownload', hasFeatureAccess, async (req, res) => {
 
       const job = await secureCopyQueue.add('SecureCopy', jobData, {
         priority: req.user.role === 'admin' ? 1 : 2,
-        jobId: `secureCopy-${result.insertId}`
+        jobId: `secureCopy-download-${result.insertId}`
       });
 
       console.log('Job added successfully with ID:', job.id);

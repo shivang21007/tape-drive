@@ -15,7 +15,7 @@ async function checkRedisJobs() {
     await client.connect();
     console.log('Connected to Redis');
 
-    const queueName = 'file-processing';
+    const queueName = 'SecureCopy';
 
     // Get all keys for the queue
     const keys = await client.keys(`bull:${queueName}:*`);
@@ -30,7 +30,7 @@ async function checkRedisJobs() {
     // }
 
     // Get job details
-    const jobKeys = keys.filter(key => key.match(/bull:file-processing:\d+$/));
+    const jobKeys = keys.filter(key => key.match(/bull:SecureCopy:\d+$/));
     
     if (jobKeys.length > 0) {
       console.log('\nDetailed Job Information:');

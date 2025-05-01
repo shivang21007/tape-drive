@@ -57,7 +57,7 @@ const worker = new Worker('file-processing', async (job) => {
       return Math.min(attemptsMade * 1000, 10000);
     }
   },
-  maxStalledCount: 3
+  maxStalledCount: 1
 });
 
 // Handle worker events

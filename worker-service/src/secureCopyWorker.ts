@@ -86,7 +86,7 @@ const getPrivateIp = async (group: string, serverName: string): Promise<string> 
 const worker = new Worker<SecureCopyUploadJob | SecureCopyDownloadJob>(
     'SecureCopy',
     async (job: Job<SecureCopyUploadJob | SecureCopyDownloadJob>) => {
-        const { type,fileId, fileName, userName, userEmail, groupName, filePath, server, isAdmin, requestedAt} = job.data;
+        const { type, fileId, fileName, userName, userEmail, groupName, filePath, server, isAdmin, requestedAt } = job.data;
         
         try {
             logger.info(`Starting secure copy for file: ${fileName} from server: ${server}`);
@@ -393,11 +393,11 @@ const worker = new Worker<SecureCopyUploadJob | SecureCopyDownloadJob>(
             }
 
             // Don't throw error to prevent retry
-            return {
-                success: false,
-                message: 'Secure copy operation failed',
-                error: errorMessage
-            };
+            // return {
+            //     success: false,
+            //     message: 'Secure copy operation failed',
+            //     error: errorMessage
+            // };
         }
     },
     {
@@ -406,35 +406,49 @@ const worker = new Worker<SecureCopyUploadJob | SecureCopyDownloadJob>(
             port: parseInt(process.env.REDIS_PORT || '6379'),
             password: process.env.REDIS_PASSWORD
         },
-        concurrency: 1,
+        concurrency: 1, // Process one job at a time
         limiter: {
             max: 1,
             duration: 1000
         },
         // Disable retries
         settings: {
-            backoffStrategy: undefined
-        }
+            backoffStrategy: (attemptsMade: number) => {
+                return Math.min(attemptsMade * 1000, 10000); // Exponential backoff
+            }
+        },
+        maxStalledCount: 1
     }
 );
 
+// Enhanced event handling
 worker.on('completed', (job) => {
     logger.info(`Secure copy job ${job.id} completed successfully`);
+    tapeLogger.endOperation('secure-copy');
 });
 
 worker.on('failed', (job, error) => {
     logger.error(`Secure copy job ${job?.id} failed:`, error);
-
+    tapeLogger.logError('secure-copy', error);
 });
 
 worker.on('error', (error) => {
     logger.error('Worker error:', error);
-
+    tapeLogger.logError('secure-copy', error);
 });
 
 worker.on('stalled', (jobId) => {
     logger.warn(`Job ${jobId} stalled`);
+    tapeLogger.logError('secure-copy', new Error(`Job ${jobId} stalled`));
+});
 
+worker.on('active', (job) => {
+    logger.info(`Starting processing of job ${job.id}`);
+    tapeLogger.startOperation('secure-copy');
+});
+
+worker.on('progress', (job, progress) => {
+    logger.info(`Job ${job.id} progress: ${progress}`);
 });
 
 logger.info('Secure copy worker started and ready to process jobs');
