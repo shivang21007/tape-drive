@@ -12,6 +12,7 @@ interface FileData {
   group_name: string;
   file_name: string;
   file_size: string;
+  method: string;
   created_at: string;
   status: string;
 }
@@ -84,7 +85,7 @@ const Files: React.FC = () => {
         pauseOnHover
         theme="light"
       />
-      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-8xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Files</h1>
           <div className="space-x-4">
@@ -129,6 +130,9 @@ const Files: React.FC = () => {
                   Size
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Method
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Uploaded Date
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
@@ -158,6 +162,9 @@ const Files: React.FC = () => {
                     {file.file_size || '0 B'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {file.method || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {new Date(file.created_at).toLocaleString() || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -168,11 +175,12 @@ const Files: React.FC = () => {
                       {file.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 ">
                     <FileDownload 
                       fileId={file.id}
                       fileName={file.file_name}
                       fileSize={file.file_size}
+                      method={file.method}
                     />
                   </td>
                 </tr>

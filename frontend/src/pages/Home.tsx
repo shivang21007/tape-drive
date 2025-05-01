@@ -323,15 +323,20 @@ const Home: React.FC = () => {
           )}
           {/* Upload through Server Button with animated gradient */}
           <button
-            onClick={() => navigate('/securecopy')}
+            onClick={() => navigate('/secureupload')}
             className="rounded-md px-4 py-2 text-sm font-medium text-white animated-gradient-btn"
             style={{
               background: 'linear-gradient(90deg, #22d3ee, #16a34a)',
               backgroundSize: '200% 100%',
               fontWeight: 800
             }}
-          >
             Upload through Server <span style={{ color: '#111', fontWeight: 700, marginLeft: '0.5ch' }}>fastest</span>
+          </button>
+          <button
+            onClick={() => navigate('/securedownload')}
+            className="rounded-md px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
+          >
+            Download to Server
           </button>
         </div>
         {/* File Input (hidden) */}

@@ -25,7 +25,7 @@ const operationTimers = new Map<string, number>();
 
 class TapeLogger {
   private failureCounts = new Map<string, number>();
-  private readonly MAX_FAILURES = 3;
+  private readonly MAX_FAILURES = 1;
 
   startOperation(operation: string): void {
     operationTimers.set(operation, Date.now());

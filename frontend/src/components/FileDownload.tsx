@@ -4,25 +4,25 @@ import axios from 'axios';
 import { isFileTypeSupported } from '../utils/downloadUtils';
 import { useNavigate } from 'react-router-dom';
 import { convertFileSizeToBytes } from '../utils/format';
-
 interface FileDownloadProps {
   fileId: number;
   fileName: string;
-  fileSize?: string; // File size in bytes
+  fileSize?: string; 
+  method?: string; // File size in bytes
 }
 
 interface DownloadStatus {
-  status: 'none' | 'processing' | 'completed' | 'failed';
+  status: 'none' | 'processing' | 'completed' | 'failed' | 'requested';
   requestId?: number;
   message: string;
 }
 
-const LARGE_FILE_THRESHOLD = 6 * 1024 * 1024 * 1024; // 5GB 
+const LARGE_FILE_THRESHOLD = 10 * 1024 * 1024 * 1024; // 10GB 
 
 export const FileDownload: React.FC<FileDownloadProps> = ({ 
   fileId, 
   fileName,
-  fileSize
+  fileSize,
 }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus>({ 
@@ -53,9 +53,14 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
     checkDownloadStatus();
   }, [fileId]);
 
+  // Direct Download to Browser
   const handleDownload = async () => {
     if (!isFileTypeSupported(fileName)) {
       alert('File type not supported');
+      return;
+    }
+     if (isLargeFile) {
+      alert('File is too large to Direct Download. Please use Secure Download.');
       return;
     }
 
@@ -101,26 +106,73 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
     }
   };
 
-  const handleSecureCopy = () => {
-    navigate(`/securecopy?fileId=${fileId}&fileName=${encodeURIComponent(fileName)}`);
+
+ // Secure Download to Server
+  const handleSecureDownload = async () => {
+    if (!isFileTypeSupported(fileName)) {
+      alert('File type not supported');
+      return;
+    }
+
+    setIsDownloading(true);
+
+    try {
+      // Check if file is in cache without creating a download request
+      const response = await axios.get(`/api/files/${fileId}/check-cache`);
+      const data = response.data;
+
+      if (data.isInCache) {
+        // File is in cache, redirect to secure download page
+        navigate(`/securedownload?fileId=${fileId}&fileName=${encodeURIComponent(fileName)}`);
+      } else {
+        // File not in cache, create a download request
+        const downloadResponse = await axios.get(`/api/files/${fileId}/download`);
+        const downloadData = downloadResponse.data;
+        
+        if (downloadData.status === 'processing') {
+          setDownloadStatus({
+            status: 'processing',
+            requestId: downloadData.requestId,
+            message: downloadData.message
+          });
+          alert(downloadData.message);
+        }
+      }
+    } catch (error) {
+      setIsDownloading(false);
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 404) {
+          alert('File not found');
+        } else if (error.response?.status === 403) {
+          alert('Access denied');
+        } else if (error.response?.status === 500) {
+          alert('Server error. Please try again later.');
+        } else {
+          alert('Failed to initiate download');
+        }
+      } else {
+        alert('Failed to initiate download');
+      }
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const isButtonDisabled = isDownloading || 
     downloadStatus.status === 'processing';
 
   const getButtonText = () => {
-    if (isLargeFile) return 'LargeFile';
     if (isDownloading) return 'Checking...';
-    if (downloadStatus.status === 'processing') {
+    if (downloadStatus.status === 'processing' || downloadStatus.status === 'requested') {
       return 'requested';
     }
     return 'Download';
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1 justify-center">
       <Button
-        onClick={isLargeFile ? handleSecureCopy : handleDownload}
+        onClick={handleDownload}
         disabled={isLargeFile || isButtonDisabled}
         className={`${
           isLargeFile 
@@ -129,6 +181,17 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
         } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
       >
         {getButtonText()}
+      </Button>
+      <Button
+        onClick={handleSecureDownload}
+        disabled={isButtonDisabled}
+        className={`${
+          isLargeFile 
+            ? 'bg-green-500 hover:bg-green-600' 
+            : 'bg-blue-500 hover:bg-blue-600'
+        } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
+      >
+        SecureDownload
       </Button>
     </div>
   );
