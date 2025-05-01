@@ -7,7 +7,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileQueue, secureCopyQueue } from '../queue/fileQueue';
-import { FileProcessingJob, SecureCopyJob } from '../types/fileProcessing';
+import { FileProcessingJob, SecureCopyDownloadJob, SecureCopyUploadJob } from '../types/fileProcessing';
 import { getServerList } from '../utils/serverList';
 
 const router = express.Router();
@@ -632,12 +632,25 @@ router.post('/secureupload', hasFeatureAccess, async (req, res) => {
       const fileName = filePath.split('/').pop();
       const type = 'upload';
 
+      if(!server || !filePath){
+        return res.status(400).json({ error: 'Server and file path are required' });
+      }
+
+
       const [result] = await connection.query<ResultSetHeader>(
         'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location, method) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [req.user.name, req.user.role, fileName, 'unknown', 'pending', filePath, server]
       );
+
+      if(!result){
+        return res.status(500).json({ error: 'Failed to add entry to upload_details table' });
+      }
+
       console.log('result : ', result);
-      const jobData: SecureCopyJob = {
+
+      
+      
+      const jobData: SecureCopyUploadJob = {
         type: type,
         fileId: result.insertId,
         fileName: fileName,
@@ -649,21 +662,22 @@ router.post('/secureupload', hasFeatureAccess, async (req, res) => {
         isAdmin: req.user.role === 'admin',
         requestedAt: Date.now()
       };
-  
+      
       console.log('Secure CopyjobData : ', jobData);
-
+      
       try{
         const job = await secureCopyQueue.add('SecureCopy', jobData, {
           priority: req.user.role === 'admin' ? 1 : 2, // Higher priority for admin files
           jobId: `secureCopy-${result.insertId}`
         });
-  
+        
         console.log('Job added successfully with ID:', job.id);
       } catch (error) {
         console.error('Failed to add job to queue:', error);
         throw error;
       }
-
+      
+      return res.status(200).json({ success: true, message: 'File uploaded successfully' });
     }
     else{
       throw new Error('Invalid request type');
@@ -690,7 +704,6 @@ router.post('/securedownload', hasFeatureAccess, async (req, res) => {
   try{
     // add a entry in download_requests table if type is download
     if(req.body.type === 'download'){
-     const type = 'download';
       const {fileId, server, filePath } = req.body;
       
       if (!server || !filePath) {
@@ -704,8 +717,9 @@ router.post('/securedownload', hasFeatureAccess, async (req, res) => {
 
       console.log('Request body:', req.body);
 
-      const jobData: SecureCopyJob = {
+      const jobData: SecureCopyDownloadJob = {
         type: 'download',
+        downloadRequestId: result.insertId,
         fileId: fileId,
         fileName: req.body.fileName,
         userName: req.user.name,
