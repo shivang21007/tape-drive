@@ -65,7 +65,7 @@ const createTables = async () => {
         file_name VARCHAR(255) NOT NULL,
         file_size VARCHAR(20) NOT NULL,
         status ENUM('pending', 'queueing', 'processing', 'completed', 'failed') DEFAULT 'pending',
-        method VARCHAR(255) DEFAULT 'direct_upload',
+        method VARCHAR(255) DEFAULT 'Browser',
         local_file_location VARCHAR(255),
         tape_location VARCHAR(255) DEFAULT 'pending',
         tape_number VARCHAR(50) DEFAULT 'pending',
@@ -83,6 +83,8 @@ const createTables = async () => {
         group_name VARCHAR(255) NOT NULL,
         status ENUM('none', 'requested', 'processing', 'completed', 'failed') DEFAULT 'none',
         served_from ENUM('cache', 'tape') DEFAULT NULL,
+        served_to VARCHAR(255) DEFAULT 'Browser',
+        served_to_location VARCHAR(255) DEFAULT NULL,
         requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         completed_at TIMESTAMP NULL,
         FOREIGN KEY (file_id) REFERENCES upload_details(id) ON DELETE CASCADE
