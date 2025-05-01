@@ -10,7 +10,7 @@ import { fileQueue } from './queue/fileQueue';
 import path from 'path';
 import fs from 'fs/promises';
 import fsSync from 'fs';
-import { FileProcessingJob, SecureCopyJob } from './types/fileProcessing';
+import { FileProcessingJob, SecureCopyUploadJob, SecureCopyDownloadJob } from './types/fileProcessing';
 import { google } from 'googleapis';
 import dotenv from 'dotenv';
 
@@ -83,12 +83,11 @@ const getPrivateIp = async (group: string, serverName: string): Promise<string> 
 };
 
 
-const worker = new Worker<SecureCopyJob>(
+const worker = new Worker<SecureCopyUploadJob | SecureCopyDownloadJob>(
     'SecureCopy',
-    async (job: Job<SecureCopyJob>) => {
-        const { type, fileId, fileName, userName, userEmail, groupName, filePath, server, isAdmin } = job.data;
-        console.log("job.data", job.data);
-
+    async (job: Job<SecureCopyUploadJob | SecureCopyDownloadJob>) => {
+        const { type,fileId, fileName, userName, userEmail, groupName, filePath, server, isAdmin, requestedAt} = job.data;
+        
         try {
             logger.info(`Starting secure copy for file: ${fileName} from server: ${server}`);
             tapeLogger.startOperation('secure-copy');
@@ -98,6 +97,7 @@ const worker = new Worker<SecureCopyJob>(
             logger.info(`Resolved private IP ${privateIp} for server ${server}`);
 
             if (type === 'upload') {
+                console.log("Processing upload job:", { type, fileId, fileName, server, filePath });
                 // Existing upload logic
                 const uploadDir = process.env.UPLOAD_DIR || '/home/octro/google-auth-login-page/tape-drive/backend/uploadfiles';
                 const targetDir = path.join(uploadDir, groupName, userName);
@@ -119,7 +119,7 @@ const worker = new Worker<SecureCopyJob>(
                 tapeLogger.startOperation('scp-transfer');
                 try {
                     const { stdout, stderr } = await execAsync(scpCommand);
-                    logger.info('SCP output:', stdout);
+                    logger.info('SCP output:', stdout? stdout : "No output");
                     if (stderr) logger.warn('SCP warnings:', stderr);
                 } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -229,7 +229,6 @@ const worker = new Worker<SecureCopyJob>(
                         priority: isAdmin ? 1 : 2,
                         jobId: `upload-${fileId}`
                     });
-                    console.log("New job added to file processing queue: ", jobData.id);
 
                     logger.info(`Added file to file-processing queue: ${fileName}`);
 
@@ -255,24 +254,39 @@ const worker = new Worker<SecureCopyJob>(
                 }
 
             } else if (type === 'download') {
-                // Get local file location from upload_details
-                const files = await databaseService.getUploadDetails(fileId);
+                // downloadRequestId is the id of the download request in the download_requests table
+                const { downloadRequestId } = job.data;
+
+                console.log("Processing download job:", { fileId, fileName, server, filePath });
+                
+                // Get file details from download_requests table
+                const downloadRequest = await databaseService.getDownloadRequest(downloadRequestId);
+                if (!downloadRequest) {
+                    console.error("Download request not found:", downloadRequestId);
+                    throw new Error(`Download request not found for ID: ${downloadRequestId}`);
+                }
+
+                // Get local file location from upload_details using the file_id from download request
+                const files = await databaseService.getUploadDetails(downloadRequest.file_id);
+
 
                 if (!files || (files as any[]).length === 0) {
+                    console.error("No files found in upload_details");
                     // Update download request status to failed
-                    await databaseService.updateDownloadStatus(fileId, 'failed', 'tape');
-                    throw new Error(`File not found in upload_details for ID: ${fileId}`);
+                    await databaseService.updateDownloadStatus(downloadRequestId, 'failed', 'cache');
+                    throw new Error(`File not found in upload_details for ID: ${downloadRequest.file_id}`);
                 }
 
                 const localFilePath = (files as any[])[0].local_file_location;
                 if (!localFilePath || !fsSync.existsSync(localFilePath)) {
+                    console.error("Local file not found:", localFilePath);
                     // Update download request status to failed
-                    await databaseService.updateDownloadStatus(fileId, 'failed', 'cache');
+                    await databaseService.updateDownloadStatus(downloadRequestId, 'failed', 'cache');
                     throw new Error(`Local file not found at path: ${localFilePath}`);
                 }
 
                 // Update download request status to processing
-                await databaseService.updateDownloadStatus(fileId, 'processing', 'cache');
+               const updatedStatus =  await databaseService.updateDownloadStatus(downloadRequestId, 'processing', 'cache');
 
                 // Form SCP command for download (download: local -> remote)
                 const remotePath = filePath.startsWith('~') ? filePath : `~/${filePath}`;
@@ -291,11 +305,12 @@ const worker = new Worker<SecureCopyJob>(
                     logger.info('File verification output:', verifyOutput? verifyOutput : "No output");
 
                     // Update download_requests table to completed
-                    await databaseService.updateDownloadStatus(fileId, 'completed', 'cache');
+                    const updatedStatus = await databaseService.updateDownloadStatus(downloadRequestId, 'completed', 'cache');
 
                     // Send success email
                     await emailService.sendSecureCopyDownloadEmail(userEmail, 'success', {
                         server,
+                        fileName,
                         remotePath: filePath,
                         jobId: job.id || 'unknown',
                         requestedAt: job.timestamp
@@ -315,11 +330,12 @@ const worker = new Worker<SecureCopyJob>(
                     logger.error('SCP command failed:', error);
 
                     // Update download_requests table with failure
-                    await databaseService.updateDownloadStatus(fileId, 'failed', 'cache');
+                    const updatedStatus = await databaseService.updateDownloadStatus(downloadRequestId, 'failed', 'cache');
 
                     // Send failure email to user for SCP errors
                     await emailService.sendSecureCopyDownloadEmail(userEmail, 'failed', {
                         server,
+                        fileName,
                         remotePath: filePath,
                         jobId: job.id || 'unknown',
                         requestedAt: job.timestamp,
@@ -329,7 +345,7 @@ const worker = new Worker<SecureCopyJob>(
                     // Don't throw error to prevent retry
                     return {
                         success: false,
-                        message: 'Failed to copy file to remote server',
+                        message: 'Failed to copy file: "${fileName}" to remote server',
                         error: errorMessage
                     };
                 }
@@ -343,12 +359,38 @@ const worker = new Worker<SecureCopyJob>(
             tapeLogger.logError('secure-copy', new Error(errorMessage));
 
             // Notify admin of critical error
-            await adminNotificationService.sendCriticalError('secure-copy', new Error(errorMessage), {
-                fileId,
-                filePath,
-                server,
-                userEmail
-            });
+            if (type === 'upload') {
+                await adminNotificationService.sendSecureCopyUploadCriticalError('secure-copy', new Error(errorMessage), {
+                    type: type,
+                    fileId: fileId,
+                    fileName: fileName,
+                    server: server,
+                    filePath: filePath,
+                    userName: userName,
+                    userEmail: userEmail,
+                    requestedAt: job.timestamp
+                });
+            } else if (type === 'download') {
+                const { downloadRequestId } = job.data;
+                await adminNotificationService.sendSecureCopyDownloadCriticalError('secure-copy', new Error(errorMessage), {
+                    type: type,
+                    downloadRequestId: downloadRequestId,
+                    fileName: fileName,
+                    server: server,
+                    filePath: filePath,
+                    userName: userName,
+                    userEmail: userEmail,
+                    requestedAt: job.timestamp
+                });
+            } else {
+                await adminNotificationService.sendCriticalError('secure-copy', new Error(errorMessage), {
+                    type: type,
+                    fileId: fileId,
+                    fileName: fileName,
+                    server: server,
+                    userEmail: userEmail
+                });
+            }
 
             // Don't throw error to prevent retry
             return {

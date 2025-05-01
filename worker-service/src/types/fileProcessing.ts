@@ -11,7 +11,7 @@ export interface FileProcessingJob {
   requestedAt: number;
 }
 
-export interface SecureCopyJob {
+export interface SecureCopyUploadJob {
   type: 'upload';
   fileId: number;
   fileName: string;
@@ -23,3 +23,17 @@ export interface SecureCopyJob {
   isAdmin: boolean;
   requestedAt: number;
 } 
+
+export interface SecureCopyDownloadJob {
+  type: 'download';
+  downloadRequestId: number;
+  fileId: number;
+  fileName: string;
+  userName: string;
+  userEmail: string;
+  groupName: string;
+  filePath: string;
+  server: string;
+  isAdmin: boolean;
+  requestedAt: number;
+}

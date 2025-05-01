@@ -104,17 +104,19 @@ export class DatabaseService {
   ) {
     const connection = await this.pool.getConnection();
     try {
+      let result;
       if (status === 'completed') {
-        await connection.query(
+        [result] = await connection.query(
           'UPDATE download_requests SET status = ?, served_from = ?, completed_at = ? WHERE id = ?',
           [status, servedFrom, new Date(), requestId]
         );
       } else {
-        await connection.query(
+        [result] = await connection.query(
           'UPDATE download_requests SET status = ? WHERE id = ?',
           [status, requestId]
         );
       }
+      return result;
     } finally {
       connection.release();
     }
@@ -140,6 +142,19 @@ export class DatabaseService {
         [fileId]
       );
       return rows;
+    } finally {
+      connection.release();
+    }
+  }
+
+  public async getDownloadRequest(requestId: number) {
+    const connection = await this.pool.getConnection();
+    try {
+      const [rows] = await connection.query(
+        'SELECT * FROM download_requests WHERE id = ?',
+        [requestId]
+      );
+      return rows && (rows as any[]).length > 0 ? (rows as any[])[0] : null;
     } finally {
       connection.release();
     }

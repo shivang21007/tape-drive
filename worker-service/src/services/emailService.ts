@@ -20,6 +20,7 @@ interface SecureCopyUploadOptions {
 
 interface SecureCopyDownloadOptions {
   server: string;
+  fileName: string;
   remotePath: string;
   jobId: string;
   requestedAt?: number;
@@ -161,10 +162,10 @@ export class EmailService {
         : `Failed to copy file to ${options?.server}`;
 
       const message = status === 'success'
-        ? `Your file has been successfully copied to ${options?.server} at path: ${options?.remotePath}\n` +
+        ? `Your file: "${options?.fileName}" has been successfully copied to ${options?.server} at path: ${options?.remotePath}\n` +
           `Job ID: ${options?.jobId}\n` +
           `Requested at: ${new Date(options?.requestedAt || Date.now()).toLocaleString()}`
-        : `Failed to copy file to ${options?.server} at path: ${options?.remotePath}\n` +
+        : `Failed to copy file: "${options?.fileName}" to ${options?.server} at path: ${options?.remotePath}\n` +
           `Requested at: ${new Date(options?.requestedAt || Date.now()).toLocaleString()}\n` +
           `Error: ${options?.errorMessage || 'Unknown error'}\n` +
           `Please contact admin\n` +

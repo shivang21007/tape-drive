@@ -34,7 +34,7 @@ export class AdminNotificationService {
   ): Promise<void> {
     try {
       const subject = `CRITICAL: Tape Operation Failed - ${operation}`;
-      
+
       const message = `
 Critical error in tape operation: ${operation}
 
@@ -74,7 +74,7 @@ The worker service has been halted to prevent further issues.
   ): Promise<void> {
     try {
       const subject = `ALERT: Repeated Tape Operation Failures - ${operation}`;
-      
+
       const message = `
 Repeated failures detected in tape operation: ${operation}
 
@@ -99,6 +99,91 @@ This operation has failed multiple times and requires investigation.
       logger.warn(`Sent repeated failure alert to admin for operation: ${operation}`);
     } catch (error) {
       logger.error('Failed to send repeated failure alert:', error);
+    }
+  }
+
+  async sendSecureCopyUploadCriticalError(
+    operation: string,
+    error: Error,
+    details: {
+      type: string;
+      fileId: number;
+      fileName: string;
+      server: string;
+      filePath: string;
+      userName: string;
+      userEmail: string;
+      requestedAt: number;
+    }
+  ) {
+    const subject = `[CRITICAL] Secure Copy Upload Failed - ${details.fileName}`;
+    const content = `
+      <h2>Secure Copy Upload Operation Failed</h2>
+      <p><strong>Operation:</strong> ${operation}</p>
+      <p><strong>Error:</strong> ${error.message}</p>
+      <h3>Details:</h3>
+      <ul>
+        <li><strong>Type:</strong> ${details.type}</li>
+        <li><strong>File ID:</strong> ${details.fileId}</li>
+        <li><strong>File Name:</strong> ${details.fileName}</li>
+        <li><strong>Server:</strong> ${details.server}</li>
+        <li><strong>File Path:</strong> ${details.filePath}</li>
+        <li><strong>User:</strong> ${details.userName} (${details.userEmail})</li>
+        <li><strong>Requested At:</strong> ${new Date(details.requestedAt).toLocaleString()}</li>
+      </ul>
+      <p>Please investigate this issue immediately.</p>
+    `;
+
+    await this.sendEmail(subject, content);
+  }
+
+  async sendSecureCopyDownloadCriticalError(
+    operation: string,
+    error: Error,
+    details: {
+      type: string;
+      downloadRequestId: number;
+      fileName: string;
+      server: string;
+      filePath: string;
+      userName: string;
+      userEmail: string;
+      requestedAt: number;
+    }
+  ) {
+    const subject = `[CRITICAL] Secure Copy Download Failed - ${details.fileName}`;
+    const content = `
+      <h2>Secure Copy Download Operation Failed</h2>
+      <p><strong>Operation:</strong> ${operation}</p>
+      <p><strong>Error:</strong> ${error.message}</p>
+      <h3>Details:</h3>
+      <ul>
+        <li><strong>Type:</strong> ${details.type}</li>
+        <li><strong>Download Request ID:</strong> ${details.downloadRequestId}</li>
+        <li><strong>File Name:</strong> ${details.fileName}</li>
+        <li><strong>Server:</strong> ${details.server}</li>
+        <li><strong>File Path:</strong> ${details.filePath}</li>
+        <li><strong>User:</strong> ${details.userName} (${details.userEmail})</li>
+        <li><strong>Requested At:</strong> ${new Date(details.requestedAt).toLocaleString()}</li>
+      </ul>
+      <p>Please investigate this issue immediately.</p>
+    `;
+
+    await this.sendEmail(subject, content);
+  }
+
+  private async sendEmail(subject: string, content: string) {
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM,
+        to: this.adminEmail,
+        subject,
+        html: content
+      });
+
+      logger.info(`Sent admin notification for subject: ${subject}`);
+    } catch (error) {
+      logger.error('Failed to send admin notification:', error);
     }
   }
 } 
