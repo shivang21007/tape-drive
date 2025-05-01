@@ -119,6 +119,12 @@ const SecureDownload: React.FC = () => {
                         >
                             Back to Home
                         </button>
+                        <button
+                            onClick={() => navigate('/history')}
+                            className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+                        >
+                            Download-History
+                        </button>
                     </div>
                 </div>
                 <div className="bg-white shadow sm:rounded-lg p-6">

@@ -35,9 +35,12 @@ const SecureUpload: React.FC = () => {
         filePath: filePath,
         type: 'upload'
       });
-      toast.success('File uploaded successfully');
-      console.log('Upload successful :', response.data);
-
+      if (response.status === 200) {
+        toast.success('File uploaded successfully')
+        setTimeout(() => {
+          navigate('/files');
+        }, 3000);
+      }
       // TODO: Handle successful upload
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -62,13 +65,19 @@ const SecureUpload: React.FC = () => {
        />
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Secure Copy</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-6">Secure Upload</h1>
           <div className="space-x-4">
             <button
               onClick={() => navigate('/')}
               className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
             >
               Back to Home
+            </button>
+            <button
+              onClick={() => navigate('/files')}
+              className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+            >
+              Upload-History
             </button>
           </div>
           <div className="bg-white shadow sm:rounded-lg p-6">
