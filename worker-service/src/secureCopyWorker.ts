@@ -424,6 +424,17 @@ worker.on('completed', (job) => {
 
 worker.on('failed', (job, error) => {
     logger.error(`Secure copy job ${job?.id} failed:`, error);
+
 });
 
-logger.info('Secure copy worker started and ready to process jobs'); 
+worker.on('error', (error) => {
+    logger.error('Worker error:', error);
+
+});
+
+worker.on('stalled', (jobId) => {
+    logger.warn(`Job ${jobId} stalled`);
+
+});
+
+logger.info('Secure copy worker started and ready to process jobs');
