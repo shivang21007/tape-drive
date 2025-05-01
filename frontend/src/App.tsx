@@ -7,7 +7,8 @@ import Home from './pages/Home';
 import Admin from './pages/Admin';
 import Files from './pages/Files';
 import History from './pages/History';
-import SecureCopy from './pages/SecureCopy';
+import SecureUpload from './pages/SecureUpload';
+import SecureDownload from './pages/SecureDownload';
 import './index.css';
 
 const App: React.FC = () => {
@@ -48,7 +49,16 @@ const App: React.FC = () => {
               </ProtectedRoute>
             }
           />
-          <Route path="/securecopy" element={<SecureCopy />} />
+          <Route path="/secureupload" element={
+            <ProtectedRoute>
+              <SecureUpload />
+            </ProtectedRoute>
+          } />
+          <Route path="/securedownload" element={
+            <ProtectedRoute>
+              <SecureDownload />
+            </ProtectedRoute>
+          } />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
