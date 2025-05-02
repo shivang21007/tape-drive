@@ -5,6 +5,7 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import { FileProcessingJob } from '../types/fileProcessing';
+import { DatabaseService } from '../services/databaseService';
 
 const execAsync = promisify(exec);
 
@@ -337,5 +338,46 @@ export class TapeManager {
 
     await fs.mkdir(tapePath, { recursive: true });
     return path.join(tapePath, job.fileName);
+  }
+
+  private parseDfOutput(output: string) {
+    const lines = output.trim().split('\n');
+    if (lines.length < 2) return null;
+
+    const data = lines[1].split(/\s+/);
+    return {
+      filesystem: data[0],
+      totalSize: data[1],
+      usedSize: data[2],
+      availableSize: data[3],
+      usagePercentage: parseFloat(data[4].replace('%', ''))
+    };
+  }
+
+  public async updateTapeInfo(tapeNumber: string, databaseService: DatabaseService): Promise<void> {
+    try {
+      // Execute df -h command
+      const { stdout } = await execAsync(`df -h ${this.mountPoint}`);
+      const tapeInfo = this.parseDfOutput(stdout);
+
+      if (!tapeInfo) {
+        throw new Error('Failed to parse df output');
+      }
+
+      // Update tape_info table
+      await databaseService.updateTapeInfo(
+        tapeNumber,
+        tapeInfo.totalSize,
+        tapeInfo.usedSize,
+        tapeInfo.availableSize,
+        tapeInfo.usagePercentage,
+        tapeInfo.filesystem
+      );
+
+      logger.info(`Updated tape info for tape ${tapeNumber}:`, tapeInfo);
+    } catch (error) {
+      logger.error(`Failed to update tape info for tape ${tapeNumber}:`, error);
+      // don't throw error here, just log it
+    }
   }
 } 

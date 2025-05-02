@@ -1,4 +1,3 @@
-import { Job } from 'bullmq';
 import { logger } from '../utils/logger';
 import { tapeLogger } from '../utils/tapeLogger';
 import { FileProcessingJob } from '../types/fileProcessing';
@@ -8,10 +7,7 @@ import { EmailService } from '../services/emailService';
 import { AdminNotificationService } from '../services/adminNotificationService';
 import fs from 'fs/promises';
 import path from 'path';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 
-const execAsync = promisify(exec);
 
 const tapeManager = new TapeManager();
 const databaseService = new DatabaseService();
@@ -144,6 +140,10 @@ export async function processFile(job: FileProcessingJob) {
       currentTape
     );
 
+    // After successful upload to tape, update tape info
+    if (currentTape) {
+      await tapeManager.updateTapeInfo(currentTape, databaseService);
+    }
     // Get user email and send success notification
     const userEmail = await databaseService.getUserEmail(fileId);
     await emailService.sendFileProcessedEmail(userEmail, fileName, 'success', {
@@ -151,6 +151,7 @@ export async function processFile(job: FileProcessingJob) {
       tapeNumber: currentTape,
       requestedAt
     });
+
 
     tapeLogger.endOperation('file-processing');
     return { 

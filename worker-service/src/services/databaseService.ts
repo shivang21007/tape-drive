@@ -159,4 +159,34 @@ export class DatabaseService {
       connection.release();
     }
   }
+
+  async updateTapeInfo(
+    tapeNumber: string,
+    totalSize: string,
+    usedSize: string,
+    availableSize: string,
+    usagePercentage: number,
+    filesystem: string
+  ): Promise<void> {
+    const connection = await this.pool.getConnection();
+    
+    try {
+      await connection.query(
+        `UPDATE tape_info 
+         SET total_size = ?,
+             used_size = ?,
+             available_size = ?,
+             usage_percentage = ?,
+             filesystem = ?,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE tape_no = ?`,
+        [totalSize, usedSize, availableSize, usagePercentage, filesystem, tapeNumber]
+      );
+    } catch (error) {
+      logger.error('Error updating tape info:', error);
+      // Don't throw the error as it shouldn't stop the process
+    } finally {
+      connection.release();
+    }
+  }
 } 

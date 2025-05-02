@@ -2,7 +2,7 @@ import { mysqlPool } from '../index';
 
 const createTables = async () => {
   const connection = await mysqlPool.getConnection();
-  
+
   try {
     // Set timezone to IST
     await connection.query(`SET time_zone = '+05:30'`);
@@ -25,11 +25,19 @@ const createTables = async () => {
     await connection.query(`
       CREATE TABLE IF NOT EXISTS user_groups_table (
         id INT PRIMARY KEY AUTO_INCREMENT,
-        name VARCHAR(255) NOT NULL,
+        name VARCHAR(255) NOT NULL UNIQUE,
         description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
+    `);
+    //create admin grooup by default in user_groups_table
+    await connection.query(`
+        INSERT INTO user_groups_table (name, description)
+        SELECT 'admin', 'Administrator group with full privileges'
+        WHERE NOT EXISTS (
+          SELECT 1 FROM user_groups_table WHERE name = 'admin'
+        )
     `);
 
     // Create user_group_memberships table (many-to-many relationship)
@@ -41,18 +49,6 @@ const createTables = async () => {
         PRIMARY KEY (user_id, group_id),
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (group_id) REFERENCES user_groups_table(id) ON DELETE CASCADE
-      )
-    `);
-
-    // Create processes table
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS processes (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        name VARCHAR(255) NOT NULL,
-        description TEXT,
-        status ENUM('active', 'inactive', 'completed') DEFAULT 'active',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
     `);
 
@@ -88,6 +84,23 @@ const createTables = async () => {
         requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         completed_at TIMESTAMP NULL,
         FOREIGN KEY (file_id) REFERENCES upload_details(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Create tape_info table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS tape_info (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        tape_no VARCHAR(50) NOT NULL UNIQUE,
+        group_name VARCHAR(255) NOT NULL,
+        total_size VARCHAR(20) NOT NULL,  -- e.g., "11T"
+        used_size VARCHAR(20) DEFAULT "0B",  -- e.g., "7.2G"
+        available_size VARCHAR(20) NOT NULL,  -- e.g., "11T"
+        usage_percentage DECIMAL(5,2) DEFAULT 0.00,  -- e.g., 1.00
+        filesystem VARCHAR(50) NOT NULL,  -- e.g., "ltfs:/dev/sg1"
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (group_name) REFERENCES user_groups_table(name) ON DELETE CASCADE
       )
     `);
 
