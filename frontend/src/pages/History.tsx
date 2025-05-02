@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import SearchBar from '../components/SearchBar';
 
 interface HistoryItem {
   id: number;
@@ -21,6 +22,7 @@ interface HistoryItem {
 
 const History: React.FC = () => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [filteredHistory, setFilteredHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -34,6 +36,7 @@ const History: React.FC = () => {
         }
       });
       setHistory(response.data);
+      setFilteredHistory(response.data);
       toast.success('History refreshed successfully');
     } catch (error) {
       toast.error('Failed to refresh history');
@@ -43,9 +46,31 @@ const History: React.FC = () => {
     }
   };
 
+  const handleSearch = (query: string) => {
+    if (!query.trim()) {
+      setFilteredHistory(history);
+      return;
+    }
+    const filtered = history.filter(item => 
+      item.file_name.toLowerCase().includes(query.toLowerCase())
+    );
+    setFilteredHistory(filtered);
+  };
+
+  const handleSelect = (selectedFile: string) => {
+    const filtered = history.filter(item => 
+      item.file_name.toLowerCase().includes(selectedFile.toLowerCase())
+    );
+    setFilteredHistory(filtered);
+  };
+
   useEffect(() => {
     handleRefresh();
   }, [user?.role]);
+
+  useEffect(() => {
+    setFilteredHistory(history);
+  }, [history]);
 
   if (loading) {
     return (
@@ -72,7 +97,7 @@ const History: React.FC = () => {
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Download History</h1>
-          <div className="space-x-4">
+          <div className="flex items-center space-x-4">
             <button
               onClick={handleRefresh}
               className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
@@ -85,6 +110,11 @@ const History: React.FC = () => {
             >
               Back to Home
             </button>
+            <SearchBar 
+              data={history}
+              onSearch={handleSearch}
+              onSelect={handleSelect}
+            />
           </div>
         </div>
 
@@ -128,7 +158,7 @@ const History: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {history.map((item) => (
+              {filteredHistory.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {item.id}
