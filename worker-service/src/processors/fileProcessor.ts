@@ -46,7 +46,7 @@ export async function processFile(job: FileProcessingJob) {
 
     const sizeValue = parseFloat(sizeMatch[1]);
     const sizeUnit = sizeMatch[2].toUpperCase();
-    
+
     // Convert to bytes
     let expectedSizeInBytes: number;
     switch (sizeUnit) {
@@ -65,7 +65,7 @@ export async function processFile(job: FileProcessingJob) {
 
     const stats = await fs.stat(filePath);
     const actualSize = stats.size;
-    
+
     // Allow 1% difference in file size
     const tolerance = expectedSizeInBytes * 0.01;
     if (Math.abs(actualSize - expectedSizeInBytes) > tolerance) {
@@ -76,7 +76,7 @@ export async function processFile(job: FileProcessingJob) {
     const spaceCheck = await tapeManager.checkGroupTapeSpace(groupName, actualSize);
     if (!spaceCheck.hasSpace) {
       const errorMessage = spaceCheck.errorMessage || 'No tapes have enough space';
-      
+
       // Send user notification
       const userEmail = await databaseService.getUserEmail(fileId);
       await emailService.sendFileProcessedEmail(
@@ -86,10 +86,15 @@ export async function processFile(job: FileProcessingJob) {
         { errorMessage }
       );
 
-      // Send admin notification
+      // Send detailed report to admin
+      const adminMessage = `Upload failed for file ${fileName} (${formatBytes(fileSize)})
+      Group: ${groupName}
+      User: ${userName}
+      Available tape space:
+      ${spaceCheck.tapeDetails?.map(t => `- Tape ${t.tapeNumber}: ${t.availableSize}`).join('\n')}`;
       await adminNotificationService.sendCriticalError(
         'tape_space',
-        new Error(errorMessage),
+        new Error(adminMessage),
         { fileId, fileName, groupName, fileSize }
       );
 
@@ -132,10 +137,10 @@ export async function processFile(job: FileProcessingJob) {
     try {
       tapePath = await tapeManager.createTapePath(job);
       logger.info(`Copying file to tape path: ${tapePath}`);
-      
+
       // Ensure parent directories exist
       await fs.mkdir(path.dirname(tapePath), { recursive: true });
-      
+
       // Copy file to tape
       await fs.copyFile(filePath, tapePath);
       logger.info(`File copied to tape: ${tapePath}`);
@@ -152,9 +157,9 @@ export async function processFile(job: FileProcessingJob) {
     tapeLogger.startOperation('file-verification');
     const sourceStats = await fs.stat(filePath);
     const destStats = await fs.stat(tapePath);
-    
+
     logger.info(`Source file size: ${sourceStats.size}, Destination file size: ${destStats.size}`);
-    
+
     if (sourceStats.size !== destStats.size) {
       logger.error('File verification failed: size mismatch');
       await fs.unlink(tapePath);
@@ -183,10 +188,9 @@ export async function processFile(job: FileProcessingJob) {
       requestedAt
     });
 
-
     tapeLogger.endOperation('file-processing');
-    return { 
-      success: true, 
+    return {
+      success: true,
       message: 'File processed and archived successfully',
       tapePath: tapePath,
       tapeNumber: currentTape
@@ -196,10 +200,10 @@ export async function processFile(job: FileProcessingJob) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     tapeLogger.logError('file_processing', new Error(errorMessage));
     await adminNotificationService.sendCriticalError('file_processing', new Error(errorMessage), { fileId, fileName });
-    
+
     // Update status to failed
     await databaseService.updateUploadStatus(fileId, 'failed');
-    
+
     // Clean up tape file if it exists
     if (tapePath) {
       try {
@@ -208,7 +212,7 @@ export async function processFile(job: FileProcessingJob) {
         logger.error(`Failed to clean up tape file: ${tapePath}`, unlinkError);
       }
     }
-    
+
     // Try to send failure email
     try {
       const userEmail = await databaseService.getUserEmail(fileId);
@@ -220,4 +224,32 @@ export async function processFile(job: FileProcessingJob) {
 
     throw error;
   }
+}
+
+function formatBytes(bytes: string): string {
+  const sizeMatch = bytes.match(/^(\d+\.?\d*)\s*(KB|MB|GB)$/i);
+  if (!sizeMatch) {
+    throw new Error(`Invalid file size format: ${bytes}`);
+  }
+
+  const sizeValue = parseFloat(sizeMatch[1]);
+  const sizeUnit = sizeMatch[2].toUpperCase();
+
+  // Convert to bytes
+  let sizeInBytes: number;
+  switch (sizeUnit) {
+    case 'KB':
+      sizeInBytes = sizeValue * 1024;
+      break;
+    case 'MB':
+      sizeInBytes = sizeValue * 1024 * 1024;
+      break;
+    case 'GB':
+      sizeInBytes = sizeValue * 1024 * 1024 * 1024;
+      break;
+    default:
+      throw new Error(`Unsupported file size unit: ${sizeUnit}`);
+  }
+
+  return `${sizeInBytes} bytes`;
 } 

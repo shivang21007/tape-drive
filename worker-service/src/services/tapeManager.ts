@@ -361,16 +361,25 @@ export class TapeManager {
     }
   }
 
-  public async checkGroupTapeSpace(groupName: string, requiredSize: number): Promise<{ hasSpace: boolean; tapeNumber?: string; errorMessage?: string }> {
+  public async checkGroupTapeSpace(groupName: string, requiredSize: number): Promise<{ 
+    hasSpace: boolean; 
+    tapeNumber?: string; 
+    errorMessage?: string;
+    tapeDetails?: Array<{ tapeNumber: string; availableSize: string }>;
+  }> {
     try {
       // Get tapes for the group from database, ordered by usage percentage
       const groupTapes = await databaseService.getGroupTapes(groupName);
       if (!groupTapes || groupTapes.length === 0) {
         return {
           hasSpace: false,
-          errorMessage: `No tapes configured for group ${groupName}`
+          errorMessage: `No tapes configured for group ${groupName}`,
+          tapeDetails: []
         };
       }
+
+      const tapeDetails: Array<{ tapeNumber: string; availableSize: string }> = [];
+      let selectedTape: string | undefined;
 
       // Check each tape in the group
       for (const tapeNumber of groupTapes) {
@@ -385,11 +394,15 @@ export class TapeManager {
           // Parse available size (e.g., "11T" -> bytes)
           const availableSize = this.parseSizeToBytes(tapeInfo.available_size);
           
-          if (availableSize >= requiredSize) {
-            return {
-              hasSpace: true,
-              tapeNumber: tapeNumber
-            };
+          // Store tape details for reporting
+          tapeDetails.push({
+            tapeNumber,
+            availableSize: tapeInfo.available_size
+          });
+
+          // If this tape has enough space and we haven't selected a tape yet
+          if (availableSize >= requiredSize && !selectedTape) {
+            selectedTape = tapeNumber;
           }
         } catch (error) {
           logger.error(`Error checking tape ${tapeNumber}:`, error);
@@ -397,16 +410,26 @@ export class TapeManager {
         }
       }
 
+      if (selectedTape) {
+        return {
+          hasSpace: true,
+          tapeNumber: selectedTape,
+          tapeDetails
+        };
+      }
+
       // If we get here, no tape had enough space
       return {
         hasSpace: false,
-        errorMessage: `No tapes in group ${groupName} have enough space for file (${this.formatBytes(requiredSize)})`
+        errorMessage: `No tapes in group ${groupName} have enough space for file (${this.formatBytes(requiredSize)})`,
+        tapeDetails
       };
     } catch (error) {
       logger.error(`Error checking group tape space:`, error);
       return {
         hasSpace: false,
-        errorMessage: `Error checking tape space: ${error instanceof Error ? error.message : 'Unknown error'}`
+        errorMessage: `Error checking tape space: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        tapeDetails: []
       };
     }
   }
