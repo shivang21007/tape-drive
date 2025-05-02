@@ -30,7 +30,7 @@ const TapeInfo: React.FC = () => {
         // The tapes field is a JSON string, so parse it
         const parsed = response.data.map((row: any) => ({
           group_name: row.group_name,
-          tapes: (typeof row.tapes === 'string' ? JSON.parse(row.tapes) : row.tapes).sort((a, b) => a.tape_no.localeCompare(b.tape_no))
+          tapes: (typeof row.tapes === 'string' ? JSON.parse(row.tapes) : row.tapes).sort((a: Tape, b: Tape) => a.tape_no.localeCompare(b.tape_no))
         }));
         setData(parsed);
       } catch (err) {
