@@ -1,7 +1,8 @@
 import nodemailer from 'nodemailer';
 import { logger } from '../utils/logger';
-import path from 'path';
-import fs from 'fs/promises';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 interface EmailOptions {
   tapeLocation?: string;

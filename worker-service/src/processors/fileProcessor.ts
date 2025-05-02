@@ -7,6 +7,9 @@ import { EmailService } from '../services/emailService';
 import { AdminNotificationService } from '../services/adminNotificationService';
 import fs from 'fs/promises';
 import path from 'path';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const tapeManager = new TapeManager();
 const databaseService = DatabaseService.getInstance();

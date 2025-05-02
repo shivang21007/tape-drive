@@ -6,6 +6,9 @@ import fsSync from 'fs';
 import path from 'path';
 import { FileProcessingJob } from '../types/fileProcessing';
 import { DatabaseService } from '../services/databaseService';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const execAsync = promisify(exec);
 const databaseService = DatabaseService.getInstance();

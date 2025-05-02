@@ -1,5 +1,8 @@
 import mysql from 'mysql2/promise';
 import { logger } from '../utils/logger';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 export class DatabaseService {
   private static instance: DatabaseService;
