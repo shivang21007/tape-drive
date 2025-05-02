@@ -6,18 +6,42 @@ export class DatabaseService {
   private pool: mysql.Pool;
 
   private constructor() {
-    this.pool = mysql.createPool({
+    const dbConfig = {
       host: process.env.DB_HOST || 'localhost',
       port: parseInt(process.env.DB_PORT || '3306'),
-      user: process.env.DB_USER || 'root',
+      user: process.env.DB_USER || 'ftp',
       password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME || 'tape_storage',
+      database: process.env.DB_NAME || 'user_management_storage',
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
       enableKeepAlive: true,
       keepAliveInitialDelay: 0
+    };
+
+    logger.info('Initializing database connection with config:', {
+      host: dbConfig.host,
+      port: dbConfig.port,
+      database: dbConfig.database,
+      user: dbConfig.user
     });
+
+    this.pool = mysql.createPool(dbConfig);
+
+    // Test connection on startup
+    this.pool.getConnection()
+      .then(connection => {
+        logger.info('Successfully connected to database');
+        connection.release();
+      })
+      .catch(error => {
+        logger.error('Failed to connect to database:', {
+          error: error.message,
+          code: error.code,
+          host: dbConfig.host,
+          port: dbConfig.port
+        });
+      });
 
     // Handle pool errors
     this.pool.on('connection', (connection) => {
