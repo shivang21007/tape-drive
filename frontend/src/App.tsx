@@ -9,6 +9,7 @@ import Files from './pages/Files';
 import History from './pages/History';
 import SecureUpload from './pages/SecureUpload';
 import SecureDownload from './pages/SecureDownload';
+import TapeInfo from './pages/TapeInfo';
 import './index.css';
 
 const App: React.FC = () => {
@@ -59,6 +60,7 @@ const App: React.FC = () => {
               <SecureDownload />
             </ProtectedRoute>
           } />
+          <Route path="/tapeinfo" element={<TapeInfo />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>

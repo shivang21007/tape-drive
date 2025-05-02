@@ -792,4 +792,33 @@ router.get('/files/:id/check-cache', hasFeatureAccess, async (req, res) => {
   }
 });
 
+// Get tape info group-wise
+router.get('/tapeinfo', async (req, res) => {
+  try {
+    const user = (req as any).user;
+    let query = `SELECT group_name, 
+              JSON_ARRAYAGG(JSON_OBJECT(
+                'id', id,
+                'tape_no', tape_no,
+                'total_size', total_size,
+                'used_size', used_size,
+                'available_size', available_size,
+                'usage_percentage', usage_percentage,
+                'updated_at', updated_at
+              )) AS tapes
+       FROM tape_info`;
+    let params: any[] = [];
+    if (!user || user.role !== 'admin') {
+      query += ' WHERE group_name = ?';
+      params.push(user?.role);
+    }
+    query += ' GROUP BY group_name';
+    const [rows] = await mysqlPool.query(query, params);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching tape info:', error);
+    res.status(500).json({ error: 'Failed to fetch tape info' });
+  }
+});
+
 export default router; 
