@@ -73,9 +73,11 @@ export async function processFile(job: FileProcessingJob) {
     }
 
     // 1. Check if any tape in the group has enough space
+    logger.info(`Checking tape space for group ${groupName} (file size: ${actualSize} bytes)`);
     const spaceCheck = await tapeManager.checkGroupTapeSpace(groupName, actualSize);
     if (!spaceCheck.hasSpace) {
       const errorMessage = spaceCheck.errorMessage || 'No tapes have enough space';
+      logger.error(`No tapes have enough space: ${errorMessage}`);
 
       // Send user notification
       const userEmail = await databaseService.getUserEmail(fileId);
@@ -105,14 +107,24 @@ export async function processFile(job: FileProcessingJob) {
 
     // 2. Use the tape that has enough space
     currentTape = spaceCheck.tapeNumber!;
+    logger.info(`Selected tape ${currentTape} for upload (available space: ${spaceCheck.tapeDetails?.find(t => t.tapeNumber === currentTape)?.availableSize})`);
 
     // 3. Ensure correct tape is loaded and mounted
     tapeLogger.startOperation('tape-mounting');
     try {
-      currentTape = await tapeManager.ensureCorrectTape(groupName);
-      if (!currentTape) {
+      logger.info(`Ensuring tape ${currentTape} is loaded and mounted`);
+      const loadedTape = await tapeManager.ensureCorrectTape(groupName);
+      if (!loadedTape) {
         throw new Error('Failed to get current tape number');
       }
+      logger.info(`Tape ${loadedTape} is loaded and mounted`);
+
+      // Verify tape is mounted
+      const isMounted = await tapeManager.isTapeMounted();
+      if (!isMounted) {
+        throw new Error('Tape is not mounted');
+      }
+      logger.info('Tape mount verified');
 
       // Create group directory after tape is mounted
       const groupDir = path.join(tapeManager.mountPoint, groupName);
@@ -178,6 +190,7 @@ export async function processFile(job: FileProcessingJob) {
 
     // 7. After successful upload to tape, update tape info
     if (currentTape) {
+      logger.info(`Updating tape info for tape ${currentTape}`);
       await tapeManager.updateTapeInfo(currentTape, databaseService);
     }
 
