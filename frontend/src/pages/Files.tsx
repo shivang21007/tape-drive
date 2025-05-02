@@ -5,6 +5,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import axios from 'axios';
 import { ToastContainer } from 'react-toastify';
 import { FileDownload } from '../components/FileDownload';
+import SearchBar from '../components/SearchBar';
+import './Files.css';
 
 interface FileData {
   id: number;
@@ -19,6 +21,7 @@ interface FileData {
 
 const Files: React.FC = () => {
   const [files, setFiles] = useState<FileData[]>([]);
+  const [filteredFiles, setFilteredFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -63,6 +66,28 @@ const Files: React.FC = () => {
     }
   };
 
+  const handleSearch = (query: string) => {
+    if (!query.trim()) {
+      setFilteredFiles(files);
+      return;
+    }
+    const filtered = files.filter(file => 
+      file.file_name.toLowerCase().includes(query.toLowerCase())
+    );
+    setFilteredFiles(filtered);
+  };
+
+  const handleSelect = (selectedFile: string) => {
+    const filtered = files.filter(file => 
+      file.file_name.toLowerCase().includes(selectedFile.toLowerCase())
+    );
+    setFilteredFiles(filtered);
+  };
+
+  useEffect(() => {
+    setFilteredFiles(files);
+  }, [files]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -85,10 +110,10 @@ const Files: React.FC = () => {
         pauseOnHover
         theme="light"
       />
-      <div className="max-w-8xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Files</h1>
-          <div className="space-x-4">
+          <div className="flex items-center space-x-4">
             <button
               onClick={handleRefresh}
               className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
@@ -107,6 +132,11 @@ const Files: React.FC = () => {
             >
               Back to Home
             </button>
+            <SearchBar 
+              data={files}
+              onSearch={handleSearch}
+              onSelect={handleSelect}
+            />
           </div>
         </div>
 
@@ -144,7 +174,7 @@ const Files: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {files.map((file) => (
+              {filteredFiles.map((file) => (
                 <tr key={file.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {file.id}
