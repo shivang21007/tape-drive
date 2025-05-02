@@ -250,40 +250,48 @@ export class TapeManager {
     }
   }
 
-  public async ensureCorrectTape(groupName: string): Promise<string> {
+  public async ensureCorrectTape(tapeNumber: string): Promise<string> {
     try {
       // Get current tape number
       const currentTape = await this.getCurrentTape();
-      if (!currentTape) {
-        throw new Error('Failed to get current tape number');
-      }
+      logger.info(`Current tape: ${currentTape}, Required tape: ${tapeNumber}`);
 
-      // Check if current tape matches group
-      const tapeGroup = await this.getTapeGroup(currentTape);
-      if (tapeGroup !== groupName) {
-        logger.info(`Current tape (${currentTape}) does not match required group (${groupName})`);
+      // If no tape is loaded or current tape doesn't match required tape
+      if (!currentTape || currentTape !== tapeNumber) {
+        logger.info(`Switching to tape ${tapeNumber}`);
         
-        // Get the first configured tape for the group
-        const groupTapes = await databaseService.getGroupTapes(groupName);
-        if (!groupTapes || groupTapes.length === 0) {
-          throw new Error(`No tapes configured for group ${groupName}`);
+        // If a tape is currently loaded, unmount and unload it
+        if (currentTape) {
+          await this.unmountTape();
+          await this.unloadTape();
         }
-        
-        // Follow exact tape switching workflow
-        await this.unmountTape();
-        await this.unloadTape();
-        await this.loadTape(groupTapes[0]);
+
+        // Load and mount the required tape
+        await this.loadTape(tapeNumber);
         await this.mountTape();
         
-        // Verify new tape is loaded
+        // Verify the tape is loaded and mounted
         const newTape = await this.getCurrentTape();
-        if (!newTape) {
-          throw new Error('Failed to get new tape number after loading');
+        if (newTape !== tapeNumber) {
+          throw new Error(`Failed to load tape ${tapeNumber}`);
         }
-        return newTape;
+        
+        const isMounted = await this.isTapeMounted();
+        if (!isMounted) {
+          throw new Error(`Failed to mount tape ${tapeNumber}`);
+        }
+        
+        logger.info(`Successfully switched to tape ${tapeNumber}`);
+        return tapeNumber;
       }
 
-      return currentTape;
+      // If current tape matches required tape, just ensure it's mounted
+      if (!await this.isTapeMounted()) {
+        logger.info(`Tape ${tapeNumber} is not mounted, mounting it`);
+        await this.mountTape();
+      }
+
+      return tapeNumber;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error(`Failed to ensure correct tape: ${errorMessage}`);
@@ -403,6 +411,8 @@ export class TapeManager {
           // If this tape has enough space and we haven't selected a tape yet
           if (availableSize >= requiredSize && !selectedTape) {
             selectedTape = tapeNumber;
+            logger.info(`Found tape ${tapeNumber} with sufficient space (${tapeInfo.available_size})`);
+            break; // Stop after finding first tape with space
           }
         } catch (error) {
           logger.error(`Error checking tape ${tapeNumber}:`, error);

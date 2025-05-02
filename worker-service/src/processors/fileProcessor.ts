@@ -113,7 +113,7 @@ export async function processFile(job: FileProcessingJob) {
     tapeLogger.startOperation('tape-mounting');
     try {
       logger.info(`Ensuring tape ${currentTape} is loaded and mounted`);
-      const loadedTape = await tapeManager.ensureCorrectTape(groupName);
+      const loadedTape = await tapeManager.ensureCorrectTape(currentTape);
       if (!loadedTape) {
         throw new Error('Failed to get current tape number');
       }
