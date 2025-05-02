@@ -1,0 +1,16 @@
+.max-w-7xl button {
+    margin-top: 2.5px;
+    padding: 0.8rem 2.8rem;
+    font-size: 1.1rem;
+    font-weight: 500;
+    border-radius: 8px;
+    border: 1px solid #2c455c;
+    cursor: pointer;
+    margin-right: 1rem;
+    position: relative;
+    overflow: hidden;
+    background: white;
+    color: #2c455c;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(44, 69, 92, 0.1);
+} 

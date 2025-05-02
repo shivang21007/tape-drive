@@ -7,6 +7,7 @@ import { ToastContainer } from 'react-toastify';
 import { FileDownload } from '../components/FileDownload';
 import SearchBar from '../components/SearchBar';
 import './Files.css';
+import '../styles/buttons.css';
 
 interface FileData {
   id: number;
