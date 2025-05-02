@@ -70,6 +70,35 @@ export async function processFile(job: FileProcessingJob) {
       throw new Error(`Source file verification failed: File size mismatch: expected ${expectedSizeInBytes} bytes (${fileSize}), got ${actualSize} bytes`);
     }
 
+    // Check if any tape in the group has enough space
+    const spaceCheck = await tapeManager.checkGroupTapeSpace(groupName, actualSize);
+    if (!spaceCheck.hasSpace) {
+      const errorMessage = spaceCheck.errorMessage || 'No tapes have enough space';
+      
+      // Send user notification
+      const userEmail = await databaseService.getUserEmail(fileId);
+      await emailService.sendFileProcessedEmail(
+        userEmail,
+        fileName,
+        'failed',
+        { errorMessage }
+      );
+
+      // Send admin notification
+      await adminNotificationService.sendCriticalError(
+        'tape_space',
+        new Error(errorMessage),
+        { fileId, fileName, groupName, fileSize }
+      );
+
+      // Update status to failed
+      await databaseService.updateUploadStatus(fileId, 'failed');
+      throw new Error(errorMessage);
+    }
+
+    // Use the tape that has enough space
+    currentTape = spaceCheck.tapeNumber!;
+
     // Ensure correct tape is loaded and mounted
     tapeLogger.startOperation('tape-mounting');
     try {

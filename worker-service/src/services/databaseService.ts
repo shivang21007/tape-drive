@@ -189,4 +189,30 @@ export class DatabaseService {
       connection.release();
     }
   }
+
+  public async getTapeInfo(tapeNumber: string) {
+    const connection = await this.pool.getConnection();
+    try {
+      const [rows] = await connection.query(
+        'SELECT * FROM tape_info WHERE tape_no = ?',
+        [tapeNumber]
+      );
+      return rows && (rows as any[]).length > 0 ? (rows as any[])[0] : null;
+    } finally {
+      connection.release();
+    }
+  }
+
+  public async getGroupTapes(groupName: string): Promise<string[]> {
+    const connection = await this.pool.getConnection();
+    try {
+      const [rows] = await connection.query(
+        'SELECT tape_no FROM tape_info WHERE group_name = ? ORDER BY usage_percentage ASC',
+        [groupName]
+      );
+      return (rows as any[]).map(row => row.tape_no);
+    } finally {
+      connection.release();
+    }
+  }
 } 
