@@ -18,6 +18,18 @@ export class TapeManager {
   public mountPoint: string;
   private tapeDevice: string;
 
+  private readonly sizeMultipliers: { [key: string]: number } = {
+    'TB': 1024 * 1024 * 1024 * 1024,
+    'T': 1024 * 1024 * 1024 * 1024,
+    'GB': 1024 * 1024 * 1024,
+    'G': 1024 * 1024 * 1024,
+    'MB': 1024 * 1024,
+    'M': 1024 * 1024,
+    'KB': 1024,
+    'K': 1024,
+    'B': 1
+  };
+
   constructor() {
     this.tapeDevice = process.env.TAPE_DEVICE || '/dev/sg2';
     this.mountPoint = process.env.TAPE_MOUNT_POINT || '/home/octro/tapedata1';
@@ -400,20 +412,13 @@ export class TapeManager {
   }
 
   private parseSizeToBytes(sizeStr: string): number {
-    const match = sizeStr.match(/^(\d+\.?\d*)\s*(B|KB|MB|GB|TB)$/i);
+    const match = sizeStr.match(/^(\d+\.?\d*)\s*(B|KB|K|MB|M|GB|G|TB|T)$/i);
     if (!match) return 0;
 
     const value = parseFloat(match[1]);
     const unit = match[2].toUpperCase();
-
-    switch (unit) {
-      case 'TB': return value * 1024 * 1024 * 1024 * 1024;
-      case 'GB': return value * 1024 * 1024 * 1024;
-      case 'MB': return value * 1024 * 1024;
-      case 'KB': return value * 1024;
-      case 'B': return value;
-      default: return 0;
-    }
+    
+    return value * (this.sizeMultipliers[unit] || 0);
   }
 
   private formatBytes(bytes: number): string {
