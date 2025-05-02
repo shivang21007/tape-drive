@@ -72,7 +72,7 @@ export async function processFile(job: FileProcessingJob) {
       throw new Error(`Source file verification failed: File size mismatch: expected ${expectedSizeInBytes} bytes (${fileSize}), got ${actualSize} bytes`);
     }
 
-    // Check if any tape in the group has enough space
+    // 1. Check if any tape in the group has enough space
     const spaceCheck = await tapeManager.checkGroupTapeSpace(groupName, actualSize);
     if (!spaceCheck.hasSpace) {
       const errorMessage = spaceCheck.errorMessage || 'No tapes have enough space';
@@ -103,10 +103,10 @@ export async function processFile(job: FileProcessingJob) {
       throw new Error(errorMessage);
     }
 
-    // Use the tape that has enough space
+    // 2. Use the tape that has enough space
     currentTape = spaceCheck.tapeNumber!;
 
-    // Ensure correct tape is loaded and mounted
+    // 3. Ensure correct tape is loaded and mounted
     tapeLogger.startOperation('tape-mounting');
     try {
       currentTape = await tapeManager.ensureCorrectTape(groupName);
@@ -132,7 +132,7 @@ export async function processFile(job: FileProcessingJob) {
     }
     tapeLogger.endOperation('tape-mounting');
 
-    // Create tape path and copy file
+    // 4. Create tape path and copy file
     tapeLogger.startOperation('file-copy');
     try {
       tapePath = await tapeManager.createTapePath(job);
@@ -153,7 +153,7 @@ export async function processFile(job: FileProcessingJob) {
     // Add delay before verification
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Verify the copy
+    // 5. Verify the copy
     tapeLogger.startOperation('file-verification');
     const sourceStats = await fs.stat(filePath);
     const destStats = await fs.stat(tapePath);
@@ -168,7 +168,7 @@ export async function processFile(job: FileProcessingJob) {
     logger.info('File verification successful');
     tapeLogger.endOperation('file-verification');
 
-    // Update database with tape location and tape number
+    // 6. Update database with tape location and tape number
     await databaseService.updateUploadStatus(
       fileId,
       'completed',
@@ -176,11 +176,12 @@ export async function processFile(job: FileProcessingJob) {
       currentTape
     );
 
-    // After successful upload to tape, update tape info
+    // 7. After successful upload to tape, update tape info
     if (currentTape) {
       await tapeManager.updateTapeInfo(currentTape, databaseService);
     }
-    // Get user email and send success notification
+
+    // 8. Get user email and send success notification
     const userEmail = await databaseService.getUserEmail(fileId);
     await emailService.sendFileProcessedEmail(userEmail, fileName, 'success', {
       tapeLocation: tapePath,
