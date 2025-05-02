@@ -793,7 +793,7 @@ router.get('/files/:id/check-cache', hasFeatureAccess, async (req, res) => {
 });
 
 // Get tape info group-wise
-router.get('/tapeinfo', async (req, res) => {
+router.get('/tapeinfo', hasFeatureAccess, async (req, res) => {
   try {
     const user = (req as any).user;
     let query = `SELECT group_name, 
