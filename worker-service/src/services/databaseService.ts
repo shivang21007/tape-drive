@@ -2,9 +2,10 @@ import mysql from 'mysql2/promise';
 import { logger } from '../utils/logger';
 
 export class DatabaseService {
+  private static instance: DatabaseService;
   private pool: mysql.Pool;
 
-  constructor() {
+  private constructor() {
     this.pool = mysql.createPool({
       host: process.env.DB_HOST || 'localhost',
       port: parseInt(process.env.DB_PORT || '3306'),
@@ -13,8 +14,24 @@ export class DatabaseService {
       database: process.env.DB_NAME || 'tape_storage',
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0
+      queueLimit: 0,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 0
     });
+
+    // Handle pool errors
+    this.pool.on('connection', (connection) => {
+      connection.on('error', (err) => {
+        logger.error('Database connection error:', err);
+      });
+    });
+  }
+
+  public static getInstance(): DatabaseService {
+    if (!DatabaseService.instance) {
+      DatabaseService.instance = new DatabaseService();
+    }
+    return DatabaseService.instance;
   }
 
   async updateUploadStatus(fileId: number, status: 'queueing' | 'processing' | 'completed' | 'failed', localFilePath?: string, fileSize?: string, tapeLocation?: string, tapeNumber?: string): Promise<void> {

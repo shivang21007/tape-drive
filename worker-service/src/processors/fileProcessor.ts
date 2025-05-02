@@ -8,9 +8,8 @@ import { AdminNotificationService } from '../services/adminNotificationService';
 import fs from 'fs/promises';
 import path from 'path';
 
-
 const tapeManager = new TapeManager();
-const databaseService = new DatabaseService();
+const databaseService = DatabaseService.getInstance();
 const emailService = new EmailService();
 const adminNotificationService = new AdminNotificationService();
 

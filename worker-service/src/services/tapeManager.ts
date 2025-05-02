@@ -8,7 +8,7 @@ import { FileProcessingJob } from '../types/fileProcessing';
 import { DatabaseService } from '../services/databaseService';
 
 const execAsync = promisify(exec);
-const databaseService = new DatabaseService();
+const databaseService = DatabaseService.getInstance();
 
 export class TapeManager {
   private currentTape: string | null = null;
