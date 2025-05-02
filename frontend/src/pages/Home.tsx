@@ -375,6 +375,12 @@ const Home: React.FC = () => {
           >
             Download History
           </button>
+          <button
+            onClick={() => navigate('/tapeinfo')}
+            className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+          >
+            Tape Info
+          </button>
         </div>
         {/* Selected File Display */}
         {selectedFile && (
