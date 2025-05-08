@@ -1,4 +1,5 @@
 import winston from 'winston';
+import DailyRotateFile from 'winston-daily-rotate-file';
 import path from 'path';
 import fs from 'fs-extra';
 
@@ -19,20 +20,24 @@ const secureCopyLogger = winston.createLogger({
   format: secureCopyFormat,
   defaultMeta: { service: 'secure-copy-worker' },
   transports: [
-    // Write all logs to secure-copy.log
-    new winston.transports.File({
-      filename: path.join(logsDir, 'secure-copy.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-      tailable: true
+    // Write all logs to secure-copy.log with rotation
+    new DailyRotateFile({
+      filename: path.join(logsDir, 'secure-copy-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      zippedArchive: true,
+      maxSize: '5m',
+      maxFiles: '30d',
+      format: secureCopyFormat
     }),
-    // Write error logs to secure-copy-error.log
-    new winston.transports.File({
-      filename: path.join(logsDir, 'secure-copy-error.log'),
+    // Write error logs to secure-copy-error.log with rotation
+    new DailyRotateFile({
+      filename: path.join(logsDir, 'secure-copy-error-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      zippedArchive: true,
+      maxSize: '5m',
+      maxFiles: '30d',
       level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-      tailable: true
+      format: secureCopyFormat
     })
   ]
 });

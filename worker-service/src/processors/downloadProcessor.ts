@@ -1,4 +1,3 @@
-import { Job } from 'bullmq';
 import { logger } from '../utils/logger';
 import { tapeLogger } from '../utils/tapeLogger';
 import { DownloadProcessingJob } from '../types/downloadProcessing';
