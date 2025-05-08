@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { isAdminRole, isValidRole, getAvailableRoles, UserGroup } from '../utils/roleValidation';
+import { isAdminRole, isValidRole, getAvailableRoles} from '../utils/roleValidation';
 
 interface ProtectedRouteProps {
   children: ReactNode;
