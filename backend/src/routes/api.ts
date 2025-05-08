@@ -9,6 +9,7 @@ import fs from 'fs';
 import { fileQueue, secureCopyQueue } from '../queue/fileQueue';
 import { FileProcessingJob, SecureCopyDownloadJob, SecureCopyUploadJob } from '../types/fileProcessing';
 import { getServerList } from '../utils/serverList';
+import os from 'os';
 
 const router = express.Router();
 
@@ -56,9 +57,7 @@ export const formatFileSize = (bytes: number | string | undefined): string => {
   return `${size.toFixed(2)} ${units[unitIndex]}`;
 };
 
-
-
-// Configure multer for file upload
+// Configure multer for file upload (with folder structure preservation)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Get user info from session
@@ -66,19 +65,26 @@ const storage = multer.diskStorage({
     if (!user) {
       return cb(new Error('User not authenticated'), '');
     }
-
-    const uploadDir = path.join(process.env.UPLOAD_DIR ||
-      '/home/octro/google-auth-login-page/tape-drive/backend/uploadfiles', user.role, user.name);
-
-    // Create directory structure if it doesn't exist
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    // Base upload directory
+    let uploadDir = path.join(
+      process.env.UPLOAD_DIR ||
+        '/home/octro/google-auth-login-page/tape-drive/backend/uploadfiles',
+      user.role,
+      user.name
+    );
+    // If file.originalname contains subfolders, create them
+    const relPath = file.originalname.includes(path.sep)
+      ? path.dirname(file.originalname)
+      : (file.originalname.includes('/') ? path.dirname(file.originalname) : '');
+    const fullDir = path.join(uploadDir, relPath);
+    if (!fs.existsSync(fullDir)) {
+      fs.mkdirSync(fullDir, { recursive: true });
     }
-    cb(null, uploadDir);
+    cb(null, fullDir);
   },
   filename: (req, file, cb) => {
-    // Keep original filename
-    cb(null, file.originalname);
+    // Save only the base name (not the full relative path)
+    cb(null, path.basename(file.originalname));
   }
 });
 
@@ -207,9 +213,9 @@ router.post('/processes', isAdmin, async (req, res) => {
 });
 
 // File upload endpoint
-router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
+router.post('/upload', hasFeatureAccess, upload.array('files'), async (req, res) => {
+  if (!req.files || (req.files as Express.Multer.File[]).length === 0) {
+    return res.status(400).json({ error: 'No file(s) uploaded' });
   }
 
   const user = (req as any).user as User;
@@ -217,75 +223,82 @@ router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res)
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
-  const formattedSize = formatFileSize(req.file.size);
-
   try {
-    // Verify file exists and is complete
-    const filePath = req.file.path;
-    if (!fs.existsSync(filePath)) {
-      return res.status(500).json({ error: 'File upload failed - file not found' });
+    const files = req.files as Express.Multer.File[];
+    // relativePaths will be an array or a single string
+    let relativePaths = req.body.relativePaths || [];
+    if (!Array.isArray(relativePaths)) {
+      relativePaths = [relativePaths];
     }
-
-    // Verify file size matches expected size
-    const stats = fs.statSync(filePath);
-    if (stats.size !== req.file.size) {
-      // Clean up incomplete file
-      fs.unlinkSync(filePath);
-      return res.status(500).json({ error: 'File upload incomplete' });
+    const results = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const relPath = relativePaths[i] || file.originalname;
+      const formattedSize = formatFileSize(file.size);
+      // Compute the full destination path
+      const baseUploadDir = path.join(
+        process.env.UPLOAD_DIR ||
+          '/home/octro/google-auth-login-page/tape-drive/backend/uploadfiles',
+        user.role,
+        user.name
+      );
+      const destPath = path.join(baseUploadDir, relPath);
+      const destDir = path.dirname(destPath);
+      if (!fs.existsSync(destDir)) {
+        fs.mkdirSync(destDir, { recursive: true });
     }
-
-    const connection = await mysqlPool.getConnection();
-
-    try {
+      // Move the file from its temp location to the correct folder
+      fs.renameSync(file.path, destPath);
       // Insert into database with 'queueing' status
+      const connection = await mysqlPool.getConnection();
+      try {
       const [result] = await connection.query<ResultSetHeader>(
         'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location, method) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [user.name, user.role, req.file.originalname, formattedSize, 'queueing', req.file.path, 'Browser']
+          [user.name, user.role, path.basename(relPath), formattedSize, 'queueing', destPath, 'Browser']
       );
-
       // Push event to BullMQ queue with upload label
       const jobData: FileProcessingJob = {
         type: 'upload',
         fileId: result.insertId,
-        fileName: req.file.originalname,
+          fileName: path.basename(relPath),
         fileSize: formattedSize,
         userName: user.name,
         userEmail: user.email,
         groupName: user.role,
         isAdmin: user.role === 'admin',
-        filePath: req.file.path,
+          filePath: destPath,
         requestedAt: Date.now()
       };
-
-      console.log('Adding job to queue with data:', jobData);
-
       try {
         const job = await fileQueue.add('file-processing', jobData, {
           priority: user.role === 'admin' ? 1 : 2, // Higher priority for admin files
           jobId: `upload-${result.insertId}`
         });
-
-        console.log('Job added successfully with ID:', job.id);
       } catch (error) {
         console.error('Failed to add job to queue:', error);
         throw error;
       }
-
-      res.json({
-        message: 'File uploaded successfully and queued for processing',
-        file: {
-          name: req.file.originalname,
+        results.push({
+          name: path.basename(relPath),
           size: formattedSize,
-          path: req.file.path
-        }
+          path: destPath
       });
     } finally {
       connection.release();
     }
+    }
+    res.json({
+      message: 'File(s) uploaded successfully and queued for processing',
+      files: results
+    });
   } catch (error) {
-    // If there's an error, clean up the file if it exists
-    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+    // If there's an error, clean up the files if they exist
+    if (req.files) {
+      for (const file of req.files as Express.Multer.File[]) {
+        if (file && file.path && fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      }
     }
     console.error('Error processing upload:', error);
     res.status(500).json({ error: 'Failed to process upload' });

@@ -13,4 +13,11 @@
     color: #2c455c;
     transition: all 0.3s ease;
     box-shadow: 0 2px 4px rgba(44, 69, 92, 0.1);
-} 
+}
+
+.cancel-btn {
+  background: linear-gradient(90deg, #F4511E, #cf370c) !important;
+  color: #fff !important;
+  border: 2px solid #F4511E !important;
+  box-shadow: 0 2px 8px rgba(244, 81, 30, 0.15) !important;
+}

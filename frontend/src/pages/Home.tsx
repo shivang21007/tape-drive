@@ -291,36 +291,13 @@ const Home: React.FC = () => {
         <h4>Tape Management demystified</h4>
         {/* Upload Actions Row */}
         <div className="flex flex-row gap-4 justify-center items-center mt-8">
-          {/* Choose File Button */}
+          {/* Upload from PC Button */}
           <button
-            onClick={() => fileInputRef.current?.click()}
-            className="rounded-md px-4 py-2 text-sm font-medium text-white"
-            disabled={isUploading}
+            onClick={() => navigate('/upload')}
+            className="rounded-md px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 cursor-pointer"
           >
-            Choose File
+            Upload from PC
           </button>
-          {/* Upload Button */}
-          <button
-            onClick={handleUpload}
-            disabled={!selectedFile || isUploading}
-            className={`rounded-md px-4 py-2 text-sm font-medium text-white ${selectedFile ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} ${!selectedFile || isUploading ? 'bg-gray-400 cursor-not-allowed' : 'cursor-pointer'}`}
-          >
-            {isUploading ? 'Uploading...' : 'Upload'}
-          </button>
-          {/* Cancel Upload Button (only during upload) */}
-          {isUploading && (
-            <button
-              onClick={handleCancelUpload}
-              className="rounded-md px-4 py-2 text-sm font-medium text-white"
-              style={{
-                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                marginLeft: '0.25rem'
-              }}
-              title="Cancel upload"
-            >
-              <ImCross size={16} color="white" />
-            </button>
-          )}
           {/* Upload through Server Button with animated gradient */}
           <button
             onClick={() => navigate('/secureupload')}
@@ -333,33 +310,6 @@ const Home: React.FC = () => {
           >
             Upload through Server <span style={{ color: '#111', fontWeight: 700, marginLeft: '0.5ch' }}>fastest</span>
           </button>
-        </div>
-        {/* File Input (hidden) */}
-        <div className="file-input-container">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileSelect}
-            style={{ display: 'none', position: 'absolute', visibility: 'hidden', width: 0, height: 0 }}
-            aria-hidden="true"
-          />
-          {/* Progress Bar (if uploading) */}
-          {isUploading && (
-            <div className="mt-4 w-full relative">
-              <div className="h-2 w-full bg-gray-200 rounded-full">
-                <div
-                  className="h-2 bg-blue-600 rounded-full transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
-              <div className="mt-1 text-sm text-gray-600 text-center">
-                {uploadProgress}% - {uploadSpeed}
-              </div>
-              <div className="mt-1 text-sm text-gray-500 text-center">
-                Time remaining: {timeRemaining}
-              </div>
-            </div>
-          )}
         </div>
         {/* Row 2: Navigation Buttons */}
         <div className="flex flex-row gap-4 justify-center mt-8">
