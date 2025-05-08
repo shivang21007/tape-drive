@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/Button';
 import axios from 'axios';
-import { isFileTypeSupported } from '../utils/downloadUtils';
 import { useNavigate } from 'react-router-dom';
 import { convertFileSizeToBytes } from '../utils/format';
 interface FileDownloadProps {
@@ -55,10 +54,6 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
 
   // Direct Download to Browser
   const handleDownload = async () => {
-    if (!isFileTypeSupported(fileName)) {
-      alert('File type not supported');
-      return;
-    }
      if (isLargeFile) {
       alert('File is too large to Direct Download. Please use Secure Download.');
       return;
@@ -109,10 +104,6 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
 
  // Secure Download to Server
   const handleSecureDownload = async () => {
-    if (!isFileTypeSupported(fileName)) {
-      alert('File type not supported');
-      return;
-    }
 
     setIsDownloading(true);
 

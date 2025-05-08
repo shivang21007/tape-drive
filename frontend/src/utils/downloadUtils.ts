@@ -21,8 +21,8 @@ export const getFileExtension = (fileName: string): string => {
   return fileName.split('.').pop()?.toLowerCase() || '';
 };
 
-export const isFileTypeSupported = (fileName: string): boolean => {
-  const extension = getFileExtension(fileName);
-  const supportedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'jpg', 'jpeg', 'png', 'gif','tar','zip','iso','tar.gz','gz'];
-  return supportedTypes.includes(extension);
-}; 
+// export const isFileTypeSupported = (fileName: string): boolean => {
+//   const extension = getFileExtension(fileName);
+//   const supportedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'jpg', 'jpeg', 'png', 'gif','tar','zip','iso','tar.gz','gz',''];
+//   return supportedTypes.includes(extension);
+// }; 
