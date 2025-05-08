@@ -1,12 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { convertToUserGroup } from '../utils/roleValidation';
+import { User } from '../types/user';
 
-interface User {
-  id: number;
-  email: string;
-  name: string;
-  picture?: string;
-  role: 'admin' | 'data_team' | 'art_team' | 'user';
-}
 
 interface AuthContextType {
   user: User | null;
@@ -41,6 +36,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (response.ok) {
         const userData = await response.json();
+        // Convert role to UserGroup if it's a string
+        if (typeof userData.role === 'string') {
+          userData.role = convertToUserGroup(userData.role);
+        }
         setUser(userData);
       } else {
         console.log('Auth check failed');

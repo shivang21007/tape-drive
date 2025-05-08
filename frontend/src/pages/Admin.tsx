@@ -11,6 +11,7 @@ import { GroupsTable } from '../components/admin/GroupsTable';
 import { AddGroupForm } from '../components/admin/AddGroupForm';
 // import { AddProcessForm } from '../components/admin/AddProcessForm';
 import octroLogo from '../assets/octro-logo.png';
+import { isAdminRole} from '../utils/roleValidation';
 
 const Admin: React.FC = () => {
   const { user, logout } = useAuth();
@@ -25,7 +26,7 @@ const Admin: React.FC = () => {
   // const [showAddProcess, setShowAddProcess] = useState(false);
 
   useEffect(() => {
-    if (!user || user.role !== 'admin') {
+    if (!user || !isAdminRole(user.role)) {
       navigate('/');
       return;
     }
@@ -55,25 +56,35 @@ const Admin: React.FC = () => {
 
   const handleRoleChange = async (userId: number, newRole: User['role']) => {
     try {
-      const response = await fetch(`/api/users/${userId}/role`, {
+      const roleName = typeof newRole === 'string' ? newRole : newRole.name;
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/${userId}/role`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify({ role: newRole })
+        body: JSON.stringify({ role: roleName })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update role');
+        const errorData = await response.json();
+        throw new Error(errorData.message || errorData.error || 'Failed to update role');
       }
 
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, role: newRole } : user
-      ));
+      // Update the users list with the new role
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user.id === userId ? { ...user, role: { id: -1, name: roleName, description: roleName } } : user
+        )
+      );
+
+      // Show success message
+      setError(null);
     } catch (err) {
-      setError('Failed to update user role');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update user role';
+      setError(errorMessage);
       console.error('Error updating role:', err);
     }
   };

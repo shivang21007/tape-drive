@@ -7,6 +7,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Confetti from 'react-confetti';
 import { ImCross } from 'react-icons/im';
+import { isUserRole, isAdminRole } from '../utils/roleValidation';
 
 const formatFileSize = (bytes: number): string => {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -27,7 +28,7 @@ const Home: React.FC = () => {
   const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'piyush.sharma@octrotalk.com';
 
   // Show welcome message for users without a role
-  if (!user?.role || user.role === 'user') {
+  if (!user?.role || isUserRole(user.role)) {
     return (
       <div className="min-h-screen bg-gray-100">
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -173,7 +174,7 @@ const Home: React.FC = () => {
     const formData = new FormData();
     formData.append('file', selectedFile);
     formData.append('userName', user?.name || '');
-    formData.append('groupName', user?.role || '');
+    formData.append('groupName', user?.role.name || '');
 
     try {
       await axios.post('/api/upload', formData, {
@@ -254,12 +255,12 @@ const Home: React.FC = () => {
           <div className="header-content">
             <div className="user-info">
               <div className="text-lg font-medium">
-                {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase() : 'User'}
+                {user?.role ? user.role.name.charAt(0).toUpperCase() + user.role.name.slice(1).toLowerCase() : 'User'}
               </div>
               <div className="text-sm">{user?.name || 'User'}</div>
             </div>
             <div className="header-buttons">
-              {user?.role === 'admin' && (
+              {isAdminRole(user?.role) && (
                 <button
                   onClick={() => navigate('/admin')}
                   className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
@@ -267,7 +268,7 @@ const Home: React.FC = () => {
                   Admin Panel
                 </button>
               )}
-              {user?.role != 'admin' && (
+              {!isAdminRole(user?.role) && (
                 <button
                   onClick={() => window.open(`https://mail.google.com/mail/u/0/?view=cm&fs=1&to=${adminEmail}`, '_blank')}
                   className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"

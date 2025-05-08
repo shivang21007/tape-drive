@@ -5,6 +5,7 @@ import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import SearchBar from '../components/SearchBar';
+import { isAdminRole } from '../utils/roleValidation';
 
 interface HistoryItem {
   id: number;
@@ -30,11 +31,12 @@ const History: React.FC = () => {
   const handleRefresh = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('/api/history', {
-        params: {
-          group_name: user?.role === 'admin' ? undefined : user?.role
-        }
-      });
+      const params: { group_name?: string } = {};
+      if (!isAdminRole(user?.role) && user?.role) {
+        params.group_name = user.role.name;
+      }
+      
+      const response = await axios.get('/api/history', { params });
       setHistory(response.data);
       setFilteredHistory(response.data);
       toast.success('History refreshed successfully');
