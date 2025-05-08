@@ -7,38 +7,50 @@ const createTables = async () => {
     // Set timezone to IST
     await connection.query(`SET time_zone = '+05:30'`);
 
-    // Create users table
+    // 1. Create user_groups_table FIRST
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        google_id VARCHAR(255) UNIQUE NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        name VARCHAR(255) NOT NULL,
-        picture VARCHAR(255),
-        role ENUM('admin', 'data_team', 'art_team', 'user') DEFAULT 'user',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
-    `);
+  CREATE TABLE IF NOT EXISTS user_groups_table (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  )
+`);
+    //create admin and user groups by default in user_groups_table
+    await connection.query(`
+  INSERT INTO user_groups_table (name, description)
+  SELECT 'admin', 'Administrator group with full privileges'
+  FROM DUAL
+  WHERE NOT EXISTS (
+    SELECT 1 FROM user_groups_table WHERE name = 'admin'
+  )
+`);
+    await connection.query(`
+  INSERT INTO user_groups_table (name, description)
+  SELECT 'user', 'User group with limited privileges'
+  FROM DUAL
+  WHERE NOT EXISTS (
+    SELECT 1 FROM user_groups_table WHERE name = 'user'
+  )
+`);
 
-    // Create user_groups table
+    // 2. Then create users table (now role FK will succeed)
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS user_groups_table (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        name VARCHAR(255) NOT NULL UNIQUE,
-        description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
-    `);
-    //create admin grooup by default in user_groups_table
-    await connection.query(`
-        INSERT INTO user_groups_table (name, description)
-        SELECT 'admin', 'Administrator group with full privileges'
-        WHERE NOT EXISTS (
-          SELECT 1 FROM user_groups_table WHERE name = 'admin'
-        )
-    `);
+  CREATE TABLE IF NOT EXISTS users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    google_id VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    picture VARCHAR(255),
+    role VARCHAR(255) DEFAULT 'user',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (role) REFERENCES user_groups_table(name) ON DELETE CASCADE
+  )
+`);
+
+
 
     // Create user_group_memberships table (many-to-many relationship)
     await connection.query(`
@@ -65,6 +77,7 @@ const createTables = async () => {
         local_file_location VARCHAR(255),
         tape_location VARCHAR(255) DEFAULT 'pending',
         tape_number VARCHAR(50) DEFAULT 'pending',
+        description VARCHAR(255) DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )

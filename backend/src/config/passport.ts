@@ -2,7 +2,7 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { mysqlPool } from '../database/config';
 import dotenv from 'dotenv';
-import { UserRole } from '../types/auth';
+import { UserRole, isValidRole, getAvailableRoles } from '../models/auth';
 
 // Extend Express.User to include our User type
 declare global {
@@ -32,6 +32,12 @@ passport.deserializeUser(async (id: number, done) => {
   try {
     const [rows] = await mysqlPool.query('SELECT * FROM users WHERE id = ?', [id]);
     const user = (rows as any[])[0] as Express.User;
+    
+    // Validate that the user's role is still valid
+    if (!isValidRole(user.role)) {
+      return done(new Error('Invalid user role'));
+    }
+    
     done(null, user);
   } catch (error) {
     done(error);
@@ -55,13 +61,26 @@ passport.use(
         );
 
         if ((existingUsers as any[]).length > 0) {
-          return done(null, (existingUsers as any[])[0] as Express.User);
+          const existingUser = (existingUsers as any[])[0] as Express.User;
+          // Validate that the existing user's role is still valid
+          if (!isValidRole(existingUser.role)) {
+            return done(new Error('Invalid user role'));
+          }
+          return done(null, existingUser);
         }
 
         // Check if this is the first user
         const [userCount] = await mysqlPool.query('SELECT COUNT(*) as count FROM users');
         const isFirstUser = (userCount as any[])[0].count === 0;
-        const defaultRole: UserRole = isFirstUser ? 'admin' : 'user';
+        
+        // Get available roles
+        const availableRoles = getAvailableRoles();
+        const defaultRole = isFirstUser ? 'admin' : 'user';
+        
+        // Validate the default role
+        if (!availableRoles.includes(defaultRole)) {
+          return done(new Error('Invalid default role'));
+        }
 
         // Create new user
         const [result] = await mysqlPool.query(
@@ -81,7 +100,7 @@ passport.use(
           email: profile.emails![0].value,
           name: profile.displayName.replace(/\s+/g, ''),
           picture: profile.photos![0].value,
-          role: defaultRole,
+          role: defaultRole as UserRole,
           created_at: new Date(),
           updated_at: new Date()
         };

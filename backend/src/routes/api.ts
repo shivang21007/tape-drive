@@ -9,9 +9,22 @@ import fs from 'fs';
 import { fileQueue, secureCopyQueue } from '../queue/fileQueue';
 import { FileProcessingJob, SecureCopyDownloadJob, SecureCopyUploadJob } from '../types/fileProcessing';
 import { getServerList } from '../utils/serverList';
+import { isValidRole, getAvailableRoles } from '../models/auth';
 
 const router = express.Router();
 
+// Helper functions for role validation
+const isAdminRole = (role: string): boolean => {
+  return isValidRole(role) && role === 'admin';
+};
+
+const isUserRole = (role: string): boolean => {
+  return role === 'user';
+};
+
+const getPriority = (role: string): number => {
+  return isAdminRole(role) ? 1 : 2;
+};
 // Middleware to check if user has access to features
 const hasFeatureAccess = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const user = (req as any).user as User;
@@ -21,7 +34,7 @@ const hasFeatureAccess = (req: express.Request, res: express.Response, next: exp
   }
 
   // Check if user has a valid role (not the default 'user' role)
-  if (user.role === 'user') {
+  if (isUserRole(user.role)) {
     return res.status(403).json({
       error: 'Access denied',
       message: 'Please contact the administrator to get assigned to a team or role'
@@ -55,7 +68,6 @@ export const formatFileSize = (bytes: number | string | undefined): string => {
 
   return `${size.toFixed(2)} ${units[unitIndex]}`;
 };
-
 
 
 // Configure multer for file upload
@@ -101,24 +113,16 @@ router.get('/users', isAdmin, async (req, res) => {
 });
 
 // Get all groups (admin only)
-router.get('/groups', isAdmin, async (req, res) => {
+router.get('/groups', hasFeatureAccess, async (req, res) => {
   try {
-    const [groups] = await mysqlPool.query('SELECT * FROM user_groups_table');
+    // Only return necessary fields for frontend display
+    const [groups] = await mysqlPool.query(
+      'SELECT name, description FROM user_groups_table'
+    );
     res.json(groups);
   } catch (error) {
     console.error('Error fetching groups:', error);
     res.status(500).json({ error: 'Failed to fetch groups' });
-  }
-});
-
-// Get all processes (admin only)
-router.get('/processes', isAdmin, async (req, res) => {
-  try {
-    const [processes] = await mysqlPool.query('SELECT * FROM processes');
-    res.json(processes);
-  } catch (error) {
-    console.error('Error fetching processes:', error);
-    res.status(500).json({ error: 'Failed to fetch processes' });
   }
 });
 
@@ -143,16 +147,40 @@ router.get('/user/groups', async (req, res) => {
   }
 });
 
+// Validate role (admin only)
+router.get('/validate-role/:role', isAdmin, async (req, res) => {
+  const { role } = req.params;
+  try {
+    const [groups] = await mysqlPool.query(
+      'SELECT name FROM user_groups_table WHERE name = ?',
+      [role]
+    );
+    res.json({ isValid: (groups as any[]).length > 0 });
+  } catch (error) {
+    console.error('Error validating role:', error);
+    res.status(500).json({ error: 'Failed to validate role' });
+  }
+});
+
 // Update user role (admin only)
 router.put('/users/:id/role', isAdmin, async (req, res) => {
   const { id } = req.params;
   const { role } = req.body;
 
-  if (!['admin', 'data_team', 'art_team', 'user'].includes(role)) {
-    return res.status(400).json({ error: 'Invalid role' });
-  }
-
   try {
+    // Validate role exists
+    const [groups] = await mysqlPool.query(
+      'SELECT name FROM user_groups_table WHERE name = ?',
+      [role]
+    );
+
+    if ((groups as any[]).length === 0) {
+      return res.status(400).json({ 
+        error: 'Invalid role',
+        message: `Role "${role}" does not exist. Please create it first.`
+      });
+    }
+
     // Check if user exists
     const [users] = await mysqlPool.query(
       'SELECT * FROM users WHERE id = ?',
@@ -163,14 +191,19 @@ router.put('/users/:id/role', isAdmin, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Update the user's role
     await mysqlPool.query(
       'UPDATE users SET role = ? WHERE id = ?',
       [role, id]
     );
+
     res.json({ message: 'User role updated successfully' });
   } catch (error) {
     console.error('Error updating user role:', error);
-    res.status(500).json({ error: 'Failed to update user role' });
+    res.status(500).json({ 
+      error: 'Failed to update user role',
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
+    });
   }
 });
 
@@ -217,6 +250,10 @@ router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res)
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
+  if (!isValidRole(user.role)) {
+    return res.status(403).json({ error: 'Invalid role' });
+  }
+
   const formattedSize = formatFileSize(req.file.size);
 
   try {
@@ -261,7 +298,7 @@ router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res)
 
       try {
         const job = await fileQueue.add('file-processing', jobData, {
-          priority: user.role === 'admin' ? 1 : 2, // Higher priority for admin files
+          priority: getPriority(user.role), // 1 for admin, 2 for user
           jobId: `upload-${result.insertId}`
         });
 
@@ -323,12 +360,16 @@ router.get('/files', hasFeatureAccess, async (req, res) => {
   }
 
   const user = req.user as User;
+  if (!isValidRole(user.role)) {
+    return res.status(403).json({ error: 'Invalid role' });
+  }
+
   try {
     let query = 'SELECT * FROM upload_details';
-    let params: any[] = [];
+    const params: any[] = [];
 
-    // If not admin, filter by user's role
-    if (user.role !== 'admin') {
+    
+    if (!isAdminRole(user.role)) {
       query += ' WHERE group_name = ?';
       params.push(user.role);
       query += ' ORDER BY created_at DESC';
@@ -351,6 +392,10 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
   const user = req.user as User;
   const { id } = req.params;
   const { download } = req.query;
+
+  if (!isValidRole(user.role)) {
+    return res.status(403).json({ error: 'Invalid role' });
+  }
 
   try {
     // Get file details
@@ -429,7 +474,7 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
       console.log('jobData : ', jobData);
 
       const job = await fileQueue.add('file-processing', jobData, {
-        priority: user.role === 'admin' ? 1 : 2, // Higher priority for admin files
+        priority: getPriority(user.role),
         jobId: `download-${result.insertId}`
       });
 
@@ -457,6 +502,10 @@ router.get('/download-requests/:id/status', hasFeatureAccess, async (req, res) =
 
   const { id } = req.params;
   const user = req.user as User;
+
+  if (!isValidRole(user.role)) {
+    return res.status(403).json({ error: 'Invalid role' });
+  }
 
   try {
     const [requests] = await mysqlPool.query(
@@ -506,6 +555,10 @@ router.get('/history', hasFeatureAccess, async (req, res) => {
     const { group_name } = req.query;
     const user = (req as any).user;
 
+    if (!isValidRole(user.role)) {
+      return res.status(403).json({ error: 'Invalid role' });
+    }
+
     let query = `
       SELECT 
         dr.id,
@@ -554,6 +607,10 @@ router.get('/download-requests/status', hasFeatureAccess, async (req, res) => {
     return res.status(400).json({ error: 'File ID is required' });
   }
 
+  if (!isValidRole(user.role)) {
+    return res.status(403).json({ error: 'Invalid role' });
+  }
+
   try {
     const [requests] = await mysqlPool.query(
       `SELECT * FROM download_requests 
@@ -585,7 +642,7 @@ router.get('/download-requests/status', hasFeatureAccess, async (req, res) => {
   }
 });
 
- // Get server list for secure copy through local csv file
+// Get server list for secure copy through local csv file
 router.get('/secureservers', hasFeatureAccess, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
@@ -616,7 +673,6 @@ router.get('/secureservers', hasFeatureAccess, async (req, res) => {
   }
 });
 
-
 // Handle secure copy upload
 router.post('/secureupload', hasFeatureAccess, async (req, res) => {
   if (!req.user) {
@@ -636,6 +692,9 @@ router.post('/secureupload', hasFeatureAccess, async (req, res) => {
         return res.status(400).json({ error: 'Server and file path are required' });
       }
 
+      if (!isValidRole(req.user.role)) {
+        return res.status(403).json({ error: 'Invalid role' });
+      }
 
       const [result] = await connection.query<ResultSetHeader>(
         'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location, method) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -667,7 +726,7 @@ router.post('/secureupload', hasFeatureAccess, async (req, res) => {
       
       try{
         const job = await secureCopyQueue.add('SecureCopy', jobData, {
-          priority: req.user.role === 'admin' ? 1 : 2, // Higher priority for admin files
+          priority: getPriority(req.user.role),
           jobId: `secureCopy-upload-${result.insertId}`
         });
         
@@ -692,7 +751,6 @@ router.post('/secureupload', hasFeatureAccess, async (req, res) => {
   }
 });
 
-
 // Handle secure copy download
 router.post('/securedownload', hasFeatureAccess, async (req, res) => {
   if (!req.user) {
@@ -708,6 +766,10 @@ router.post('/securedownload', hasFeatureAccess, async (req, res) => {
       
       if (!server || !filePath) {
           return res.status(400).json({ error: 'Server and file path are required' });
+      }
+
+      if (!isValidRole(req.user.role)) {
+        return res.status(403).json({ error: 'Invalid role' });
       }
 
       const [result] = await connection.query<ResultSetHeader>(
@@ -734,7 +796,7 @@ router.post('/securedownload', hasFeatureAccess, async (req, res) => {
       console.log('Secure Copy jobData:', jobData);
 
       const job = await secureCopyQueue.add('SecureCopy', jobData, {
-        priority: req.user.role === 'admin' ? 1 : 2,
+        priority: getPriority(req.user.role),
         jobId: `secureCopy-download-${result.insertId}`
       });
 
@@ -754,7 +816,6 @@ router.post('/securedownload', hasFeatureAccess, async (req, res) => {
   }
 });
 
-
 // Check if file is in cache without creating a download request
 router.get('/files/:id/check-cache', hasFeatureAccess, async (req, res) => {
   if (!req.user) {
@@ -763,6 +824,10 @@ router.get('/files/:id/check-cache', hasFeatureAccess, async (req, res) => {
 
   const user = req.user as User;
   const { id } = req.params;
+
+  if (!isValidRole(user.role)) {
+    return res.status(403).json({ error: 'Invalid role' });
+  }
 
   try {
     // Get file details
@@ -796,6 +861,9 @@ router.get('/files/:id/check-cache', hasFeatureAccess, async (req, res) => {
 router.get('/tapeinfo', hasFeatureAccess, async (req, res) => {
   try {
     const user = (req as any).user;
+    if (!isValidRole(user.role)) {
+      return res.status(403).json({ error: 'Invalid role' });
+    }
     let query = `SELECT group_name, 
               JSON_ARRAYAGG(JSON_OBJECT(
                 'id', id,
