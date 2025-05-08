@@ -18,7 +18,7 @@ dotenv.config();
 
 const execAsync = promisify(exec);
 
-const databaseService = new DatabaseService();
+const databaseService = DatabaseService.getInstance();
 const emailService = new EmailService();
 const adminNotificationService = new AdminNotificationService();
 

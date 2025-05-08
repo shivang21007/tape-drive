@@ -2,6 +2,9 @@ import { logger } from '../utils/logger';
 import { verifyFileCopy } from '../utils/fileUtils';
 import path from 'path';
 import fs from 'fs/promises';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 export class TapeService {
   private tapeMountPath: string;

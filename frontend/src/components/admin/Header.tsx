@@ -6,8 +6,8 @@ interface HeaderProps {
     picture?: string;
   } | null;
   onLogout: () => void;
-  activeTab: 'users' | 'groups' | 'processes';
-  setActiveTab: (tab: 'users' | 'groups' | 'processes') => void;
+  activeTab: 'users' | 'groups';
+  setActiveTab: (tab: 'users' | 'groups') => void;
 }
 
 export function Header({ user, onLogout, activeTab, setActiveTab }: HeaderProps) {
@@ -39,16 +39,6 @@ export function Header({ user, onLogout, activeTab, setActiveTab }: HeaderProps)
             }`}
           >
             Groups
-          </button>
-          <button
-            onClick={() => setActiveTab("processes")}
-            className={`px-3 py-2 rounded transition-colors ${
-              activeTab === "processes" 
-                ? "bg-slate-700 text-white" 
-                : "text-gray-300 hover:bg-slate-700 hover:text-white"
-            }`}
-          >
-            Processes
           </button>
         </div>
 

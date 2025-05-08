@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { UserRole } from '../types/auth';
+import { UserRole, isValidRole } from '../models/auth';
 
 export const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
   if (req.isAuthenticated()) {
@@ -14,7 +14,7 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
   }
 
   const user = req.user;
-  if (user.role !== 'admin') {
+  if (!isValidRole(user.role) || user.role !== 'admin') {
     return res.status(403).json({ error: 'Not authorized' });
   }
 
@@ -28,7 +28,7 @@ export const hasRole = (roles: UserRole[]) => {
     }
 
     const user = req.user;
-    if (!roles.includes(user.role)) {
+    if (!isValidRole(user.role) || !roles.includes(user.role)) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 

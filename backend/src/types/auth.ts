@@ -1,1 +1,0 @@
-export type UserRole = 'admin' | 'data_team' | 'art_team' | 'user'; 

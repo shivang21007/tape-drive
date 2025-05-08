@@ -1,8 +1,10 @@
+import { UserRole } from '../utils/roleValidation';
+
 export interface User {
   id: number;
   name: string;
   email: string;
-  role: 'admin' | 'data_team' | 'art_team' | 'user';
+  role: UserRole;
   picture?: string;
   google_id: string;
 } 

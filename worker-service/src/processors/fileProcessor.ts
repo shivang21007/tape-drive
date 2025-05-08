@@ -7,10 +7,12 @@ import { EmailService } from '../services/emailService';
 import { AdminNotificationService } from '../services/adminNotificationService';
 import fs from 'fs/promises';
 import path from 'path';
+import dotenv from 'dotenv';
 
+dotenv.config();
 
 const tapeManager = new TapeManager();
-const databaseService = new DatabaseService();
+const databaseService = DatabaseService.getInstance();
 const emailService = new EmailService();
 const adminNotificationService = new AdminNotificationService();
 
@@ -44,7 +46,7 @@ export async function processFile(job: FileProcessingJob) {
 
     const sizeValue = parseFloat(sizeMatch[1]);
     const sizeUnit = sizeMatch[2].toUpperCase();
-    
+
     // Convert to bytes
     let expectedSizeInBytes: number;
     switch (sizeUnit) {
@@ -63,20 +65,66 @@ export async function processFile(job: FileProcessingJob) {
 
     const stats = await fs.stat(filePath);
     const actualSize = stats.size;
-    
+
     // Allow 1% difference in file size
     const tolerance = expectedSizeInBytes * 0.01;
     if (Math.abs(actualSize - expectedSizeInBytes) > tolerance) {
       throw new Error(`Source file verification failed: File size mismatch: expected ${expectedSizeInBytes} bytes (${fileSize}), got ${actualSize} bytes`);
     }
 
-    // Ensure correct tape is loaded and mounted
+    // 1. Check if any tape in the group has enough space
+    logger.info(`Checking tape space for group ${groupName} (file size: ${actualSize} bytes)`);
+    const spaceCheck = await tapeManager.checkGroupTapeSpace(groupName, actualSize);
+    if (!spaceCheck.hasSpace) {
+      const errorMessage = spaceCheck.errorMessage || 'No tapes have enough space';
+      logger.error(`No tapes have enough space: ${errorMessage}`);
+
+      // Send user notification
+      const userEmail = await databaseService.getUserEmail(fileId);
+      await emailService.sendFileProcessedEmail(
+        userEmail,
+        fileName,
+        'failed',
+        { errorMessage }
+      );
+
+      // Send detailed report to admin
+      const adminMessage = `Upload failed for file ${fileName} (${formatBytes(fileSize)})
+      Group: ${groupName}
+      User: ${userName}
+      Available tape space:
+      ${spaceCheck.tapeDetails?.map(t => `- Tape ${t.tapeNumber}: ${t.availableSize}`).join('\n')}`;
+      await adminNotificationService.sendCriticalError(
+        'tape_space',
+        new Error(adminMessage),
+        { fileId, fileName, groupName, fileSize }
+      );
+
+      // Update status to failed
+      await databaseService.updateUploadStatus(fileId, 'failed');
+      throw new Error(errorMessage);
+    }
+
+    // 2. Use the tape that has enough space
+    currentTape = spaceCheck.tapeNumber!;
+    logger.info(`Selected tape ${currentTape} for upload (available space: ${spaceCheck.tapeDetails?.find(t => t.tapeNumber === currentTape)?.availableSize})`);
+
+    // 3. Ensure correct tape is loaded and mounted
     tapeLogger.startOperation('tape-mounting');
     try {
-      currentTape = await tapeManager.ensureCorrectTape(groupName);
-      if (!currentTape) {
+      logger.info(`Ensuring tape ${currentTape} is loaded and mounted`);
+      const loadedTape = await tapeManager.ensureCorrectTape(currentTape);
+      if (!loadedTape) {
         throw new Error('Failed to get current tape number');
       }
+      logger.info(`Tape ${loadedTape} is loaded and mounted`);
+
+      // Verify tape is mounted
+      const isMounted = await tapeManager.isTapeMounted();
+      if (!isMounted) {
+        throw new Error('Tape is not mounted');
+      }
+      logger.info('Tape mount verified');
 
       // Create group directory after tape is mounted
       const groupDir = path.join(tapeManager.mountPoint, groupName);
@@ -96,15 +144,15 @@ export async function processFile(job: FileProcessingJob) {
     }
     tapeLogger.endOperation('tape-mounting');
 
-    // Create tape path and copy file
+    // 4. Create tape path and copy file
     tapeLogger.startOperation('file-copy');
     try {
       tapePath = await tapeManager.createTapePath(job);
       logger.info(`Copying file to tape path: ${tapePath}`);
-      
+
       // Ensure parent directories exist
       await fs.mkdir(path.dirname(tapePath), { recursive: true });
-      
+
       // Copy file to tape
       await fs.copyFile(filePath, tapePath);
       logger.info(`File copied to tape: ${tapePath}`);
@@ -117,13 +165,13 @@ export async function processFile(job: FileProcessingJob) {
     // Add delay before verification
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Verify the copy
+    // 5. Verify the copy
     tapeLogger.startOperation('file-verification');
     const sourceStats = await fs.stat(filePath);
     const destStats = await fs.stat(tapePath);
-    
+
     logger.info(`Source file size: ${sourceStats.size}, Destination file size: ${destStats.size}`);
-    
+
     if (sourceStats.size !== destStats.size) {
       logger.error('File verification failed: size mismatch');
       await fs.unlink(tapePath);
@@ -132,7 +180,7 @@ export async function processFile(job: FileProcessingJob) {
     logger.info('File verification successful');
     tapeLogger.endOperation('file-verification');
 
-    // Update database with tape location and tape number
+    // 6. Update database with tape location and tape number
     await databaseService.updateUploadStatus(
       fileId,
       'completed',
@@ -140,11 +188,13 @@ export async function processFile(job: FileProcessingJob) {
       currentTape
     );
 
-    // After successful upload to tape, update tape info
+    // 7. After successful upload to tape, update tape info
     if (currentTape) {
+      logger.info(`Updating tape info for tape ${currentTape}`);
       await tapeManager.updateTapeInfo(currentTape, databaseService);
     }
-    // Get user email and send success notification
+
+    // 8. Get user email and send success notification
     const userEmail = await databaseService.getUserEmail(fileId);
     await emailService.sendFileProcessedEmail(userEmail, fileName, 'success', {
       tapeLocation: tapePath,
@@ -152,10 +202,9 @@ export async function processFile(job: FileProcessingJob) {
       requestedAt
     });
 
-
     tapeLogger.endOperation('file-processing');
-    return { 
-      success: true, 
+    return {
+      success: true,
       message: 'File processed and archived successfully',
       tapePath: tapePath,
       tapeNumber: currentTape
@@ -165,10 +214,10 @@ export async function processFile(job: FileProcessingJob) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     tapeLogger.logError('file_processing', new Error(errorMessage));
     await adminNotificationService.sendCriticalError('file_processing', new Error(errorMessage), { fileId, fileName });
-    
+
     // Update status to failed
     await databaseService.updateUploadStatus(fileId, 'failed');
-    
+
     // Clean up tape file if it exists
     if (tapePath) {
       try {
@@ -177,7 +226,7 @@ export async function processFile(job: FileProcessingJob) {
         logger.error(`Failed to clean up tape file: ${tapePath}`, unlinkError);
       }
     }
-    
+
     // Try to send failure email
     try {
       const userEmail = await databaseService.getUserEmail(fileId);
@@ -189,4 +238,32 @@ export async function processFile(job: FileProcessingJob) {
 
     throw error;
   }
+}
+
+function formatBytes(bytes: string): string {
+  const sizeMatch = bytes.match(/^(\d+\.?\d*)\s*(KB|MB|GB)$/i);
+  if (!sizeMatch) {
+    throw new Error(`Invalid file size format: ${bytes}`);
+  }
+
+  const sizeValue = parseFloat(sizeMatch[1]);
+  const sizeUnit = sizeMatch[2].toUpperCase();
+
+  // Convert to bytes
+  let sizeInBytes: number;
+  switch (sizeUnit) {
+    case 'KB':
+      sizeInBytes = sizeValue * 1024;
+      break;
+    case 'MB':
+      sizeInBytes = sizeValue * 1024 * 1024;
+      break;
+    case 'GB':
+      sizeInBytes = sizeValue * 1024 * 1024 * 1024;
+      break;
+    default:
+      throw new Error(`Unsupported file size unit: ${sizeUnit}`);
+  }
+
+  return `${sizeInBytes} bytes`;
 } 

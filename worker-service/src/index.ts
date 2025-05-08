@@ -1,5 +1,4 @@
 import { Worker } from 'bullmq';
-import { fileQueue } from './queue/fileQueue';
 import { processFile } from './processors/fileProcessor';
 import { processDownload } from './processors/downloadProcessor';
 import { logger } from './utils/logger';

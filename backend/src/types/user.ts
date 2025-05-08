@@ -1,4 +1,4 @@
-import { UserRole } from './auth';
+import { UserRole } from '../models/auth';
 
 export interface User {
   id: number;

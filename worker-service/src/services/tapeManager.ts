@@ -6,34 +6,33 @@ import fsSync from 'fs';
 import path from 'path';
 import { FileProcessingJob } from '../types/fileProcessing';
 import { DatabaseService } from '../services/databaseService';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const execAsync = promisify(exec);
-
-interface TapeConfig {
-  [group: string]: string[];
-}
+const databaseService = DatabaseService.getInstance();
 
 export class TapeManager {
   private currentTape: string | null = null;
   public mountPoint: string;
-  private tapeConfig: TapeConfig;
   private tapeDevice: string;
+
+  private readonly sizeMultipliers: { [key: string]: number } = {
+    'TB': 1024 * 1024 * 1024 * 1024,
+    'T': 1024 * 1024 * 1024 * 1024,
+    'GB': 1024 * 1024 * 1024,
+    'G': 1024 * 1024 * 1024,
+    'MB': 1024 * 1024,
+    'M': 1024 * 1024,
+    'KB': 1024,
+    'K': 1024,
+    'B': 1
+  };
 
   constructor() {
     this.tapeDevice = process.env.TAPE_DEVICE || '/dev/sg2';
     this.mountPoint = process.env.TAPE_MOUNT_POINT || '/home/octro/tapedata1';
-    this.tapeConfig = this.loadTapeConfig();
-  }
-
-  private loadTapeConfig(): TapeConfig {
-    try {
-      const configPath = path.join(process.cwd(), 'config.json');
-      const configData = fsSync.readFileSync(configPath, 'utf-8');
-      return JSON.parse(configData);
-    } catch (error) {
-      logger.error('Failed to load tape configuration:', error);
-      throw new Error('Tape configuration not found or invalid');
-    }
   }
 
   public async getCurrentTape(): Promise<string | null> {
@@ -105,26 +104,6 @@ export class TapeManager {
       throw error;
     }
   }
-
-  // private async executeTapeCommand(command: string, retryCount = 3): Promise<void> {
-  //   let attempts = 0;
-  //   const delay = 5000; // 5 seconds
-
-  //   while (attempts < retryCount) {
-  //     try {
-  //       await execAsync(command);
-  //       return;
-  //     } catch (error) {
-  //       attempts++;
-  //       if (attempts >= retryCount) {
-  //         logger.error(`Failed to execute tape command after ${retryCount} attempts: ${command}`);
-  //         throw error;
-  //       }
-  //       logger.warn(`Tape command failed, retrying in ${delay/1000} seconds (attempt ${attempts}/${retryCount})`);
-  //       await new Promise(resolve => setTimeout(resolve, delay));
-  //     }
-  //   }
-  // }
 
   public async loadTape(tapeNumber: string): Promise<void> {
     try {
@@ -271,40 +250,48 @@ export class TapeManager {
     }
   }
 
-  public async ensureCorrectTape(groupName: string): Promise<string> {
+  public async ensureCorrectTape(tapeNumber: string): Promise<string> {
     try {
       // Get current tape number
       const currentTape = await this.getCurrentTape();
-      if (!currentTape) {
-        throw new Error('Failed to get current tape number');
-      }
+      logger.info(`Current tape: ${currentTape}, Required tape: ${tapeNumber}`);
 
-      // Check if current tape matches group
-      const tapeGroup = await this.getTapeGroup(currentTape);
-      if (tapeGroup !== groupName) {
-        logger.info(`Current tape (${currentTape}) does not match required group (${groupName})`);
+      // If no tape is loaded or current tape doesn't match required tape
+      if (!currentTape || currentTape !== tapeNumber) {
+        logger.info(`Switching to tape ${tapeNumber}`);
         
-        // Get the first configured tape for the group
-        const groupTapes = this.tapeConfig[groupName];
-        if (!groupTapes || groupTapes.length === 0) {
-          throw new Error(`No tapes configured for group ${groupName}`);
+        // If a tape is currently loaded, unmount and unload it
+        if (currentTape) {
+          await this.unmountTape();
+          await this.unloadTape();
         }
-        
-        // Follow exact tape switching workflow
-        await this.unmountTape();
-        await this.unloadTape();
-        await this.loadTape(groupTapes[0]);
+
+        // Load and mount the required tape
+        await this.loadTape(tapeNumber);
         await this.mountTape();
         
-        // Verify new tape is loaded
+        // Verify the tape is loaded and mounted
         const newTape = await this.getCurrentTape();
-        if (!newTape) {
-          throw new Error('Failed to get new tape number after loading');
+        if (newTape !== tapeNumber) {
+          throw new Error(`Failed to load tape ${tapeNumber}`);
         }
-        return newTape;
+        
+        const isMounted = await this.isTapeMounted();
+        if (!isMounted) {
+          throw new Error(`Failed to mount tape ${tapeNumber}`);
+        }
+        
+        logger.info(`Successfully switched to tape ${tapeNumber}`);
+        return tapeNumber;
       }
 
-      return currentTape;
+      // If current tape matches required tape, just ensure it's mounted
+      if (!await this.isTapeMounted()) {
+        logger.info(`Tape ${tapeNumber} is not mounted, mounting it`);
+        await this.mountTape();
+      }
+
+      return tapeNumber;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error(`Failed to ensure correct tape: ${errorMessage}`);
@@ -313,12 +300,13 @@ export class TapeManager {
   }
 
   public async getTapeGroup(tapeNumber: string): Promise<string | null> {
-    for (const [group, tapes] of Object.entries(this.tapeConfig)) {
-      if (tapes.includes(tapeNumber)) {
-        return group;
-      }
+    try {
+      const tapeInfo = await databaseService.getTapeInfo(tapeNumber);
+      return tapeInfo ? tapeInfo.group_name : null;
+    } catch (error) {
+      logger.error(`Failed to get tape group for tape ${tapeNumber}:`, error);
+      return null;
     }
-    return null;
   }
 
   async createTapePath(job: FileProcessingJob): Promise<string> {
@@ -379,5 +367,103 @@ export class TapeManager {
       logger.error(`Failed to update tape info for tape ${tapeNumber}:`, error);
       // don't throw error here, just log it
     }
+  }
+
+  public async checkGroupTapeSpace(groupName: string, requiredSize: number): Promise<{ 
+    hasSpace: boolean; 
+    tapeNumber?: string; 
+    errorMessage?: string;
+    tapeDetails?: Array<{ tapeNumber: string; availableSize: string }>;
+  }> {
+    try {
+      // Get tapes for the group from database, ordered by usage percentage
+      const groupTapes = await databaseService.getGroupTapes(groupName);
+      if (!groupTapes || groupTapes.length === 0) {
+        return {
+          hasSpace: false,
+          errorMessage: `No tapes configured for group ${groupName}`,
+          tapeDetails: []
+        };
+      }
+
+      const tapeDetails: Array<{ tapeNumber: string; availableSize: string }> = [];
+      let selectedTape: string | undefined;
+
+      // Check each tape in the group
+      for (const tapeNumber of groupTapes) {
+        try {
+          // Get tape info from database
+          const tapeInfo = await databaseService.getTapeInfo(tapeNumber);
+          if (!tapeInfo) {
+            logger.warn(`Tape info not found for tape ${tapeNumber}`);
+            continue;
+          }
+
+          // Parse available size (e.g., "11T" -> bytes)
+          const availableSize = this.parseSizeToBytes(tapeInfo.available_size);
+          
+          // Store tape details for reporting
+          tapeDetails.push({
+            tapeNumber,
+            availableSize: tapeInfo.available_size
+          });
+
+          // If this tape has enough space and we haven't selected a tape yet
+          if (availableSize >= requiredSize && !selectedTape) {
+            selectedTape = tapeNumber;
+            logger.info(`Found tape ${tapeNumber} with sufficient space (${tapeInfo.available_size})`);
+            break; // Stop after finding first tape with space
+          }
+        } catch (error) {
+          logger.error(`Error checking tape ${tapeNumber}:`, error);
+          continue;
+        }
+      }
+
+      if (selectedTape) {
+        return {
+          hasSpace: true,
+          tapeNumber: selectedTape,
+          tapeDetails
+        };
+      }
+
+      // If we get here, no tape had enough space
+      return {
+        hasSpace: false,
+        errorMessage: `No tapes in group ${groupName} have enough space for file (${this.formatBytes(requiredSize)})`,
+        tapeDetails
+      };
+    } catch (error) {
+      logger.error(`Error checking group tape space:`, error);
+      return {
+        hasSpace: false,
+        errorMessage: `Error checking tape space: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        tapeDetails: []
+      };
+    }
+  }
+
+  private parseSizeToBytes(sizeStr: string): number {
+    const match = sizeStr.match(/^(\d+\.?\d*)\s*(B|KB|K|MB|M|GB|G|TB|T)$/i);
+    if (!match) return 0;
+
+    const value = parseFloat(match[1]);
+    const unit = match[2].toUpperCase();
+    
+    return value * (this.sizeMultipliers[unit] || 0);
+  }
+
+  private formatBytes(bytes: number): string {
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let size = bytes;
+    let unitIndex = 0;
+
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+
+    return `${size.toFixed(2)} ${units[unitIndex]}`;
   }
 } 
