@@ -8,6 +8,7 @@ import { AdminNotificationService } from '../services/adminNotificationService';
 import fs from 'fs/promises';
 import path from 'path';
 import dotenv from 'dotenv';
+import fsExtra from 'fs-extra';
 
 dotenv.config();
 
@@ -154,7 +155,11 @@ export async function processFile(job: FileProcessingJob) {
       await fs.mkdir(path.dirname(tapePath), { recursive: true });
 
       // Copy file to tape
-      await fs.copyFile(filePath, tapePath);
+      await fsExtra.copy(filePath, tapePath, {
+        overwrite: true,
+        errorOnExist: false,
+        preserveTimestamps: true
+      });
       logger.info(`File copied to tape: ${tapePath}`);
     } catch (error) {
       logger.error('Failed to copy file to tape:', error);

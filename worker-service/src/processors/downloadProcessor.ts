@@ -6,7 +6,7 @@ import { TapeManager } from '../services/tapeManager';
 import { DatabaseService } from '../services/databaseService';
 import { EmailService } from '../services/emailService';
 import { AdminNotificationService } from '../services/adminNotificationService';
-import fs from 'fs/promises';
+import fs from 'fs-extra';
 import path from 'path';
 
 const tapeManager = new TapeManager();
@@ -91,10 +91,14 @@ export async function processDownload(job: DownloadProcessingJob) {
       throw new Error(`Failed to create directory for download: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     
-    // Copy file with verification
+    // Copy file from tape to local storage
     tapeLogger.startOperation('file-copy');
     try {
-      await fs.copyFile(tapeLocation, localFilePath);
+      await fs.copy(tapeLocation, localFilePath, {
+        overwrite: true,
+        errorOnExist: false,
+        preserveTimestamps: true
+      });
       logger.info(`File copied to local storage: ${localFilePath}`);
     } catch (error) {
       logger.error(`Failed to copy file: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -112,13 +116,13 @@ export async function processDownload(job: DownloadProcessingJob) {
       
       if (sourceStats.size !== destStats.size) {
         logger.error('File verification failed: size mismatch');
-        await fs.unlink(localFilePath);
+        await fs.remove(localFilePath);
         throw new Error('File verification failed: size mismatch');
       }
       logger.info('File verification successful');
     } catch (error) {
       logger.error('File verification failed:', error);
-      await fs.unlink(localFilePath).catch(() => {});
+      await fs.remove(localFilePath).catch(() => {});
       throw new Error(`File verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     tapeLogger.endOperation('file-verification');
@@ -166,4 +170,4 @@ export async function processDownload(job: DownloadProcessingJob) {
 
     throw error;
   }
-} 
+}
