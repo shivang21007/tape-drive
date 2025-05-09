@@ -90,11 +90,11 @@ export const UsersTable: React.FC<UsersTableProps> = ({ users, onRoleChange, onD
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   {onDeleteUser && (
                     <button
-                      className="ml-6 rounded-md px-3 py-2 bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md min-w-[44px]"
+                      className="user-delete-btn"
                       title="Delete user"
                       onClick={() => onDeleteUser(user)}
                     >
-                      <MdDeleteForever size={24} className="text-red-50" />
+                      <MdDeleteForever size={24} />
                     </button>
                   )}
                 </td>

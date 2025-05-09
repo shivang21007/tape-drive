@@ -664,3 +664,28 @@ label {
 .contact-admin:hover span {
   opacity: 0;
 }
+
+.user-delete-btn {
+  padding: 0.5rem 1.0rem !important;
+  border-radius: 8px !important;
+  border: none !important;
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  color: #fff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s !important;
+  box-shadow: 0 2px 4px rgba(44, 69, 92, 0.1) !important;
+  margin: 0 !important;
+}
+.user-delete-btn svg {
+  color: #fff !important;
+  display: block !important;
+}
+.user-delete-btn:hover {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  color: #fff !important;
+}
+.user-delete-btn:hover svg {
+  color: #fff !important;
+}
