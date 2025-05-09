@@ -1,105 +1,89 @@
-import { mysqlPool } from '../index';
+// Required packages
+import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const transferFtpLogs = async () => {
-  const connection = await mysqlPool.getConnection();
+// Format file size
+const formatFileSize = (bytes: number | string | undefined): string => {
+  if (bytes === undefined || bytes === null) return '0 B';
+  const numBytes = typeof bytes === 'string' ? parseFloat(bytes) : bytes;
+  if (isNaN(numBytes) || numBytes < 0) return '0 B';
 
-  try {
-    // Set timezone to IST
-    await connection.query(`SET time_zone = '+05:30'`);
-
-    // First add description column to upload_details if it doesn't exist
-    await connection.query(`
-      ALTER TABLE upload_details 
-      ADD COLUMN IF NOT EXISTS description VARCHAR(255) DEFAULT NULL
-    `);
-
-    // First, transfer upload records (where File_in_or_out is 'into server')
-    await connection.query(`
-      INSERT INTO upload_details (
-        user_name,
-        group_name,
-        file_name,
-        file_size,
-        status,
-        method,
-        local_file_location,
-        description,
-        created_at
-      )
-      SELECT 
-        CASE 
-          WHEN client_ip = '::ffff:192.168.111.163' THEN 'server1'
-          WHEN client_ip = '192.168.111.163' THEN 'server1'
-          ELSE client_ip
-        END,
-        'default',
-        Filename,
-        CAST(Filesize_in_bytes AS CHAR),
-        'completed',
-        CASE 
-          WHEN client_ip = '::ffff:192.168.111.163' THEN 'server1'
-          WHEN client_ip = '192.168.111.163' THEN 'server1'
-          ELSE client_ip
-        END,
-        file_destination,
-        username,
-        timestamp
-      FROM ftp_logs
-      WHERE File_in_or_out = 'into server'
-    `);
-
-    // Then, transfer download records (where File_in_or_out is 'out from server')
-    await connection.query(`
-      INSERT INTO download_requests (
-        file_id,
-        user_name,
-        group_name,
-        status,
-        served_from,
-        served_to,
-        served_to_location,
-        requested_at,
-        completed_at
-      )
-      SELECT 
-        ud.id,
-        CASE 
-          WHEN fl.client_ip = '::ffff:192.168.111.163' THEN 'server1'
-          WHEN fl.client_ip = '192.168.111.163' THEN 'server1'
-          ELSE fl.client_ip
-        END,
-        'default',
-        'completed',
-        'tape',
-        CASE 
-          WHEN fl.client_ip = '::ffff:192.168.111.163' THEN 'server1'
-          WHEN fl.client_ip = '192.168.111.163' THEN 'server1'
-          ELSE fl.client_ip
-        END,
-        fl.file_destination,
-        fl.timestamp,
-        fl.timestamp
-      FROM ftp_logs fl
-      JOIN upload_details ud ON ud.file_name = fl.Filename
-      WHERE fl.File_in_or_out = 'out from server'
-    `);
-
-    console.log('Data transfer completed successfully');
-  } catch (error) {
-    console.error('Error transferring data:', error);
-    throw error;
-  } finally {
-    connection.release();
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let size = numBytes;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
   }
+  return `${size.toFixed(2)} ${units[unitIndex]}`;
 };
 
-// Run the transfer
-transferFtpLogs()
-  .then(() => {
-    console.log('Data transfer completed successfully');
-    process.exit(0);
-  })
-  .catch((error) => {
-    console.error('Data transfer failed:', error);
-    process.exit(1);
-  }); 
+// Group mapping function
+const mapUsernameToGroupAndTape = (username: string): { group: string; tape: string } | null => {
+  if (username === 'install_track') return { group: 'install_track', tape: '000011' };
+  if (username === 'dgn') return { group: 'dgn_lts', tape: '000009' }; // Special case
+  if (username === 'dgn_apr_may_jun') return { group: 'dgn_lts', tape: '000011' };
+  if (username === 'dgn_lts') return { group: 'dgn_lts', tape: '000011' };
+  if (username === 'dgn_ovs') return { group: 'dgn_ovs', tape: '000011' };
+  if (username.startsWith('nfsdata')) return { group: 'nfsdata', tape: '000010' };
+  if (username.startsWith('teenpatti')) return { group: 'teenpatti', tape: '000011' };
+  return null;
+};
+
+const migrateData = async () => {
+  // Use environment variables for DB connection
+  const sourceConnection = await mysql.createConnection({
+    host: process.env.FTP_LOGS_DB_HOST || 'localhost',
+    user: process.env.FTP_LOGS_DB_USER || 'your_user',
+    password: process.env.FTP_LOGS_DB_PASSWORD || 'your_password',
+    database: process.env.FTP_LOGS_DB_NAME || 'ftp_commands',
+    port: process.env.FTP_LOGS_DB_PORT ? Number(process.env.FTP_LOGS_DB_PORT) : 3306
+  });
+
+  const targetConnection = await mysql.createConnection({
+    host: process.env.USER_MGMT_DB_HOST || 'localhost',
+    user: process.env.USER_MGMT_DB_USER || 'your_user',
+    password: process.env.USER_MGMT_DB_PASSWORD || 'your_password',
+    database: process.env.USER_MGMT_DB_NAME || 'user_management_system',
+    port: process.env.USER_MGMT_DB_PORT ? Number(process.env.USER_MGMT_DB_PORT) : 3306
+  });
+
+  const [rows] = await sourceConnection.execute(
+    `SELECT * FROM ftp_logs WHERE File_in_or_out = 'into server'`
+  ) as [Array<any>, any];
+
+  for (const row of rows) {
+    const username = row.username;
+    if (!username || username === 'dgntest') continue;
+
+    const mapping = mapUsernameToGroupAndTape(username);
+    if (!mapping) continue;
+
+    const fileSizeFormatted = formatFileSize(row.Filesize_in_bytes);
+
+    await targetConnection.execute(
+      `INSERT INTO upload_details 
+        (user_name, group_name, file_name, file_size, status, method, tape_location, tape_number, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        'ShivangGupta',
+        mapping.group,
+        row.Filename || 'unknown',
+        fileSizeFormatted,
+        'completed',
+        'server',
+        row.file_destination || 'pending',
+        mapping.tape,
+        row.timestamp
+      ]
+    );
+  }
+
+  console.log('✅ Data migration completed.');
+
+  await sourceConnection.end();
+  await targetConnection.end();
+};
+
+migrateData().catch(console.error);

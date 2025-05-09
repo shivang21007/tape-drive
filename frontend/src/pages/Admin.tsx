@@ -73,6 +73,7 @@ const Admin: React.FC = () => {
           setTapesError(null);
         })
         .catch((err) => {
+          console.error('Error fetching tapes or groups:', err);
           setTapesError('Failed to fetch tapes or groups');
         })
         .finally(() => setTapesLoading(false));
