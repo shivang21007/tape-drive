@@ -922,7 +922,11 @@ router.delete('/users/:id', isAdmin, async (req, res) => {
     if (req.user && req.user.id && String(req.user.id) === String(id)) {
       // The default session cookie name for express-session is 'connect.sid'
       res.clearCookie('connect.sid');
-      req.logout?.(); // Passport 0.6+ requires logout to be async, but this is safe for most setups
+      req.logout?.((err: any) => {
+        if (err) {
+          console.error('Error logging out:', err);
+        }
+      });
     }
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
