@@ -30,7 +30,6 @@ export const initializeRoles = async (): Promise<void> => {
     console.log('Initializing user roles...');
     userRoles = await fetchUserRoles();
     USER_ROLES = userRoles.map(role => role.name);
-    console.log('Available roles:', USER_ROLES);
   } catch (error) {
     console.error('Failed to initialize roles:', error);
     throw error;
