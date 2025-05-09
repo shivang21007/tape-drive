@@ -12,6 +12,8 @@ import { AddGroupForm } from '../components/admin/AddGroupForm';
 // import { AddProcessForm } from '../components/admin/AddProcessForm';
 import octroLogo from '../assets/octro-logo.png';
 import { isAdminRole} from '../utils/roleValidation';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const Admin: React.FC = () => {
   const { user, logout } = useAuth();
@@ -124,6 +126,50 @@ const Admin: React.FC = () => {
     }
   };
 
+  const handleDeleteGroup = async (group: Group) => {
+    if (!window.confirm(`Are you sure you want to delete the group "${group.name}"?`)) return;
+    try {
+      const response = await fetch(`/api/groups/${group.name}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        if (data && data.error && data.error.includes('users')) {
+          toast.error('Group has users, reassign them to new group.');
+        } else {
+          toast.error(data.error || 'Failed to delete group');
+        }
+        return;
+      }
+      setGroups(groups.filter(g => g.id !== group.id));
+      toast.success('Group deleted successfully');
+    } catch (err) {
+      toast.error('Failed to delete group');
+      console.error('Error deleting group:', err);
+    }
+  };
+
+  const handleDeleteUser = async (userToDelete: User) => {
+    if (!window.confirm(`Are you sure you want to delete user "${userToDelete.name}"?`)) return;
+    try {
+      const response = await fetch(`/api/users/${userToDelete.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to delete user');
+        return;
+      }
+      setUsers(users.filter(u => u.id !== userToDelete.id));
+      toast.success('User deleted successfully');
+    } catch (err) {
+      toast.error('Failed to delete user');
+      console.error('Error deleting user:', err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 p-8">
@@ -202,7 +248,7 @@ const Admin: React.FC = () => {
             </button> */}
           </div>
 
-          {activeTab === 'users' && <UsersTable users={users} onRoleChange={handleRoleChange} />}
+          {activeTab === 'users' && <UsersTable users={users} onRoleChange={handleRoleChange} onDeleteUser={handleDeleteUser} />}
           {activeTab === 'groups' && (
             <div>
               <div className="mb-4">
@@ -213,7 +259,7 @@ const Admin: React.FC = () => {
                   Add Group
                 </button>
               </div>
-              <GroupsTable groups={groups} />
+              <GroupsTable groups={groups} onDeleteGroup={handleDeleteGroup} />
               {showAddGroup && (
                 <AddGroupForm
                   onAddGroup={handleAddGroup}
@@ -241,6 +287,7 @@ const Admin: React.FC = () => {
               )}
             </div>
           )} */}
+          <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
         </div>
       </main>
     </div>

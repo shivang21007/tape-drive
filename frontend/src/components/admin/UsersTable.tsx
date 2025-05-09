@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../../types/user';
 import { UserGroup, getAvailableRoles } from '../../utils/roleValidation';
+import { MdDeleteForever } from 'react-icons/md';
 
 interface UsersTableProps {
   users: User[];
   onRoleChange: (userId: number, newRole: UserGroup) => void;
+  onDeleteUser?: (user: User) => void;
 }
 
-export const UsersTable: React.FC<UsersTableProps> = ({ users, onRoleChange }) => {
+export const UsersTable: React.FC<UsersTableProps> = ({ users, onRoleChange, onDeleteUser }) => {
   const [availableRoles, setAvailableRoles] = useState<UserGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,17 +78,34 @@ export const UsersTable: React.FC<UsersTableProps> = ({ users, onRoleChange }) =
                   <div className="text-sm text-gray-900">{currentRoleName}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <select
-                    value={currentRole?.name || ''}
-                    onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                  >
-                    {availableRoles.map((role) => (
-                      <option key={role.name} value={role.name}>
-                        {role.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={currentRole?.name || ''}
+                      onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                    >
+                      {availableRoles.map((role) => (
+                        <option key={role.name} value={role.name}>
+                          {role.name}
+                        </option>
+                      ))}
+                    </select>
+                    {onDeleteUser && (
+                      <button
+                        className="rounded-md px-4 py-2"
+                        style={{
+                          background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                        title="Delete user"
+                        onClick={() => onDeleteUser(user)}
+                      >
+                        <MdDeleteForever size={24} color="#fff" />
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             );

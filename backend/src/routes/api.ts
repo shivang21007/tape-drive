@@ -223,6 +223,27 @@ router.post('/groups', isAdmin, async (req, res) => {
   }
 });
 
+// Delete group (admin only)
+router.delete('/groups/:groupName', isAdmin, async (req, res) => {
+  const { groupName } = req.params;
+  try {
+    // Check if any users are assigned to this group
+    const [users] = await mysqlPool.query('SELECT id FROM users WHERE role = ?', [groupName]);
+    if ((users as any[]).length > 0) {
+      return res.status(400).json({ error: 'group has users, reassign them to new group' });
+    }
+    // Delete the group
+    const [result] = await mysqlPool.query('DELETE FROM user_groups_table WHERE name = ?', [groupName]);
+    if ((result as ResultSetHeader).affectedRows === 0) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    res.json({ message: 'Group deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting group:', error);
+    res.status(500).json({ error: 'Failed to delete group' });
+  }
+});
+
 // Create new process (admin only)
 router.post('/processes', isAdmin, async (req, res) => {
   const { name, description } = req.body;
@@ -886,6 +907,21 @@ router.get('/tapeinfo', hasFeatureAccess, async (req, res) => {
   } catch (error) {
     console.error('Error fetching tape info:', error);
     res.status(500).json({ error: 'Failed to fetch tape info' });
+  }
+});
+
+// Delete user (admin only)
+router.delete('/users/:id', isAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [result] = await mysqlPool.query('DELETE FROM users WHERE id = ?', [id]);
+    if ((result as ResultSetHeader).affectedRows === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
   }
 });
 
