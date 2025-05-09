@@ -1,6 +1,5 @@
 import React from 'react';
 import { Group } from '../../types/group';
-import { MdDelete } from 'react-icons/md';
 
 interface GroupsTableProps {
   groups: Group[];

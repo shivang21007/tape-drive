@@ -45,7 +45,8 @@ const setupPassport = async () => {
         const user = (rows as any[])[0] as Express.User;
         
         if (!user) {
-          return done(new Error('User not found'));
+          // Instead of throwing an error, treat as not logged in
+          return done(null, false);
         }
 
         // Get available roles

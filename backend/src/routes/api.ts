@@ -918,6 +918,12 @@ router.delete('/users/:id', isAdmin, async (req, res) => {
     if ((result as ResultSetHeader).affectedRows === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
+    // If the deleted user is the currently logged-in user, clear their session cookie
+    if (req.user && req.user.id && String(req.user.id) === String(id)) {
+      // The default session cookie name for express-session is 'connect.sid'
+      res.clearCookie('connect.sid');
+      req.logout?.(); // Passport 0.6+ requires logout to be async, but this is safe for most setups
+    }
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
     console.error('Error deleting user:', error);

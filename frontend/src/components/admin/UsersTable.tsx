@@ -54,7 +54,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({ users, onRoleChange, onD
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remove</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
@@ -74,38 +74,29 @@ export const UsersTable: React.FC<UsersTableProps> = ({ users, onRoleChange, onD
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">{user.email}</div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{currentRoleName}</div>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <select
+                    value={currentRole?.name || ''}
+                    onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                  >
+                    {availableRoles.map((role) => (
+                      <option key={role.name} value={role.name}>
+                        {role.name}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={currentRole?.name || ''}
-                      onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                  {onDeleteUser && (
+                    <button
+                      className="ml-6 rounded-md px-3 py-2 bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md min-w-[44px]"
+                      title="Delete user"
+                      onClick={() => onDeleteUser(user)}
                     >
-                      {availableRoles.map((role) => (
-                        <option key={role.name} value={role.name}>
-                          {role.name}
-                        </option>
-                      ))}
-                    </select>
-                    {onDeleteUser && (
-                      <button
-                        className="rounded-md px-4 py-2"
-                        style={{
-                          background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                        title="Delete user"
-                        onClick={() => onDeleteUser(user)}
-                      >
-                        <MdDeleteForever size={24} color="#fff" />
-                      </button>
-                    )}
-                  </div>
+                      <MdDeleteForever size={24} className="text-red-50" />
+                    </button>
+                  )}
                 </td>
               </tr>
             );
