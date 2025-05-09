@@ -931,4 +931,34 @@ router.delete('/users/:id', isAdmin, async (req, res) => {
   }
 });
 
+// Get all tapes (admin only)
+router.get('/tapes', isAdmin, async (req, res) => {
+  try {
+    const [rows] = await mysqlPool.query('SELECT * FROM tape_info ORDER BY id ASC');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching tapes:', error);
+    res.status(500).json({ error: 'Failed to fetch tapes' });
+  }
+});
+
+// Update tape group (admin only)
+router.put('/tapes/:id/group', isAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { group_name } = req.body;
+  if (!group_name) {
+    return res.status(400).json({ error: 'Missing group_name' });
+  }
+  try {
+    const [result] = await mysqlPool.query('UPDATE tape_info SET group_name = ? WHERE id = ?', [group_name, id]);
+    if ((result as ResultSetHeader).affectedRows === 0) {
+      return res.status(404).json({ error: 'Tape not found' });
+    }
+    res.json({ message: 'Tape group updated successfully' });
+  } catch (error) {
+    console.error('Error updating tape group:', error);
+    res.status(500).json({ error: 'Failed to update tape group' });
+  }
+});
+
 export default router; 

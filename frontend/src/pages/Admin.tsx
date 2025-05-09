@@ -21,11 +21,14 @@ const Admin: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   // const [processes, setProcesses] = useState<Process[]>([]);
-  const [activeTab, setActiveTab] = useState<'users' | 'groups' | 'processes'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'groups' | 'tape'>('users');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddGroup, setShowAddGroup] = useState(false);
   // const [showAddProcess, setShowAddProcess] = useState(false);
+  const [tapes, setTapes] = useState<any[]>([]);
+  const [tapesLoading, setTapesLoading] = useState(false);
+  const [tapesError, setTapesError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user || !isAdminRole(user.role)) {
@@ -55,6 +58,26 @@ const Admin: React.FC = () => {
 
     fetchData();
   }, [user, navigate]);
+
+  // Fetch tapes and groups for tape tab
+  useEffect(() => {
+    if (activeTab === 'tape') {
+      setTapesLoading(true);
+      Promise.all([
+        axios.get('/api/tapes', { withCredentials: true }),
+        axios.get('/api/groups', { withCredentials: true })
+      ])
+        .then(([tapesRes, groupsRes]) => {
+          setTapes(tapesRes.data);
+          setGroups(groupsRes.data);
+          setTapesError(null);
+        })
+        .catch((err) => {
+          setTapesError('Failed to fetch tapes or groups');
+        })
+        .finally(() => setTapesLoading(false));
+    }
+  }, [activeTab]);
 
   const handleRoleChange = async (userId: number, newRole: User['role']) => {
     try {
@@ -170,6 +193,16 @@ const Admin: React.FC = () => {
     }
   };
 
+  const handleTapeGroupChange = async (tapeId: number, newGroup: string) => {
+    try {
+      await axios.put(`/api/tapes/${tapeId}/group`, { group_name: newGroup }, { withCredentials: true });
+      setTapes((prev) => prev.map(t => t.id === tapeId ? { ...t, group_name: newGroup } : t));
+      toast.success('Tape group updated');
+    } catch (err) {
+      toast.error('Failed to update tape group');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 p-8">
@@ -237,15 +270,15 @@ const Admin: React.FC = () => {
             >
               Groups
             </button>
-            {/* <button
-              onClick={() => setActiveTab("processes")}
+            <button
+              onClick={() => setActiveTab("tape")}
               className={`px-6 py-2 rounded-lg transition-all duration-200 font-medium
-                ${activeTab === "processes" 
+                ${activeTab === "tape" 
                   ? "bg-[#2c455c] text-white shadow-lg transform -translate-y-0.5" 
                   : "text-gray-600 hover:bg-gray-100"}`}
             >
-              Processes
-            </button> */}
+              Tape
+            </button>
           </div>
 
           {activeTab === 'users' && <UsersTable users={users} onRoleChange={handleRoleChange} onDeleteUser={handleDeleteUser} />}
@@ -268,25 +301,57 @@ const Admin: React.FC = () => {
               )}
             </div>
           )}
-          {/* {activeTab === 'processes' && (
+          {activeTab === 'tape' && (
             <div>
-              <div className="mb-4">
-                <button
-                  onClick={() => setShowAddProcess(true)}
-                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                >
-                  Add Process
-                </button>
-              </div>
-              <ProcessesTable processes={processes} />
-              {showAddProcess && (
-                <AddProcessForm
-                  onAdd={handleAddProcess}
-                  onCancel={() => setShowAddProcess(false)}
-                />
+              <h2 className="text-2xl font-semibold text-blue-900 mb-4">Tape Management</h2>
+              {tapesLoading ? (
+                <div>Loading tapes...</div>
+              ) : tapesError ? (
+                <div className="text-red-600">{tapesError}</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 bg-white shadow rounded-lg">
+                    <thead className="bg-gray-700">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">ID</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Tape No</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Group</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Total Size</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Used Size</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Available Size</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Usage %</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Last Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {tapes.map((tape) => (
+                        <tr key={tape.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.id}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.tape_no}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <select
+                              value={tape.group_name}
+                              onChange={e => handleTapeGroupChange(tape.id, e.target.value)}
+                              className="block w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              {groups.map(g => (
+                                <option key={g.name} value={g.name}>{g.name}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.total_size}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.used_size}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.available_size}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.usage_percentage}%</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(tape.updated_at).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
-          )} */}
+          )}
           <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
         </div>
       </main>
