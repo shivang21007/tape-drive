@@ -2,7 +2,7 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { mysqlPool } from '../database/config';
 import dotenv from 'dotenv';
-import { UserRole, isValidRole, getAvailableRoles, initializeRoles } from '../models/auth';
+import { UserRole, isValidRole, getAvailableRoles, initializeRoles, refreshRoles, areRolesInitialized } from '../models/auth';
 
 // Extend Express.User to include our User type
 declare global {
@@ -36,6 +36,11 @@ const setupPassport = async () => {
     // Deserialize user from the session
     passport.deserializeUser(async (id: number, done) => {
       try {
+        // Ensure roles are initialized
+        if (!areRolesInitialized()) {
+          await refreshRoles();
+        }
+
         const [rows] = await mysqlPool.query('SELECT * FROM users WHERE id = ?', [id]);
         const user = (rows as any[])[0] as Express.User;
         
@@ -49,7 +54,12 @@ const setupPassport = async () => {
         // Validate that the user's role is still valid
         if (!availableRoles.includes(user.role)) {
           console.error(`Invalid role for user ${user.id}: ${user.role}. Available roles: ${availableRoles.join(', ')}`);
-          return done(new Error('Invalid user role'));
+          // Try refreshing roles one more time before giving up
+          await refreshRoles();
+          const refreshedRoles = getAvailableRoles();
+          if (!refreshedRoles.includes(user.role)) {
+            return done(new Error('Invalid user role'));
+          }
         }
         
         done(null, user);
@@ -69,6 +79,11 @@ const setupPassport = async () => {
         },
         async (accessToken, refreshToken, profile, done) => {
           try {
+            // Ensure roles are initialized
+            if (!areRolesInitialized()) {
+              await refreshRoles();
+            }
+
             // Check if user exists
             const [existingUsers] = await mysqlPool.query(
               'SELECT * FROM users WHERE google_id = ?',
@@ -84,7 +99,12 @@ const setupPassport = async () => {
               // Validate that the existing user's role is still valid
               if (!availableRoles.includes(existingUser.role)) {
                 console.error(`Invalid role for existing user ${existingUser.id}: ${existingUser.role}. Available roles: ${availableRoles.join(', ')}`);
-                return done(new Error('Invalid user role'));
+                // Try refreshing roles one more time before giving up
+                await refreshRoles();
+                const refreshedRoles = getAvailableRoles();
+                if (!refreshedRoles.includes(existingUser.role)) {
+                  return done(new Error('Invalid user role'));
+                }
               }
               
               return done(null, existingUser);
