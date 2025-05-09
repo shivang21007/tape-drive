@@ -15,14 +15,25 @@ let userRoles: UserGroup[] = [];
 
 // Fetch user roles from database
 const fetchUserRoles = async (): Promise<UserGroup[]> => {
-  const [rows] = await mysqlPool.query('SELECT * FROM user_groups_table');
-  return rows as UserGroup[];
+  try {
+    const [rows] = await mysqlPool.query('SELECT * FROM user_groups_table');
+    return rows as UserGroup[];
+  } catch (error) {
+    console.error('Error fetching user roles:', error);
+    throw error;
+  }
 };
 
 // Initialize the roles
 export const initializeRoles = async (): Promise<void> => {
-  userRoles = await fetchUserRoles();
-  USER_ROLES = userRoles.map( role => role.name);
+  try {
+    console.log('Initializing user roles...');
+    userRoles = await fetchUserRoles();
+    USER_ROLES = userRoles.map(role => role.name);
+  } catch (error) {
+    console.error('Failed to initialize roles:', error);
+    throw error;
+  }
 };
 
 // Export the roles array for runtime use
@@ -43,7 +54,21 @@ export const getRoleDescription = (role: string): string => {
 // Create a type-safe UserRole type
 export type UserRole = typeof USER_ROLES[number];
 
+// Function to refresh roles
+export const refreshRoles = async (): Promise<void> => {
+  await initializeRoles();
+};
+
 // Initialize roles when the module is imported
-initializeRoles().catch(console.error);
+initializeRoles().catch(error => {
+  console.error('Failed to initialize roles during module import:', error);
+  // Don't throw here as it would prevent the module from loading
+  // Instead, we'll handle the error when roles are actually needed
+});
+
+// Export a function to check if roles are initialized
+export const areRolesInitialized = (): boolean => {
+  return USER_ROLES.length > 0;
+};
 
 

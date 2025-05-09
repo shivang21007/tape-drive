@@ -60,7 +60,11 @@ const App: React.FC = () => {
               <SecureDownload />
             </ProtectedRoute>
           } />
-          <Route path="/tapeinfo" element={<TapeInfo />} />
+          <Route path="/tapeinfo" element={
+            <ProtectedRoute>
+              <TapeInfo />
+            </ProtectedRoute>
+          } />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
