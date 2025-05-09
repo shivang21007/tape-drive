@@ -277,7 +277,7 @@ const Admin: React.FC = () => {
                   ? "bg-[#2c455c] text-white shadow-lg transform -translate-y-0.5" 
                   : "text-gray-600 hover:bg-gray-100"}`}
             >
-              Tape
+              Tapes
             </button>
           </div>
 
