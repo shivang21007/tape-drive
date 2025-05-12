@@ -8,7 +8,6 @@ import path from 'path';
 import fs from 'fs';
 import { fileQueue, secureCopyQueue } from '../queue/fileQueue';
 import { FileProcessingJob, SecureCopyDownloadJob, SecureCopyUploadJob } from '../types/fileProcessing';
-import { getServerList } from '../utils/serverList';
 import { isValidRole, getAvailableRoles } from '../models/auth';
 
 const router = express.Router();
@@ -1030,35 +1029,5 @@ router.get('/tapeinfo', hasFeatureAccess, async (req, res) => {
     }
   });
   
-  // Get server list for secure copy through local csv file
-  router.get('/secureservers', hasFeatureAccess, async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-  
-    const user = req.user as User;
-  
-    if (user.role === 'user') {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-  
-    try {
-      const records = await getServerList();
-  
-      if (user.role === 'admin') {
-        return res.json({ servers: records.map(record => record.server_name) });
-      }
-  
-      const userServers = records
-        .filter(record => record.group === user.role)
-        .map(record => record.server_name);
-  
-      res.json({ servers: userServers });
-  
-    } catch (error) {
-      console.error('Error getting server list:', error);
-      res.status(500).json({ error: 'Failed to get server list' });
-    }
-  });
   export default router; 
   

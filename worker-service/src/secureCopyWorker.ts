@@ -8,7 +8,6 @@ import { fileQueue } from './queue/fileQueue';
 import path from 'path';
 import fs from 'fs-extra';
 import { FileProcessingJob, SecureCopyUploadJob, SecureCopyDownloadJob } from './types/fileProcessing';
-import { google } from 'googleapis';
 import dotenv from 'dotenv';
 import { logSecureCopyOperation, logVerification } from './utils/secureCopyLogger';
 
@@ -20,59 +19,14 @@ const databaseService = DatabaseService.getInstance();
 const emailService = new EmailService();
 const adminNotificationService = new AdminNotificationService();
 
-interface ServerRecord {
-    group: string;
-    server_name: string;
-    private_ip: string;
-}
-
 // Function to get private IP from Google Sheet
 const getPrivateIp = async (group: string, serverName: string): Promise<string> => {
     try {
-        const sheetId = process.env.GOOGLE_SHEET_ID;
-        const apiKey = process.env.GOOGLE_API_KEY;
-
-        if (!sheetId || !apiKey) {
-            throw new Error('GOOGLE_SHEET_ID or GOOGLE_API_KEY environment variables not set');
-        }
-
-        const sheets = google.sheets({ version: 'v4' });
-
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: sheetId,
-            range: 'A:C',
-            key: apiKey,
-        });
-        logSecureCopyOperation('sheet-fetch', {
-            sourcePath: 'google-sheet',
-            destPath: 'memory',
-            status: 'completed'
-        });
-
-        const rows = response.data.values;
-        if (!rows || rows.length === 0) {
-            throw new Error('No data found in the sheet');
-        }
-
-        const records = rows.slice(1).map(row => ({
-            group: row[0],
-            server_name: row[1],
-            private_ip: row[2]
-        })) as ServerRecord[];
-
-        const server = records.find(
-            (record) => record.group === group && record.server_name === serverName
-        );
-
-        if (!server) {
-            throw new Error(`Mismatch in server name: ${serverName}, and group name: ${group}`);
-        }
-
-        return server.private_ip;
-
+        const dbService = DatabaseService.getInstance();
+        return await dbService.getPrivateIp(group, serverName);
     } catch (error) {
-        logSecureCopyOperation('sheet-fetch', {
-            sourcePath: 'google-sheet',
+        logSecureCopyOperation('server-fetch', {
+            sourcePath: 'database',
             destPath: 'memory',
             status: 'failed',
             error: error as Error
