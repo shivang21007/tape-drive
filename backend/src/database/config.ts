@@ -17,7 +17,17 @@ const mysqlPool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0
 });
-
+// Test database connection and create tables
+export async function testConnections() {
+  try {
+    const connection = await mysqlPool.getConnection();
+    console.log('MySQL connection successful');
+    connection.release();
+  } catch (error) {
+    console.error('Database connection failed:', error);
+    throw error;
+  }
+} 
 // Redis Configuration
 const redisClient = createClient({
   url: `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,

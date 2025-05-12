@@ -1,6 +1,6 @@
 import express from 'express';
 import { isAdmin } from '../middleware/auth';
-import { mysqlPool } from '../database';
+import { mysqlPool } from '../database/config';
 import { User } from '../types/user';
 import { ResultSetHeader } from 'mysql2';
 import multer from 'multer';
@@ -663,71 +663,41 @@ router.get('/download-requests/status', hasFeatureAccess, async (req, res) => {
   }
 });
 
-// Get server list for secure copy through local csv file
-router.get('/secureservers', hasFeatureAccess, async (req, res) => {
-  if (!req.user) {
-    return res.status(401).json({ error: 'Not authenticated' });
-  }
-
-  const user = req.user as User;
-
-  if (user.role === 'user') {
-    return res.status(403).json({ error: 'Access denied' });
-  }
-
-  try {
-    const records = await getServerList();
-
-    if (user.role === 'admin') {
-      return res.json({ servers: records.map(record => record.server_name) });
-    }
-
-    const userServers = records
-      .filter(record => record.group === user.role)
-      .map(record => record.server_name);
-
-    res.json({ servers: userServers });
-
-  } catch (error) {
-    console.error('Error getting server list:', error);
-    res.status(500).json({ error: 'Failed to get server list' });
-  }
-});
 
 // Handle secure copy upload
 router.post('/secureupload', hasFeatureAccess, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
-
+  
   const connection = await mysqlPool.getConnection();
-
+  
   try {
     // add a entry in upload_details table if type is upload
     if(req.body.type === 'upload'){ 
       const { server, filePath } = req.body;
       const fileName = filePath.split('/').pop();
       const type = 'upload';
-
+      
       if(!server || !filePath){
         return res.status(400).json({ error: 'Server and file path are required' });
       }
-
+      
       if (!isValidRole(req.user.role)) {
         return res.status(403).json({ error: 'Invalid role' });
       }
-
+      
       const [result] = await connection.query<ResultSetHeader>(
         'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location, method) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [req.user.name, req.user.role, fileName, 'unknown', 'pending', filePath, server]
       );
-
+      
       if(!result){
         return res.status(500).json({ error: 'Failed to add entry to upload_details table' });
       }
-
+      
       console.log('result : ', result);
-
+      
       
       
       const jobData: SecureCopyUploadJob = {
@@ -777,29 +747,29 @@ router.post('/securedownload', hasFeatureAccess, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
-
+  
   const connection = await mysqlPool.getConnection();
-
+  
   try{
     // add a entry in download_requests table if type is download
     if(req.body.type === 'download'){
       const {fileId, server, filePath } = req.body;
       
       if (!server || !filePath) {
-          return res.status(400).json({ error: 'Server and file path are required' });
+        return res.status(400).json({ error: 'Server and file path are required' });
       }
-
+      
       if (!isValidRole(req.user.role)) {
         return res.status(403).json({ error: 'Invalid role' });
       }
-
+      
       const [result] = await connection.query<ResultSetHeader>(
         'INSERT INTO download_requests (file_id, user_name, group_name, status, served_from, served_to, served_to_location, requested_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
         [fileId, req.user.name, req.user.role, 'requested', 'cache', server, filePath]
       );
-
+      
       console.log('Request body:', req.body);
-
+      
       const jobData: SecureCopyDownloadJob = {
         type: 'download',
         downloadRequestId: result.insertId,
@@ -813,16 +783,16 @@ router.post('/securedownload', hasFeatureAccess, async (req, res) => {
         isAdmin: req.user.role === 'admin',
         requestedAt: Date.now()
       };
-
+      
       console.log('Secure Copy jobData:', jobData);
-
+      
       const job = await secureCopyQueue.add('SecureCopy', jobData, {
         priority: getPriority(req.user.role),
         jobId: `secureCopy-download-${result.insertId}`
       });
-
+      
       console.log('Job added successfully with ID:', job.id);
-
+      
       res.json({ success: true, message: 'Secure download request submitted successfully' });
     }
     else {
@@ -842,35 +812,35 @@ router.get('/files/:id/check-cache', hasFeatureAccess, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
-
+  
   const user = req.user as User;
   const { id } = req.params;
-
+  
   if (!isValidRole(user.role)) {
     return res.status(403).json({ error: 'Invalid role' });
   }
-
+  
   try {
     // Get file details
     const [files] = await mysqlPool.query(
       'SELECT * FROM upload_details WHERE id = ?',
       [id]
     );
-
+    
     if ((files as any[]).length === 0) {
       return res.status(404).json({ error: 'File not found' });
     }
-
+    
     const file = (files as any[])[0];
-
+    
     // Check if user has access to this file
     if (user.role !== 'admin' && file.group_name !== user.role) {
       return res.status(403).json({ error: 'Access denied' });
     }
-
+    
     // Check if file exists in local cache
     const isInCache = file.local_file_location && fs.existsSync(file.local_file_location);
-
+    
     res.json({ isInCache });
   } catch (error) {
     console.error('Error checking file cache:', error);
@@ -886,83 +856,209 @@ router.get('/tapeinfo', hasFeatureAccess, async (req, res) => {
       return res.status(403).json({ error: 'Invalid role' });
     }
     let query = `SELECT group_name, 
-              JSON_ARRAYAGG(JSON_OBJECT(
-                'id', id,
-                'tape_no', tape_no,
-                'total_size', total_size,
-                'used_size', used_size,
-                'available_size', available_size,
-                'usage_percentage', usage_percentage,
-                'updated_at', updated_at
-              )) AS tapes
-       FROM tape_info`;
-    let params: any[] = [];
-    if (!user || user.role !== 'admin') {
-      query += ' WHERE group_name = ?';
-      params.push(user?.role);
+    JSON_ARRAYAGG(JSON_OBJECT(
+      'id', id,
+      'tape_no', tape_no,
+      'total_size', total_size,
+      'used_size', used_size,
+      'available_size', available_size,
+      'usage_percentage', usage_percentage,
+      'updated_at', updated_at
+      )) AS tapes
+      FROM tape_info`;
+      let params: any[] = [];
+      if (!user || user.role !== 'admin') {
+        query += ' WHERE group_name = ?';
+        params.push(user?.role);
+      }
+      query += ' GROUP BY group_name';
+      const [rows] = await mysqlPool.query(query, params);
+      res.json(rows);
+    } catch (error) {
+      console.error('Error fetching tape info:', error);
+      res.status(500).json({ error: 'Failed to fetch tape info' });
     }
-    query += ' GROUP BY group_name';
-    const [rows] = await mysqlPool.query(query, params);
-    res.json(rows);
-  } catch (error) {
-    console.error('Error fetching tape info:', error);
-    res.status(500).json({ error: 'Failed to fetch tape info' });
-  }
-});
+  });
+  
+  // Delete user (admin only)
+  router.delete('/users/:id', isAdmin, async (req, res) => {
+    const { id } = req.params;
+    try {
+      const [result] = await mysqlPool.query('DELETE FROM users WHERE id = ?', [id]);
+      if ((result as ResultSetHeader).affectedRows === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      // If the deleted user is the currently logged-in user, clear their session cookie
+      if (req.user && req.user.id && String(req.user.id) === String(id)) {
+        // The default session cookie name for express-session is 'connect.sid'
+        res.clearCookie('connect.sid');
+        req.logout?.((err: any) => {
+          if (err) {
+            console.error('Error logging out:', err);
+          }
+        });
+      }
+      res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      res.status(500).json({ error: 'Failed to delete user' });
+    }
+  });
+  
+  // Get all tapes (admin only)
+  router.get('/tapes', isAdmin, async (req, res) => {
+    try {
+      const [rows] = await mysqlPool.query('SELECT * FROM tape_info ORDER BY id ASC');
+      res.json(rows);
+    } catch (error) {
+      console.error('Error fetching tapes:', error);
+      res.status(500).json({ error: 'Failed to fetch tapes' });
+    }
+  });
+  
+  // Update tape group (admin only)
+  router.put('/tapes/:id/group', isAdmin, async (req, res) => {
+    const { id } = req.params;
+    const { group_name } = req.body;
+    if (!group_name) {
+      return res.status(400).json({ error: 'Missing group_name' });
+    }
+    try {
+      const [result] = await mysqlPool.query('UPDATE tape_info SET group_name = ? WHERE id = ?', [group_name, id]);
+      if ((result as ResultSetHeader).affectedRows === 0) {
+        return res.status(404).json({ error: 'Tape not found' });
+      }
+      res.json({ message: 'Tape group updated successfully' });
+    } catch (error) {
+      console.error('Error updating tape group:', error);
+      res.status(500).json({ error: 'Failed to update tape group' });
+    }
+  });
+  
+  // Get server info
+  router.get('/serverinfo', hasFeatureAccess, async (req, res) => {
+    try {
+      const user = (req as any).user;
 
-// Delete user (admin only)
-router.delete('/users/:id', isAdmin, async (req, res) => {
-  const { id } = req.params;
-  try {
-    const [result] = await mysqlPool.query('DELETE FROM users WHERE id = ?', [id]);
-    if ((result as ResultSetHeader).affectedRows === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    // If the deleted user is the currently logged-in user, clear their session cookie
-    if (req.user && req.user.id && String(req.user.id) === String(id)) {
-      // The default session cookie name for express-session is 'connect.sid'
-      res.clearCookie('connect.sid');
-      req.logout?.((err: any) => {
-        if (err) {
-          console.error('Error logging out:', err);
-        }
+      if (!user || !user.role) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      // First check if user's group exists
+      const [groups] = await mysqlPool.query(
+        'SELECT name FROM user_groups_table WHERE name = ?',
+        [user.role]
+      );
+
+      if (!Array.isArray(groups) || groups.length === 0) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'Your group is not configured. Please contact the administrator.'
+        });
+      }
+
+      // Get all servers
+      const [rows] = await mysqlPool.query('SELECT * FROM server_info');
+      
+      if (!rows || !Array.isArray(rows)) {
+        return res.status(500).json({ error: 'Invalid server info data' });
+      }
+      
+      let filteredServers;
+      if (user.role === 'admin') {
+        filteredServers = rows;
+      } else {
+        // For non-admin users, filter by their group
+        filteredServers = rows.filter((row: any) => row.group_name === user.role);
+      }
+
+      if (filteredServers.length === 0) {
+        return res.json([]); // Return empty array instead of error
+      }
+      
+      return res.json(filteredServers);
+      
+    } catch (error) {
+      console.error('Error fetching server info:', error);
+      return res.status(500).json({ 
+        error: 'Failed to fetch server info',
+        details: error instanceof Error ? error.message : 'Unknown error'
       });
     }
-    res.json({ message: 'User deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    res.status(500).json({ error: 'Failed to delete user' });
-  }
-});
-
-// Get all tapes (admin only)
-router.get('/tapes', isAdmin, async (req, res) => {
-  try {
-    const [rows] = await mysqlPool.query('SELECT * FROM tape_info ORDER BY id ASC');
-    res.json(rows);
-  } catch (error) {
-    console.error('Error fetching tapes:', error);
-    res.status(500).json({ error: 'Failed to fetch tapes' });
-  }
-});
-
-// Update tape group (admin only)
-router.put('/tapes/:id/group', isAdmin, async (req, res) => {
-  const { id } = req.params;
-  const { group_name } = req.body;
-  if (!group_name) {
-    return res.status(400).json({ error: 'Missing group_name' });
-  }
-  try {
-    const [result] = await mysqlPool.query('UPDATE tape_info SET group_name = ? WHERE id = ?', [group_name, id]);
-    if ((result as ResultSetHeader).affectedRows === 0) {
-      return res.status(404).json({ error: 'Tape not found' });
+  });
+  
+  // Update server info group 
+  router.put('/serverinfo/:id', isAdmin, async (req, res) => {
+    const { id } = req.params;
+    const { server_name, server_ip, group_name } = req.body;
+    
+    if (!server_name || !server_ip || !group_name) {
+      return res.status(400).json({ error: 'Missing required fields' });
     }
-    res.json({ message: 'Tape group updated successfully' });
-  } catch (error) {
-    console.error('Error updating tape group:', error);
-    res.status(500).json({ error: 'Failed to update tape group' });
-  }
-});
-
-export default router; 
+    
+    try {
+      // First verify the server exists
+      const [existing] = await mysqlPool.query('SELECT * FROM server_info WHERE id = ?', [id]);
+      
+      if (!Array.isArray(existing) || existing.length === 0) {
+        return res.status(404).json({ error: 'Server info not found' });
+      }
+      
+      // Update the server info
+      const [result] = await mysqlPool.query(
+        'UPDATE server_info SET server_name = ?, server_ip = ?, group_name = ? WHERE id = ?',
+        [server_name, server_ip, group_name, id]
+      );
+      
+      if ((result as ResultSetHeader).affectedRows === 0) {
+        return res.status(404).json({ error: 'Failed to update server info' });
+      }
+      
+      return res.json({ 
+        message: 'Server info updated successfully',
+        updatedServer: {
+          id,
+          server_name,
+          server_ip,
+          group_name
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error updating server info:', error);
+      return res.status(500).json({ error: 'Failed to update server info' });
+    }
+  });
+  
+  // Get server list for secure copy through local csv file
+  router.get('/secureservers', hasFeatureAccess, async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+  
+    const user = req.user as User;
+  
+    if (user.role === 'user') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+  
+    try {
+      const records = await getServerList();
+  
+      if (user.role === 'admin') {
+        return res.json({ servers: records.map(record => record.server_name) });
+      }
+  
+      const userServers = records
+        .filter(record => record.group === user.role)
+        .map(record => record.server_name);
+  
+      res.json({ servers: userServers });
+  
+    } catch (error) {
+      console.error('Error getting server list:', error);
+      res.status(500).json({ error: 'Failed to get server list' });
+    }
+  });
+  export default router; 
+  
