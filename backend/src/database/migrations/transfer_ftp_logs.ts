@@ -34,31 +34,42 @@ const mapUsernameToGroupAndTape = (username: string): { group: string; tape: str
 const migrateData = async () => {
   // Use environment variables for DB connection
   const sourceConnection = await mysql.createConnection({
-    host: process.env.FTP_LOGS_DB_HOST || 'localhost',
-    user: process.env.FTP_LOGS_DB_USER || 'your_user',
-    password: process.env.FTP_LOGS_DB_PASSWORD || 'your_password',
-    database: process.env.FTP_LOGS_DB_NAME || 'ftp_commands',
-    port: process.env.FTP_LOGS_DB_PORT ? Number(process.env.FTP_LOGS_DB_PORT) : 3306
+    host: process.env.FTP_DB_HOST || 'localhost',
+    user: process.env.FTP_DB_USER || 'your_user',
+    password: process.env.FTP_DB_PASSWORD || 'your_password',
+    database: process.env.FTP_DB_NAME || 'ftp_commands',
+    port: process.env.FTP_DB_PORT ? Number(process.env.FTP_DB_PORT) : 3306
   });
 
   const targetConnection = await mysql.createConnection({
-    host: process.env.USER_MGMT_DB_HOST || 'localhost',
-    user: process.env.USER_MGMT_DB_USER || 'your_user',
-    password: process.env.USER_MGMT_DB_PASSWORD || 'your_password',
-    database: process.env.USER_MGMT_DB_NAME || 'user_management_system',
-    port: process.env.USER_MGMT_DB_PORT ? Number(process.env.USER_MGMT_DB_PORT) : 3306
+    host: process.env.MYSQL_HOST || 'localhost',
+    user: process.env.MYSQL_USER || 'root',
+    password: process.env.MYSQL_PASSWORD || 'admin@123',
+    database: process.env.MYSQL_DATABASE || 'user_management_system',
+    port: process.env.MYSQL_PORT ? Number(process.env.MYSQL_PORT) : 3306
   });
 
   const [rows] = await sourceConnection.execute(
-    `SELECT * FROM ftp_logs WHERE File_in_or_out = 'into server'`
+    `SELECT * FROM ftp_logs 
+     WHERE File_in_or_out = 'into server' 
+     AND id > 302`
   ) as [Array<any>, any];
+
+  let processedCount = 0;
+  let skippedCount = 0;
 
   for (const row of rows) {
     const username = row.username;
-    if (!username || username === 'dgntest') continue;
+    if (!username || username === 'dgntest') {
+      skippedCount++;
+      continue;
+    }
 
     const mapping = mapUsernameToGroupAndTape(username);
-    if (!mapping) continue;
+    if (!mapping) {
+      skippedCount++;
+      continue;
+    }
 
     const fileSizeFormatted = formatFileSize(row.Filesize_in_bytes);
 
@@ -72,15 +83,18 @@ const migrateData = async () => {
         row.Filename || 'unknown',
         fileSizeFormatted,
         'completed',
-        'server',
+        'server19',
         row.file_destination || 'pending',
         mapping.tape,
         row.timestamp
       ]
     );
+    processedCount++;
   }
 
-  console.log('✅ Data migration completed.');
+  console.log(`✅ Data migration completed.`);
+  console.log(`Processed: ${processedCount} records`);
+  console.log(`Skipped: ${skippedCount} records`);
 
   await sourceConnection.end();
   await targetConnection.end();
