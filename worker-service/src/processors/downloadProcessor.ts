@@ -61,7 +61,24 @@ export async function processDownload(job: DownloadProcessingJob) {
       logger.info(`Tape location verified: ${tapeLocation}`);
     } catch (error) {
       logger.error(`Tape location not found: ${tapeLocation}`);
-      throw new Error(`Tape location not found: ${tapeLocation}`);
+      // Update request status to failed
+      await databaseService.updateDownloadStatus(requestId, 'failed');
+      // Send failure email
+      await emailService.sendDownloadReadyEmail(userEmail, fileName, {
+        status: 'failed',
+        error: `Tape location not found: ${tapeLocation}`
+      });
+      // Send admin notification
+      await adminNotificationService.sendCriticalError('download_processing', 
+        new Error(`Tape location not found: ${tapeLocation}`), 
+        { requestId, fileName }
+      );
+      // Return failure without throwing error to prevent reverse process
+      return {
+        success: false,
+        message: `Tape location not found: ${tapeLocation}`,
+        error: `Tape location not found: ${tapeLocation}`
+      };
     }
 
     // Create local file path
