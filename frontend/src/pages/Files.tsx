@@ -18,6 +18,7 @@ interface FileData {
   method: string;
   created_at: string;
   status: string;
+  tape_number: string;
 }
 
 const Files: React.FC = () => {
@@ -170,6 +171,9 @@ const Files: React.FC = () => {
                   Status
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Tape_Number
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -205,6 +209,9 @@ const Files: React.FC = () => {
                         'bg-yellow-100 text-yellow-800'}`}>
                       {file.status}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 ">
+                    {file.tape_number || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 ">
                     <FileDownload 
