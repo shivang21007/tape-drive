@@ -2,7 +2,7 @@ import express from 'express';
 import { isAdmin } from '../middleware/auth';
 import { mysqlPool } from '../database/config';
 import { User } from '../types/user';
-import { ResultSetHeader } from 'mysql2';
+import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -934,6 +934,14 @@ router.get('/tapeinfo', hasFeatureAccess, async (req, res) => {
     }
   });
   
+  // Add interface for server info
+  interface ServerInfo extends RowDataPacket {
+    id: number;
+    server_name: string;
+    server_ip: string;
+    group_name: string;
+  }
+
   // Get server info
   router.get('/serverinfo', hasFeatureAccess, async (req, res) => {
     try {
@@ -957,18 +965,18 @@ router.get('/tapeinfo', hasFeatureAccess, async (req, res) => {
       }
 
       // Get all servers
-      const [rows] = await mysqlPool.query('SELECT * FROM server_info');
+      const [rows] = await mysqlPool.query<ServerInfo[]>('SELECT * FROM server_info');
       
       if (!rows || !Array.isArray(rows)) {
         return res.status(500).json({ error: 'Invalid server info data' });
       }
       
-      let filteredServers;
+      let filteredServers: ServerInfo[];
       if (user.role === 'admin') {
         filteredServers = rows;
       } else {
         // For non-admin users, filter by their group
-        filteredServers = rows.filter((row: any) => row.group_name === user.role);
+        filteredServers = rows.filter(row => row.group_name === user.role);
       }
 
       if (filteredServers.length === 0) {
