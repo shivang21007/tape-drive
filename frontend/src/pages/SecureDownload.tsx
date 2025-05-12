@@ -3,6 +3,12 @@ import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import { useNavigate, useLocation } from 'react-router-dom';
 
+interface Server {
+  server_name: string;
+  server_ip: string;
+  group_name: string;
+}
+
 const SecureDownload: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -10,7 +16,7 @@ const SecureDownload: React.FC = () => {
     const fileId = searchParams.get('fileId') || '';
     const fileName = searchParams.get('fileName') || '';
     
-    const [servers, setServers] = useState<string[]>([]);
+    const [servers, setServers] = useState<Server[]>([]);
     const [selectedServer, setSelectedServer] = useState('');
     const [serverPath, setServerPath] = useState('');
     const [error, setError] = useState('');
@@ -19,8 +25,15 @@ const SecureDownload: React.FC = () => {
     useEffect(() => {
         const fetchServers = async () => {
             try {
-                const response = await axios.get('/api/secureservers');
-                setServers(response.data.servers);
+                const response = await axios.get('/api/serverinfo');
+                if (Array.isArray(response.data)) {
+                    setServers(response.data);
+                    if (response.data.length === 0) {
+                        setError('Your group has no assigned servers. Please contact the administrator.');
+                    }
+                } else {
+                    setError('Invalid server data received');
+                }
             } catch (error) {
                 console.error('Error fetching servers:', error);
                 setError('Failed to fetch server list');
@@ -32,7 +45,7 @@ const SecureDownload: React.FC = () => {
 
     const validatePath = (path: string): boolean => {
         // Check if path contains any special characters or spaces
-        const specialChars = ['\\', ':', '*', '?', '<', '>', '|', ';', '&','@','%','!','&','#','^'," ",' '];
+        const specialChars = [':', '*', '?', '<', '>', '|', ';', '&','@','%','!','&','#','^'," ",' '];
         const isValid = !specialChars.some(char => path.includes(char));
         
         if (!isValid) {
@@ -165,13 +178,20 @@ const SecureDownload: React.FC = () => {
                                 onChange={(e) => setSelectedServer(e.target.value)}
                                 className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                                 required
+                                disabled={servers.length === 0}
                             >
                                 <option value="">Select a server</option>
-                                {servers.map((server) => (
-                                    <option key={server} value={server}>
-                                        {server}
+                                {servers.length === 0 ? (
+                                    <option value="" disabled>
+                                        Your group has no assigned servers. Please contact the administrator.
                                     </option>
-                                ))}
+                                ) : (
+                                    servers.map((server) => (
+                                        <option key={server.server_name} value={server.server_name}>
+                                            {server.server_name} ({server.server_ip})
+                                        </option>
+                                    ))
+                                )}
                             </select>
                         </div>
 

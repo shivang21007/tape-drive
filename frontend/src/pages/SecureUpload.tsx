@@ -3,22 +3,56 @@ import axios from 'axios';
 import {toast, ToastContainer } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 
+interface Server {
+  server_name: string;
+  server_ip: string;
+  group_name: string;
+}
+
 const SecureUpload: React.FC = () => {
   const navigate = useNavigate();
-  const [servers, setServers] = useState<string[]>([]);
+  const [servers, setServers] = useState<Server[]>([]);
   const [selectedServer, setSelectedServer] = useState('');
   const [filePath, setFilePath] = useState('');
   const [error, setError] = useState('');
   const [pathError, setPathError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchServers = async () => {
+      setIsLoading(true);
+      setError('');
       try {
-        const response = await axios.get('/api/secureservers');
-        setServers(response.data.servers);
+        const response = await axios.get('/api/serverinfo');
+        
+        if (Array.isArray(response.data)) {
+          if (response.data.length === 0) {
+            setError('Your group has no assigned servers. Please contact the administrator.');
+          } else {
+            setServers(response.data);
+            // If there's only one server, auto-select it
+            if (response.data.length === 1) {
+              setSelectedServer(response.data[0].server_name);
+            }
+          }
+        } else {
+          setError('Invalid server data received');
+        }
       } catch (error) {
         console.error('Error fetching servers:', error);
-        setError('Failed to fetch server list');
+        if (axios.isAxiosError(error)) {
+          if (error.response?.status === 401) {
+            setError('Please log in to access server information');
+          } else if (error.response?.status === 403) {
+            setError('You do not have permission to access server information');
+          } else {
+            setError(error.response?.data?.error || 'Failed to fetch server list');
+          }
+        } else {
+          setError('Failed to fetch server list');
+        }
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -27,7 +61,7 @@ const SecureUpload: React.FC = () => {
 
   const validatePath = (path: string): boolean => {
     // Check if path contains any special characters or spaces
-    const specialChars = ['\\', ':', '*', '?', '<', '>', '|', ';', '&','@','%','!','&','#','^'," ",' '];
+    const specialChars = [':', '*', '?', '<', '>', '|', ';', '&','@','%','!','&','#','^'," ",' '];
     const isValid = !specialChars.some(char => path.includes(char));
     
     if (!isValid) {
@@ -44,7 +78,7 @@ const SecureUpload: React.FC = () => {
     setFilePath(newPath);
     validatePath(newPath);
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -122,14 +156,26 @@ const SecureUpload: React.FC = () => {
                 onChange={(e) => setSelectedServer(e.target.value)}
                 className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                 required
+                disabled={isLoading || servers.length === 0}
               >
-                <option value="">Select a server</option>
-                {servers.map((server) => (
-                  <option key={server} value={server}>
-                    {server}
+                <option value="">
+                  {isLoading ? 'Loading servers...' : 'Select a server'}
+                </option>
+                {!isLoading && servers.length === 0 ? (
+                  <option value="" disabled>
+                    Your group has no assigned servers. Please contact the administrator.
                   </option>
-                ))}
+                ) : (
+                  servers.map((server) => (
+                    <option key={server.server_name} value={server.server_name}>
+                      {server.server_name} ({server.server_ip})
+                    </option>
+                  ))
+                )}
               </select>
+              {error && (
+                <p className="mt-2 text-sm text-red-600">{error}</p>
+              )}
             </div>
 
             <div>

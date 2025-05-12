@@ -3,7 +3,7 @@ import cors from 'cors';
 import session from 'express-session';
 import passport from 'passport';
 import dotenv from 'dotenv';
-import { testConnections } from './database';
+import { testConnections } from './database/config';
 import './config/passport';
 import authRoutes from './routes/auth';
 import apiRoutes from './routes/api';

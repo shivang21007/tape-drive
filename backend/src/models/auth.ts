@@ -1,4 +1,4 @@
-import { mysqlPool } from '../database';
+import { mysqlPool } from '../database/config';
 
 // Define the interface for user group
 interface UserGroup {

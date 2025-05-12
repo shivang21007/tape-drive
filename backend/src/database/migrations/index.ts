@@ -1,4 +1,4 @@
-import { mysqlPool } from '../index';
+import { mysqlPool } from '../config';
 
 const createTables = async () => {
   const connection = await mysqlPool.getConnection();
@@ -112,6 +112,18 @@ const createTables = async () => {
         usage_percentage DECIMAL(5,2) DEFAULT 0.00,  -- e.g., 1.00
         filesystem VARCHAR(50) NOT NULL,  -- e.g., "ltfs:/dev/sg1"
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (group_name) REFERENCES user_groups_table(name) ON DELETE CASCADE
+      )
+    `);
+
+    // Create server_info table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS server_info (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        server_name VARCHAR(255) NOT NULL,
+        server_ip VARCHAR(255) NOT NULL,
+        group_name VARCHAR(255) NOT NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (group_name) REFERENCES user_groups_table(name) ON DELETE CASCADE
       )
