@@ -24,16 +24,7 @@ export async function processDownload(job: DownloadProcessingJob) {
     // Update request status to processing
     await databaseService.updateDownloadStatus(requestId, 'processing');
 
-    // Verify tape location exists
-    try {
-      await fs.access(tapeLocation);
-      logger.info(`Tape location verified: ${tapeLocation}`);
-    } catch (error) {
-      logger.error(`Tape location not found: ${tapeLocation}`);
-      throw new Error(`Tape location not found: ${tapeLocation}`);
-    }
-
-    // Ensure correct tape is loaded and mounted
+    // First, ensure correct tape is loaded and mounted
     tapeLogger.startOperation('tape-mounting');
     currentTape = await tapeManager.ensureCorrectTape(groupName);
     if (!currentTape) {
@@ -73,6 +64,15 @@ export async function processDownload(job: DownloadProcessingJob) {
 
     tapeLogger.endOperation('tape-mounting');
 
+    // Now verify tape location exists after ensuring correct tape is mounted
+    try {
+      await fs.access(tapeLocation);
+      logger.info(`Tape location verified: ${tapeLocation}`);
+    } catch (error) {
+      logger.error(`Tape location not found: ${tapeLocation}`);
+      throw new Error(`Tape location not found: ${tapeLocation}`);
+    }
+
     // Create local file path
     const localFilePath = path.join(
       process.env.UPLOAD_DIR || '/home/octro/google-auth-login-page/tape-drive/backend/uploadfiles',
@@ -83,7 +83,7 @@ export async function processDownload(job: DownloadProcessingJob) {
 
     // Ensure directory exists
     try {
-      await fs.mkdir(path.dirname(localFilePath), { recursive: true });
+      await fs.ensureDir(path.dirname(localFilePath));
       logger.info(`Created directory: ${path.dirname(localFilePath)}`);
     } catch (error) {
       logger.error(`Failed to create directory: ${path.dirname(localFilePath)}`, error);
@@ -93,12 +93,27 @@ export async function processDownload(job: DownloadProcessingJob) {
     // Copy file from tape to local storage
     tapeLogger.startOperation('file-copy');
     try {
-      await fs.copy(tapeLocation, localFilePath, {
-        overwrite: true,
-        errorOnExist: false,
-        preserveTimestamps: true
-      });
-      logger.info(`File copied to local storage: ${localFilePath}`);
+      // Check if source is a directory
+      const sourceStats = await fs.stat(tapeLocation);
+      const isDirectory = sourceStats.isDirectory();
+
+      if (isDirectory) {
+        // For directories, copy recursively
+        await fs.copy(tapeLocation, localFilePath, {
+          overwrite: true,
+          errorOnExist: false,
+          preserveTimestamps: true
+        });
+        logger.info(`Directory copied recursively to: ${localFilePath}`);
+      } else {
+        // For files, copy directly
+        await fs.copy(tapeLocation, localFilePath, {
+          overwrite: true,
+          errorOnExist: false,
+          preserveTimestamps: true
+        });
+        logger.info(`File copied to: ${localFilePath}`);
+      }
     } catch (error) {
       logger.error(`Failed to copy file: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new Error(`Failed to copy file from tape: ${error instanceof Error ? error.message : 'Unknown error'}`);
