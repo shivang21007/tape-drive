@@ -6,6 +6,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import SearchBar from '../components/SearchBar';
 import { isAdminRole } from '../utils/roleValidation';
+import { FaCaretSquareUp, FaCaretSquareDown } from "react-icons/fa";
 
 interface HistoryItem {
   id: number;
@@ -27,6 +28,9 @@ const History: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [currentPage, setCurrentPage] = useState(1);
+  const entriesPerPage = 20;
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const handleRefresh = async () => {
     setLoading(true);
@@ -51,12 +55,14 @@ const History: React.FC = () => {
   const handleSearch = (query: string) => {
     if (!query.trim()) {
       setFilteredHistory(history);
+      setCurrentPage(1);
       return;
     }
     const filtered = history.filter(item => 
       item.file_name.toLowerCase().includes(query.toLowerCase())
     );
     setFilteredHistory(filtered);
+    setCurrentPage(1);
   };
 
   const handleSelect = (selectedFile: string) => {
@@ -65,6 +71,23 @@ const History: React.FC = () => {
     );
     setFilteredHistory(filtered);
   };
+
+  const handleSort = () => {
+    setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+  };
+
+  const getSortedHistory = () => {
+    return [...filteredHistory].sort((a, b) => {
+      const dateA = new Date(a.requested_at).getTime();
+      const dateB = new Date(b.requested_at).getTime();
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+  };
+
+  const indexOfLastEntry = currentPage * entriesPerPage;
+  const indexOfFirstEntry = indexOfLastEntry - entriesPerPage;
+  const currentEntries = getSortedHistory().slice(indexOfFirstEntry, indexOfLastEntry);
+  const totalPages = Math.ceil(filteredHistory.length / entriesPerPage);
 
   useEffect(() => {
     handleRefresh();
@@ -107,10 +130,21 @@ const History: React.FC = () => {
               Refresh
             </button>
             <button
+              onClick={handleSort}
+              className="px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors flex items-center space-x-2"
+            >
+              <span>{sortOrder === 'asc' ? 'Recent' : 'Oldest'} </span>
+              {sortOrder === 'asc' ? (
+                <FaCaretSquareUp className="w-4 h-4" />
+              ) : (
+                <FaCaretSquareDown className="w-4 h-4" />
+              )}
+            </button>
+            <button
               onClick={() => navigate('/')}
               className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
             >
-              Back to Home
+              Home
             </button>
             <SearchBar 
               data={history}
@@ -160,7 +194,7 @@ const History: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredHistory.map((item) => (
+              {currentEntries.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {item.id}
@@ -205,6 +239,64 @@ const History: React.FC = () => {
               ))}
             </tbody>
           </table>
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Showing <span className="font-medium">{indexOfFirstEntry + 1}</span> to{' '}
+                  <span className="font-medium">{Math.min(indexOfLastEntry, filteredHistory.length)}</span>{' '}
+                  of <span className="font-medium">{filteredHistory.length}</span> results
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  {[...Array(totalPages)].map((_, index) => (
+                    <button
+                      key={index + 1}
+                      onClick={() => setCurrentPage(index + 1)}
+                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium
+                        ${currentPage === index + 1
+                          ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                        }`}
+                    >
+                      {index + 1}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
