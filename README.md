@@ -91,10 +91,10 @@ Browser <-> Frontend (5173) <-> Backend (8000) <-> MySQL
 
 ### Installation
 1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd tape-drive
-   ```
+```bash
+git clone <repository-url>
+cd tape-drive
+```
 2. **Backend Setup:**
    ```bash
    cd backend
@@ -150,7 +150,7 @@ Browser <-> Frontend (5173) <-> Backend (8000) <-> MySQL
 ---
 
 ## License
-ISC
+ISC 
 
 ---
 

@@ -81,6 +81,9 @@ const Admin: React.FC = () => {
   }, [activeTab]);
 
   const handleRoleChange = async (userId: number, newRole: User['role']) => {
+    if (!window.confirm('Are you sure you want to change this user\'s role? This is a critical operation.')) {
+      return;
+    }
     try {
       const roleName = typeof newRole === 'string' ? newRole : newRole.name;
       
@@ -195,6 +198,9 @@ const Admin: React.FC = () => {
   };
 
   const handleTapeGroupChange = async (tapeId: number, newGroup: string) => {
+    if (!window.confirm('Are you sure you want to change this tape\'s group? This is a critical operation.')) {
+      return;
+    }
     try {
       await axios.put(`/api/tapes/${tapeId}/group`, { group_name: newGroup }, { withCredentials: true });
       setTapes((prev) => prev.map(t => t.id === tapeId ? { ...t, group_name: newGroup } : t));
