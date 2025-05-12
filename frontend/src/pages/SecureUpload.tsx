@@ -134,13 +134,13 @@ const SecureUpload: React.FC = () => {
               onClick={() => navigate('/')}
               className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
             >
-              Back to Home
+              Home
             </button>
             <button
               onClick={() => navigate('/files')}
               className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
             >
-              Upload-History
+              Upload History
             </button>
           </div>
         </div>

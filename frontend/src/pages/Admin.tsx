@@ -15,13 +15,21 @@ import { isAdminRole} from '../utils/roleValidation';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+interface Server {
+  id: number;
+  server_name: string;
+  server_ip: string;
+  group_name: string;
+  updated_at: string;
+}
+
 const Admin: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   // const [processes, setProcesses] = useState<Process[]>([]);
-  const [activeTab, setActiveTab] = useState<'users' | 'groups' | 'tape'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'groups' | 'tape' | 'servers'>('users');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddGroup, setShowAddGroup] = useState(false);
@@ -29,6 +37,9 @@ const Admin: React.FC = () => {
   const [tapes, setTapes] = useState<any[]>([]);
   const [tapesLoading, setTapesLoading] = useState(false);
   const [tapesError, setTapesError] = useState<string | null>(null);
+  const [servers, setServers] = useState<Server[]>([]);
+  const [serversLoading, setServersLoading] = useState(false);
+  const [serversError, setServersError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user || !isAdminRole(user.role)) {
@@ -77,6 +88,27 @@ const Admin: React.FC = () => {
           setTapesError('Failed to fetch tapes or groups');
         })
         .finally(() => setTapesLoading(false));
+    }
+  }, [activeTab]);
+
+  // Fetch servers and groups for servers tab
+  useEffect(() => {
+    if (activeTab === 'servers') {
+      setServersLoading(true);
+      Promise.all([
+        axios.get('/api/serverinfo', { withCredentials: true }),
+        axios.get('/api/groups', { withCredentials: true })
+      ])
+        .then(([serversRes, groupsRes]) => {
+          setServers(serversRes.data);
+          setGroups(groupsRes.data);
+          setServersError(null);
+        })
+        .catch((err) => {
+          console.error('Error fetching servers or groups:', err);
+          setServersError('Failed to fetch servers or groups');
+        })
+        .finally(() => setServersLoading(false));
     }
   }, [activeTab]);
 
@@ -210,6 +242,19 @@ const Admin: React.FC = () => {
     }
   };
 
+  const handleServerGroupChange = async (serverId: number, newGroup: string) => {
+    if (!window.confirm('Are you sure you want to change this server\'s group? This is a critical operation.')) {
+      return;
+    }
+    try {
+      await axios.put(`/api/serverinfo/${serverId}/group`, { group_name: newGroup }, { withCredentials: true });
+      setServers((prev) => prev.map(s => s.id === serverId ? { ...s, group_name: newGroup } : s));
+      toast.success('Server group updated');
+    } catch (err) {
+      toast.error('Failed to update server group');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 p-8">
@@ -286,6 +331,15 @@ const Admin: React.FC = () => {
             >
               Tapes
             </button>
+            <button
+              onClick={() => setActiveTab("servers")}
+              className={`px-6 py-2 rounded-lg transition-all duration-200 font-medium
+                ${activeTab === "servers" 
+                  ? "bg-[#2c455c] text-white shadow-lg transform -translate-y-0.5" 
+                  : "text-gray-600 hover:bg-gray-100"}`}
+            >
+              Servers
+            </button>
           </div>
 
           {activeTab === 'users' && <UsersTable users={users} onRoleChange={handleRoleChange} onDeleteUser={handleDeleteUser} />}
@@ -351,6 +405,51 @@ const Admin: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.available_size}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.usage_percentage}%</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(tape.updated_at).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+          {activeTab === 'servers' && (
+            <div>
+              <h2 className="text-2xl font-semibold text-blue-900 mb-4">Server Management</h2>
+              {serversLoading ? (
+                <div>Loading servers...</div>
+              ) : serversError ? (
+                <div className="text-red-600">{serversError}</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 bg-white shadow rounded-lg">
+                    <thead className="bg-gray-700">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">ID</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Server Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Server IP</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Group</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Last Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {servers.map((server) => (
+                        <tr key={server.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{server.id}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{server.server_name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{server.server_ip}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <select
+                              value={server.group_name}
+                              onChange={e => handleServerGroupChange(server.id, e.target.value)}
+                              className="block w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              {groups.map(g => (
+                                <option key={g.name} value={g.name}>{g.name}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(server.updated_at).toLocaleString()}</td>
                         </tr>
                       ))}
                     </tbody>
