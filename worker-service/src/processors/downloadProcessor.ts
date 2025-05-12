@@ -24,34 +24,43 @@ export async function processDownload(job: DownloadProcessingJob) {
     // Update request status to processing
     await databaseService.updateDownloadStatus(requestId, 'processing');
 
-    // First, ensure correct tape is loaded and mounted
+    // First, check if the correct tape is already mounted
     tapeLogger.startOperation('tape-mounting');
     try {
-      // Unmount current tape if mounted
-      if (await tapeManager.isTapeMounted()) {
-        await tapeManager.unmountTape();
-        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for unmount
-      }
+      const isMounted = await tapeManager.isTapeMounted();
+      const currentTape = await tapeManager.getCurrentTape();
 
-      // Unload current tape
-      await tapeManager.unloadTape();
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for unload
+      if (isMounted && currentTape === tapeNumber) {
+        logger.info(`Correct tape ${tapeNumber} is already mounted`);
+      } else {
+        logger.info(`Need to switch tapes. Current: ${currentTape}, Required: ${tapeNumber}`);
+        
+        // Unmount current tape if mounted
+        if (isMounted) {
+          await tapeManager.unmountTape();
+          await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for unmount
+        }
 
-      // Load and mount the specific tape number directly
-      await tapeManager.loadTape(tapeNumber);
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for load
-      await tapeManager.mountTape();
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for mount
+        // Unload current tape
+        await tapeManager.unloadTape();
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for unload
 
-      // Verify new tape is mounted
-      if (!await tapeManager.isTapeMounted()) {
-        throw new Error('Failed to mount tape after loading');
+        // Load and mount the specific tape number
+        await tapeManager.loadTape(tapeNumber);
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for load
+        await tapeManager.mountTape();
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for mount
+
+        // Verify new tape is mounted
+        if (!await tapeManager.isTapeMounted()) {
+          throw new Error('Failed to mount tape after loading');
+        }
       }
       
-      logger.info(`Successfully loaded and mounted tape ${tapeNumber}`);
+      logger.info(`Successfully verified tape ${tapeNumber} is mounted`);
     } catch (error) {
-      logger.error('Failed to load and mount tape:', error);
-      throw new Error(`Failed to load and mount tape: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error('Failed to handle tape mounting:', error);
+      throw new Error(`Failed to handle tape mounting: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     tapeLogger.endOperation('tape-mounting');
 
