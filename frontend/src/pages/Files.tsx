@@ -98,12 +98,7 @@ const Files: React.FC = () => {
 
   const indexOfLastEntry = currentPage * entriesPerPage;
   const indexOfFirstEntry = indexOfLastEntry - entriesPerPage;
-  const currentEntries = filteredFiles.slice(indexOfFirstEntry, indexOfLastEntry);
   const totalPages = Math.ceil(filteredFiles.length / entriesPerPage);
-
-  const handlePageChange = (pageNumber: number) => {
-    setCurrentPage(pageNumber);
-  };
 
   const handleSort = () => {
     setSortOrder(prev => {
