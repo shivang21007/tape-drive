@@ -995,45 +995,29 @@ router.get('/tapeinfo', hasFeatureAccess, async (req, res) => {
   });
   
   // Update server info group 
-  router.put('/serverinfo/:id', isAdmin, async (req, res) => {
+  router.put('/serverinfo/:id/group', isAdmin, async (req, res) => {
     const { id } = req.params;
-    const { server_name, server_ip, group_name } = req.body;
-    
-    if (!server_name || !server_ip || !group_name) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    const { group_name } = req.body;
+    if (!group_name) {
+      return res.status(400).json({ error: 'Missing group_name' });
     }
-    
     try {
-      // First verify the server exists
-      const [existing] = await mysqlPool.query('SELECT * FROM server_info WHERE id = ?', [id]);
-      
-      if (!Array.isArray(existing) || existing.length === 0) {
-        return res.status(404).json({ error: 'Server info not found' });
-      }
-      
-      // Update the server info
-      const [result] = await mysqlPool.query(
-        'UPDATE server_info SET server_name = ?, server_ip = ?, group_name = ? WHERE id = ?',
-        [server_name, server_ip, group_name, id]
-      );
-      
+      const [result] = await mysqlPool.query('UPDATE server_info SET group_name = ? WHERE id = ?', [group_name, id]);
       if ((result as ResultSetHeader).affectedRows === 0) {
-        return res.status(404).json({ error: 'Failed to update server info' });
+        return res.status(404).json({ error: 'Server not found' });
       }
       
       return res.json({ 
         message: 'Server info updated successfully',
         updatedServer: {
-          id,
-          server_name,
-          server_ip,
-          group_name
+          server_name: req.body.server_name,
+          server_ip: req.body.server_ip,
+          group_name: req.body.group_name
         }
       });
-      
     } catch (error) {
-      console.error('Error updating server info:', error);
-      return res.status(500).json({ error: 'Failed to update server info' });
+      console.error('Error updating server group:', error);
+      res.status(500).json({ error: 'Failed to update server group' });
     }
   });
   
