@@ -17,11 +17,7 @@ export class DatabaseService {
       database: process.env.DB_NAME || 'user_management_storage',
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0,
-      connectTimeout: 60000,
-      enableKeepAlive: true,
-      keepAliveInitialDelay: 10000,
-      namedPlaceholders: true
+      queueLimit: 0
     };
 
     logger.info('Initializing database connection with config:', {
@@ -34,40 +30,7 @@ export class DatabaseService {
     this.pool = mysql.createPool(dbConfig);
 
     // Test connection on startup
-    this.pool.getConnection()
-      .then(connection => {
-        logger.info('Successfully connected to database');
-        connection.release();
-      })
-      .catch(error => {
-        logger.error('Failed to connect to database:', {
-          error: error.message,
-          code: error.code,
-          host: dbConfig.host,
-          port: dbConfig.port
-        });
-      });
-
-    // Handle pool errors and connections
-    this.pool.on('connection', (connection) => {
-      connection.on('error', (err) => {
-        logger.error('Database connection error:', err);
-      });
-
-      const keepAlive = async () => {
-        try {
-          await connection.query('SELECT 1');
-        } catch (err) {
-          logger.error('Keep-alive query failed:', err);
-        }
-      };
-
-      const keepAliveInterval = setInterval(() => keepAlive(), 30000);
-
-      connection.on('end', () => {
-        clearInterval(keepAliveInterval);
-      });
-    });
+    this.testConnection();
 
     // Handle pool events
     this.pool.on('acquire', () => {
@@ -81,6 +44,19 @@ export class DatabaseService {
     this.pool.on('enqueue', () => {
       logger.debug('Waiting for available connection slot');
     });
+  }
+
+  private async testConnection() {
+    try {
+      const connection = await this.pool.getConnection();
+      logger.info('Successfully connected to database');
+      connection.release();
+    } catch (error) {
+      logger.error('Failed to connect to database:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        code: error instanceof Error ? (error as any).code : 'UNKNOWN'
+      });
+    }
   }
 
   public static getInstance(): DatabaseService {
