@@ -18,8 +18,13 @@ export class DatabaseService {
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
+      connectTimeout: 60000,
+      acquireTimeout: 60000,
+      timeout: 60000,
       enableKeepAlive: true,
-      keepAliveInitialDelay: 0
+      keepAliveInitialDelay: 10000,
+      idleTimeout: 0,
+      namedPlaceholders: true
     };
 
     logger.info('Initializing database connection with config:', {
@@ -46,11 +51,37 @@ export class DatabaseService {
         });
       });
 
-    // Handle pool errors
+    // Handle pool errors and connections
     this.pool.on('connection', (connection) => {
       connection.on('error', (err) => {
         logger.error('Database connection error:', err);
       });
+
+      const keepAlive = () => {
+        connection.query('SELECT 1')
+          .catch(err => {
+            logger.error('Keep-alive query failed:', err);
+          });
+      };
+
+      const keepAliveInterval = setInterval(keepAlive, 30000);
+
+      connection.on('end', () => {
+        clearInterval(keepAliveInterval);
+      });
+    });
+
+    // Handle pool events
+    this.pool.on('acquire', () => {
+      logger.debug('Connection acquired from pool');
+    });
+
+    this.pool.on('release', () => {
+      logger.debug('Connection released back to pool');
+    });
+
+    this.pool.on('enqueue', () => {
+      logger.debug('Waiting for available connection slot');
     });
   }
 
