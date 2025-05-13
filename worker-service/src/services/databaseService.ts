@@ -54,14 +54,15 @@ export class DatabaseService {
         logger.error('Database connection error:', err);
       });
 
-      const keepAlive = () => {
-        connection.query('SELECT 1')
-          .catch(err => {
-            logger.error('Keep-alive query failed:', err);
-          });
+      const keepAlive = async () => {
+        try {
+          await connection.query('SELECT 1');
+        } catch (err) {
+          logger.error('Keep-alive query failed:', err);
+        }
       };
 
-      const keepAliveInterval = setInterval(keepAlive, 30000);
+      const keepAliveInterval = setInterval(() => keepAlive(), 30000);
 
       connection.on('end', () => {
         clearInterval(keepAliveInterval);
