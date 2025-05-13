@@ -19,11 +19,8 @@ export class DatabaseService {
       connectionLimit: 10,
       queueLimit: 0,
       connectTimeout: 60000,
-      acquireTimeout: 60000,
-      timeout: 60000,
       enableKeepAlive: true,
       keepAliveInitialDelay: 10000,
-      idleTimeout: 0,
       namedPlaceholders: true
     };
 
