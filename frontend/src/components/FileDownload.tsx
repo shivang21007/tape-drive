@@ -155,9 +155,9 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
   const getButtonText = () => {
     if (isDownloading) return 'Checking...';
     if (downloadStatus.status === 'processing' || downloadStatus.status === 'requested') {
-      return 'requested';
+      return 'Requested';
     }
-    return 'Download';
+    return 'Download To Browser';
   };
 
   return (
@@ -182,7 +182,7 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
             : 'bg-blue-500 hover:bg-blue-600'
         } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
       >
-        SecureDownload
+        Download To Server
       </Button>
     </div>
   );

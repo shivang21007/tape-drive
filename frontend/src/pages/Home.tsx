@@ -327,12 +327,12 @@ const Home: React.FC = () => {
             onClick={() => navigate('/secureupload')}
             className="rounded-md px-4 py-2 text-sm font-medium text-white animated-gradient-btn"
             style={{
-              background: 'linear-gradient(90deg, #22d3ee, #16a34a)',
+              background: 'linear-gradient(0deg, #22d3ee, #16a34a)',
               backgroundSize: '200% 100%',
               fontWeight: 800
             }}
           >
-            Upload through Server <span style={{ color: '#111', fontWeight: 700, marginLeft: '0.5ch' }}>fastest</span>
+            Upload from Server <span style={{ color: '#FF0000', fontWeight: 700, marginLeft: '0.5ch' }}>fastest</span>
           </button>
         </div>
         {/* File Input (hidden) */}
