@@ -149,13 +149,13 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
     }
   };
 
-  const isButtonDisabled = isDownloading || 
+  const isDownloadButtonDisabled = isDownloading || 
     downloadStatus.status === 'processing';
 
   const getButtonText = () => {
     if (isDownloading) return 'Checking...';
     if (downloadStatus.status === 'processing' || downloadStatus.status === 'requested') {
-      return 'Requested';
+      return 'Requested...';
     }
     return 'Download To Browser';
   };
@@ -164,7 +164,10 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
     <div className="flex items-center gap-1 justify-center">
       <Button
         onClick={handleDownload}
-        disabled={isLargeFile || isButtonDisabled}
+        disabled={isLargeFile || isDownloadButtonDisabled}
+        style={{
+          cursor: (isLargeFile || isDownloadButtonDisabled) ? 'not-allowed' : 'pointer'
+        }}
         className={`${
           isLargeFile 
             ? 'bg-green-500 hover:bg-green-600' 
@@ -175,7 +178,10 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
       </Button>
       <Button
         onClick={handleSecureDownload}
-        disabled={isButtonDisabled}
+        disabled={isDownloadButtonDisabled}
+        style={{
+          cursor: isDownloadButtonDisabled ? 'not-allowed' : 'pointer'
+        }}
         className={`${
           isLargeFile 
             ? 'bg-green-500 hover:bg-green-600' 
