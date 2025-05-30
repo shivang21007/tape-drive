@@ -112,7 +112,7 @@ router.get('/users', isAdmin, async (req, res) => {
 });
 
 // Get all groups (admin only)
-router.get('/groups', hasFeatureAccess, async (req, res) => {
+router.get('/groups', isAdmin, async (req, res) => {
   try {
     // Only return necessary fields for frontend display
     const [groups] = await mysqlPool.query(
@@ -126,7 +126,7 @@ router.get('/groups', hasFeatureAccess, async (req, res) => {
 });
 
 // Get user's groups
-router.get('/user/groups', async (req, res) => {
+router.get('/user/groups', isAdmin, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
@@ -350,7 +350,7 @@ router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res)
 });
 
 // Cancel upload endpoint
-router.post('/cancel-upload', async (req, res) => {
+router.post('/cancel-upload', hasFeatureAccess, async (req, res) => {
   const { fileName, userName, groupName } = req.body;
 
   if (!fileName || !userName || !groupName) {

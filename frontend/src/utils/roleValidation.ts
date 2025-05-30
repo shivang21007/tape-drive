@@ -45,7 +45,14 @@ export const canAccessGroup = (user: User | null, groupName: string): boolean =>
 // Function to get available roles from user groups
 export const getAvailableRoles = async (): Promise<UserGroup[]> => {
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groups`, {
+    // Get the current user from localStorage
+    const userStr = localStorage.getItem('user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    
+    // Use different endpoints based on user role
+    const endpoint = isAdminRole(user?.role) ? '/api/groups' : '/api/user/groups';
+    
+    const response = await fetch(endpoint, {
       credentials: 'include'
     });
     if (!response.ok) {
@@ -61,7 +68,7 @@ export const getAvailableRoles = async (): Promise<UserGroup[]> => {
 // Function to validate a role
 export const validateRole = async (role: string): Promise<boolean> => {
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/validate-role/${role}`, {
+    const response = await fetch(`/api/validate-role/${role}`, {
       credentials: 'include'
     });
     if (!response.ok) {

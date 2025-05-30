@@ -286,4 +286,31 @@ export class DatabaseService {
       connection.release();
     }
   }
+
+  // Add new methods for file cleanup
+  public async checkFileExists(groupName: string, userName: string, fileName: string): Promise<boolean> {
+    const connection = await this.pool.getConnection();
+    try {
+      const [rows] = await connection.query(
+        'SELECT id FROM upload_details WHERE group_name = ? AND user_name = ? AND file_name = ?',
+        [groupName, userName, fileName]
+      );
+      return Array.isArray(rows) && rows.length > 0;
+    } finally {
+      connection.release();
+    }
+  }
+
+  public async markFileAsNotCached(groupName: string, userName: string, fileName: string): Promise<void> {
+    const connection = await this.pool.getConnection();
+    try {
+      const [result] = await connection.query(
+        'UPDATE upload_details SET iscached = FALSE WHERE group_name = ? AND user_name = ? AND file_name = ?',
+        [groupName, userName, fileName]
+      );
+      logger.debug(`Updated rows for ${groupName}/${userName}/${fileName}: ${(result as any).affectedRows}`);
+    } finally {
+      connection.release();
+    }
+  }
 } 

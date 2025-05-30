@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from './ui/Button';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { convertFileSizeToBytes } from '../utils/format';
+
 interface FileDownloadProps {
   fileId: number;
   fileName: string;
@@ -35,30 +36,9 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
   // Check if file is too large
   const isLargeFile = fileSize ? convertFileSizeToBytes(fileSize) > LARGE_FILE_THRESHOLD : false;
 
-  console.log(iscached);
-
-  // Check download request status
-  useEffect(() => {
-    const checkDownloadStatus = async () => {
-      try {
-        const response = await axios.get(`/api/download-requests/status?fileId=${fileId}`);
-        const data = response.data;
-        setDownloadStatus(data);
-      } catch (error) {
-        console.error('Error checking download status:', error);
-        setDownloadStatus({
-          status: 'none',
-          message: 'Error checking download status'
-        });
-      }
-    };
-
-    checkDownloadStatus();
-  }, [fileId]);
-
   // Direct Download to Browser
   const handleDownload = async () => {
-     if (isLargeFile) {
+    if (isLargeFile) {
       alert('File is too large to Direct Download. Please use Secure Download.');
       return;
     }
@@ -105,10 +85,8 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
     }
   };
 
-
- // Secure Download to Server
+  // Secure Download to Server
   const handleSecureDownload = async () => {
-
     setIsDownloading(true);
 
     try {
@@ -170,7 +148,7 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
     if (downloadStatus.status === 'processing' || downloadStatus.status === 'requested') {
       return 'Requested...';
     }
-    return 'Download To Browser';
+    return 'Download Directly';
   };
 
   return (
@@ -179,54 +157,54 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
         <div className="flex items-center gap-1 justify-center">
           {!isLargeFile &&
             <Button
-          onClick={handleDownload}
-          disabled={isLargeFile || isDownloadButtonDisabled}
-          style={{
-            cursor: (isLargeFile || isDownloadButtonDisabled) ? 'not-allowed' : 'pointer'
-          }}
-        className={`${
-          isLargeFile 
-            ? 'bg-green-500 hover:bg-green-600' 
-            : 'bg-blue-500 hover:bg-blue-600'
-        } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
-      >
-        {getButtonText()}
-      </Button>
+              onClick={handleDownload}
+              disabled={isLargeFile || isDownloadButtonDisabled}
+              style={{
+                cursor: (isLargeFile || isDownloadButtonDisabled) ? 'not-allowed' : 'pointer'
+              }}
+              className={`${
+                isLargeFile 
+                  ? 'bg-green-500 hover:bg-green-600' 
+                  : 'bg-blue-500 hover:bg-blue-600'
+              } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {getButtonText()}
+            </Button>
+          }
+          <Button
+            onClick={handleSecureDownload}
+            disabled={isDownloadButtonDisabled}
+            style={{
+              cursor: isDownloadButtonDisabled ? 'not-allowed' : 'pointer'
+            }}
+            className={`${
+              isLargeFile 
+                ? 'bg-green-500 hover:bg-green-600' 
+                : 'bg-blue-500 hover:bg-blue-600'
+            } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            Download To Server
+          </Button>
+        </div>
       }
-      <Button
-        onClick={handleSecureDownload}
-        disabled={isDownloadButtonDisabled}
-        style={{
-          cursor: isDownloadButtonDisabled ? 'not-allowed' : 'pointer'
-        }}
-        className={`${
-          isLargeFile 
-            ? 'bg-green-500 hover:bg-green-600' 
-            : 'bg-blue-500 hover:bg-blue-600'
-        } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
-      >
-        Download To Server
-      </Button>
-    </div>
-    }
-    { iscached === 0 &&
-      <div className="flex items-center gap-1 justify-center">
-        <Button
-          onClick={handleDownload}
-          disabled={isDownloadButtonDisabled}
-          style={{
-            cursor: isDownloadButtonDisabled ? 'not-allowed' : 'pointer'
-          }}
-          className={`${
-            isLargeFile 
-              ? 'bg-green-500 hover:bg-green-600' 
-              : 'bg-blue-500 hover:bg-blue-600'
-          } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
-        >
-          {getRequestDownloadButtonText()}
-        </Button>
-      </div>
-    }
+      { iscached === 0 &&
+        <div className="flex items-center gap-1 justify-center">
+          <Button
+            onClick={handleDownload}
+            disabled={isDownloadButtonDisabled}
+            style={{
+              cursor: isDownloadButtonDisabled ? 'not-allowed' : 'pointer'
+            }}
+            className={`${
+              isLargeFile 
+                ? 'bg-green-500 hover:bg-green-600' 
+                : 'bg-blue-500 hover:bg-blue-600'
+            } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {getRequestDownloadButtonText()}
+          </Button>
+        </div>
+      }
     </>
   );
 }; 

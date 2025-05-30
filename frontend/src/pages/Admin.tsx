@@ -51,9 +51,9 @@ const Admin: React.FC = () => {
       try {
         setLoading(true);
         const [usersRes, groupsRes] = await Promise.all([
-          axios.get(`${import.meta.env.VITE_API_URL}/api/users`, { withCredentials: true }),
-          axios.get(`${import.meta.env.VITE_API_URL}/api/groups`, { withCredentials: true }),
-          // axios.get(`${import.meta.env.VITE_API_URL}/api/processes`, { withCredentials: true }),
+          axios.get(`/api/users`, { withCredentials: true }),
+          axios.get(`/api/groups`, { withCredentials: true }),
+          // axios.get(`/api/processes`, { withCredentials: true }),
         ]);
 
         setUsers(usersRes.data);
@@ -119,7 +119,7 @@ const Admin: React.FC = () => {
     try {
       const roleName = typeof newRole === 'string' ? newRole : newRole.name;
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/${userId}/role`, {
+      const response = await fetch(`/api/users/${userId}/role`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
