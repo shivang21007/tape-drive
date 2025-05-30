@@ -8,6 +8,7 @@ interface FileDownloadProps {
   fileName: string;
   fileSize?: string; 
   method?: string; // File size in bytes
+  iscached?: 0 | 1; // 0 for false, 1 for true
 }
 
 interface DownloadStatus {
@@ -22,6 +23,7 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
   fileId, 
   fileName,
   fileSize,
+  iscached
 }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus>({ 
@@ -32,6 +34,8 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
 
   // Check if file is too large
   const isLargeFile = fileSize ? convertFileSizeToBytes(fileSize) > LARGE_FILE_THRESHOLD : false;
+
+  console.log(iscached);
 
   // Check download request status
   useEffect(() => {
@@ -152,7 +156,16 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
   const isDownloadButtonDisabled = isDownloading || 
     downloadStatus.status === 'processing';
 
+  const getRequestDownloadButtonText = () => {
+    if (isDownloading) return 'Checking...';
+    if (downloadStatus.status === 'processing' || downloadStatus.status === 'requested') {
+      return 'Requested...';
+    }
+    return 'Request Download';
+  };
+
   const getButtonText = () => {
+    if (isLargeFile) return 'Large File use Other Option';
     if (isDownloading) return 'Checking...';
     if (downloadStatus.status === 'processing' || downloadStatus.status === 'requested') {
       return 'Requested...';
@@ -161,13 +174,16 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
   };
 
   return (
-    <div className="flex items-center gap-1 justify-center">
-      <Button
-        onClick={handleDownload}
-        disabled={isLargeFile || isDownloadButtonDisabled}
-        style={{
-          cursor: (isLargeFile || isDownloadButtonDisabled) ? 'not-allowed' : 'pointer'
-        }}
+    <>
+      { iscached === 1 &&
+        <div className="flex items-center gap-1 justify-center">
+          {!isLargeFile &&
+            <Button
+          onClick={handleDownload}
+          disabled={isLargeFile || isDownloadButtonDisabled}
+          style={{
+            cursor: (isLargeFile || isDownloadButtonDisabled) ? 'not-allowed' : 'pointer'
+          }}
         className={`${
           isLargeFile 
             ? 'bg-green-500 hover:bg-green-600' 
@@ -176,6 +192,7 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
       >
         {getButtonText()}
       </Button>
+      }
       <Button
         onClick={handleSecureDownload}
         disabled={isDownloadButtonDisabled}
@@ -191,5 +208,25 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
         Download To Server
       </Button>
     </div>
+    }
+    { iscached === 0 &&
+      <div className="flex items-center gap-1 justify-center">
+        <Button
+          onClick={handleDownload}
+          disabled={isDownloadButtonDisabled}
+          style={{
+            cursor: isDownloadButtonDisabled ? 'not-allowed' : 'pointer'
+          }}
+          className={`${
+            isLargeFile 
+              ? 'bg-green-500 hover:bg-green-600' 
+              : 'bg-blue-500 hover:bg-blue-600'
+          } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          {getRequestDownloadButtonText()}
+        </Button>
+      </div>
+    }
+    </>
   );
 }; 

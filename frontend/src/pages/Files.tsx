@@ -20,6 +20,7 @@ interface FileData {
   created_at: string;
   status: string;
   tape_number: string;
+  iscached: 0 | 1;
 }
 
 const Files: React.FC = () => {
@@ -200,13 +201,16 @@ const Files: React.FC = () => {
                   Method
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Upload Date
+                  Upload_Date
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Status
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Tape_Number
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  is_cached
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Actions
@@ -249,11 +253,15 @@ const Files: React.FC = () => {
                     {file.tape_number || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 ">
+                    {file.iscached ? 'Yes' : 'No'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 ">
                     <FileDownload 
                       fileId={file.id}
                       fileName={file.file_name}
                       fileSize={file.file_size}
                       method={file.method}
+                      iscached={file.iscached}
                     />
                   </td>
                 </tr>

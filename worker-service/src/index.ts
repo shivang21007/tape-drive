@@ -1,6 +1,6 @@
 import { Worker } from 'bullmq';
-import { processFile } from './processors/fileProcessor';
-import { processDownload } from './processors/downloadProcessor';
+import { processTapeUpload } from './tapeProcessorsWorker/uploadProcessor';
+import { processTapeDownload } from './tapeProcessorsWorker/downloadProcessor';
 import { logger } from './utils/logger';
 import { ProcessingJob } from './types/jobs';
 import dotenv from 'dotenv';
@@ -16,10 +16,10 @@ const worker = new Worker('file-processing', async (job) => {
     
     switch (jobData.type) {
       case 'upload':
-        await processFile(jobData);
+        await processTapeUpload(jobData);
         break;
       case 'download':
-        await processDownload(jobData);
+        await processTapeDownload(jobData);
         break;
       default:
         throw new Error(`Unknown job type: ${(jobData as any).type}`);

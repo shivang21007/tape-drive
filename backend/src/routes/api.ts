@@ -296,8 +296,8 @@ router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res)
     try {
       // Insert into database with 'queueing' status
       const [result] = await connection.query<ResultSetHeader>(
-        'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location, method) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [user.name, user.role, req.file.originalname, formattedSize, 'queueing', req.file.path, 'Browser']
+        'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location, method, iscached) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [user.name, user.role, req.file.originalname, formattedSize, 'queueing', req.file.path, 'Browser', true]
       );
 
       // Push event to BullMQ queue with upload label

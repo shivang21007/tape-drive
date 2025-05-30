@@ -17,7 +17,7 @@ const databaseService = DatabaseService.getInstance();
 const emailService = new EmailService();
 const adminNotificationService = new AdminNotificationService();
 
-export async function processFile(job: FileProcessingJob) {
+export async function processTapeUpload(job: FileProcessingJob) {
   const { fileId, fileName, fileSize, userName, groupName, isAdmin, filePath, requestedAt } = job;
   let currentTape: string | null = null;
   let tapePath: string | null = null;

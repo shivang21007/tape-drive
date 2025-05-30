@@ -13,7 +13,7 @@ const databaseService = DatabaseService.getInstance();
 const emailService = new EmailService();
 const adminNotificationService = new AdminNotificationService();
 
-export async function processDownload(job: DownloadProcessingJob) {
+export async function processTapeDownload(job: DownloadProcessingJob) {
   const { requestId, fileId, fileName, userName, userEmail, groupName, tapeLocation, tapeNumber, requestedAt } = job;
   let currentTape: string | null = null;
 
@@ -158,8 +158,8 @@ export async function processDownload(job: DownloadProcessingJob) {
     }
     tapeLogger.endOperation('file-verification');
 
-    // Update database with local file location
-    await databaseService.updateUploadLocalFileLocation(fileId, localFilePath);
+    // Update database with local file location and iscached true
+    await databaseService.updateUploadLocalFileLocation(fileId, localFilePath, true);
 
     // Update download request status
     await databaseService.updateDownloadStatus(requestId, 'completed', 'tape');

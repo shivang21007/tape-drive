@@ -66,20 +66,20 @@ export class DatabaseService {
     return DatabaseService.instance;
   }
 
-  async updateUploadStatus(fileId: number, status: 'queueing' | 'processing' | 'completed' | 'failed', localFilePath?: string, fileSize?: string, tapeLocation?: string, tapeNumber?: string): Promise<void> {
+  async updateUploadStatus(fileId: number, status: 'queueing' | 'processing' | 'completed' | 'failed', localFilePath?: string, fileSize?: string, tapeLocation?: string, tapeNumber?: string, iscached?: boolean): Promise<void> {
     try {
       const connection = await this.pool.getConnection();
       
       try {
         if (status === 'completed' && tapeLocation && tapeNumber) {
           await connection.query(
-            'UPDATE upload_details SET status = ?, tape_location = ?, tape_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            [status, tapeLocation, tapeNumber, fileId]
+            'UPDATE upload_details SET status = ?, tape_location = ?, tape_number = ?, iscached = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [status, tapeLocation, tapeNumber, iscached, fileId]
           );
         } else if (status === 'queueing') {
           await connection.query(
-            'UPDATE upload_details SET status = ?, local_file_location = ?, file_size = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            [status, localFilePath, fileSize, fileId]
+            'UPDATE upload_details SET status = ?, local_file_location = ?, file_size = ?, iscached = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [status, localFilePath, fileSize, iscached, fileId]
           );
         } else {
           await connection.query(
@@ -171,12 +171,12 @@ export class DatabaseService {
     }
   }
 
-  public async updateUploadLocalFileLocation(fileId: number, localFilePath: string) {
+  public async updateUploadLocalFileLocation(fileId: number, localFilePath: string, iscached: boolean) {
     const connection = await this.pool.getConnection();
     try {
       await connection.query(
-        'UPDATE upload_details SET local_file_location = ? WHERE id = ?',
-        [localFilePath, fileId]
+        'UPDATE upload_details SET local_file_location = ?, iscached = ? WHERE id = ?',
+        [localFilePath, iscached, fileId]
       );
     } finally {
       connection.release();

@@ -205,7 +205,7 @@ const worker = new Worker<SecureCopyUploadJob | SecureCopyDownloadJob>(
                         status: 'completed'
                     });
 
-                    await databaseService.updateUploadStatus(fileId, 'queueing', targetPath, formattedSize);
+                    await databaseService.updateUploadStatus(fileId, 'queueing', targetPath, formattedSize, 'true');
 
                     const fileProcessingJob: FileProcessingJob = {
                         type: 'upload',
