@@ -1,6 +1,6 @@
 # TypeScript
 *.tsbuildinfo
-
+*/setup_env.sh
 */node_modules
 *.log
 */.env

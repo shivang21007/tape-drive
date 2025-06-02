@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# Export environment variables
+export VITE_NODE_ENV=production
