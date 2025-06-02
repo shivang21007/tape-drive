@@ -28,6 +28,11 @@ export async function processTapeDownload(job: DownloadProcessingJob) {
     tapeLogger.startOperation('tape-mounting');
     try {
       const isMounted = await tapeManager.isTapeMounted();
+      if (!isMounted) {
+        logger.error('Tape is not mounted');
+        await tapeManager.mountTape();
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for mount
+      }
       const currentTape = await tapeManager.getCurrentTape();
 
       if (isMounted && currentTape === tapeNumber) {
