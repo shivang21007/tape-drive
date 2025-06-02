@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
         plugins: [react()],
         server: {
             port: 5173,
-            allowedHosts: ['serv19.octro.net'],
+            allowedHosts: ['serv19.octro.net','tapeutils.octro.com'],
             proxy: {
                 '/api': {
                     target: env.VITE_API_URL || 'http://localhost:8000',
