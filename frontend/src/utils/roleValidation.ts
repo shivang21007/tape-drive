@@ -45,20 +45,17 @@ export const canAccessGroup = (user: User | null, groupName: string): boolean =>
 // Function to get available roles from user groups
 export const getAvailableRoles = async (): Promise<UserGroup[]> => {
   try {
-    // Get the current user from localStorage
-    const userStr = localStorage.getItem('user');
-    const user = userStr ? JSON.parse(userStr) : null;
-    
-    // Use different endpoints based on user role
-    const endpoint = isAdminRole(user?.role) ? '/api/groups' : '/api/user/groups';
-    
-    const response = await fetch(endpoint, {
+    // Always use the groups endpoint for admin page
+    const response = await fetch('/api/groups', {
       credentials: 'include'
     });
     if (!response.ok) {
       throw new Error('Failed to fetch groups');
     }
-    return await response.json();
+    const roles = await response.json();
+    // Update the USER_ROLES array with the fetched roles
+    USER_ROLES = roles;
+    return roles;
   } catch (error) {
     console.error('Error fetching groups:', error);
     return [];
