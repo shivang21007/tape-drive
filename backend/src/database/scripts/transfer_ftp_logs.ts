@@ -31,6 +31,7 @@ const mapUsernameToGroupAndTape = (username: string): { group: string; tape: str
   return null;
 };
 
+
 const migrateData = async () => {
   // Use environment variables for DB connection
   const sourceConnection = await mysql.createConnection({
