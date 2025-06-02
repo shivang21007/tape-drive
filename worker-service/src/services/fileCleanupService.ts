@@ -144,9 +144,3 @@ export class FileCleanupService {
     }
   }  
 } 
-
-//starting the service
-const cleanupService = new FileCleanupService();
-cleanupService.startCleanupService().catch(error => {
-  logger.error('Failed to start cleanup service:', error);
-});
