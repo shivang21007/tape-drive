@@ -13,4 +13,60 @@ input[type="text"] {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     font-family: inherit;
     line-height: 1.5;
+}
+
+.max-w-7xl {
+  width: 100%;
+  max-width: 2000px;
+  margin: 0 auto;
+  padding: 2rem;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.table-responsive {
+  width: 100%;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  margin-bottom: 1.5rem;
+}
+
+.professional-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 900px;
+}
+
+.ellipsis-cell {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions-cell {
+  min-width: 320px;
+  max-width: 360px;
+  padding: 0.5rem 0.5rem;
+  text-align: center;
+  vertical-align: middle;
+}
+.actions-cell > div {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 900px) {
+  .professional-table {
+    min-width: 700px;
+  }
+  .ellipsis-cell {
+    max-width: 100px;
+  }
 } 
