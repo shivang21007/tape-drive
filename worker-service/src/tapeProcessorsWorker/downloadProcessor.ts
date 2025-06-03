@@ -108,7 +108,8 @@ export async function processTapeDownload(job: DownloadProcessingJob) {
     const localFolderPath = path.join(
       process.env.UPLOAD_DIR || '/home/octro/google-auth-login-page/tape-drive/backend/uploadfiles',
       groupName,
-      userName
+      userName,
+      fileName
     );
 
     // Ensure directory exists
