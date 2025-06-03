@@ -2,7 +2,8 @@
 *.tsbuildinfo
 
 */src/scripts/generateFolderDetailsCSV.ts
-
+*/src/database/scripts/import_csv_to_upload_details.ts
+*/csv
 */setup_env.sh
 */node_modules
 *.log

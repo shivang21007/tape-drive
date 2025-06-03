@@ -6,6 +6,7 @@ import { DatabaseService } from '../services/databaseService';
 import { EmailService } from '../services/emailService';
 import { AdminNotificationService } from '../services/adminNotificationService';
 import fs from 'fs-extra';
+import fsExtra from 'fs-extra';
 import path from 'path';
 
 const tapeManager = new TapeManager();
@@ -103,6 +104,13 @@ export async function processTapeDownload(job: DownloadProcessingJob) {
       fileName
     );
 
+    // Create local folder path
+    const localFolderPath = path.join(
+      process.env.UPLOAD_DIR || '/home/octro/google-auth-login-page/tape-drive/backend/uploadfiles',
+      groupName,
+      userName
+    );
+
     // Ensure directory exists
     try {
       await fs.ensureDir(path.dirname(localFilePath));
@@ -121,12 +129,12 @@ export async function processTapeDownload(job: DownloadProcessingJob) {
 
       if (isDirectory) {
         // For directories, copy recursively
-        await fs.copy(tapeLocation, localFilePath, {
+        await fsExtra.copy(tapeLocation, localFolderPath, {
           overwrite: true,
           errorOnExist: false,
           preserveTimestamps: true
         });
-        logger.info(`Directory copied recursively to: ${localFilePath}`);
+        logger.info(`Directory copied recursively to: ${localFolderPath}`);
       } else {
         // For files, copy directly
         await fs.copy(tapeLocation, localFilePath, {
@@ -146,7 +154,12 @@ export async function processTapeDownload(job: DownloadProcessingJob) {
     tapeLogger.startOperation('file-verification');
     try {
       const sourceStats = await fs.stat(tapeLocation);
-      const destStats = await fs.stat(localFilePath);
+      let destStats;
+      if (sourceStats.isDirectory()) {
+        destStats = await fs.stat(localFolderPath);
+      } else {
+        destStats = await fs.stat(localFilePath);
+      }
       
       logger.info(`Source file size: ${sourceStats.size}, Destination file size: ${destStats.size}`);
       

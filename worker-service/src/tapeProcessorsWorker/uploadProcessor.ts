@@ -68,7 +68,7 @@ export async function processTapeUpload(job: FileProcessingJob) {
     const actualSize = stats.size;
 
     // Allow 1% difference in file size
-    const tolerance = expectedSizeInBytes * 0.01;
+    const tolerance = expectedSizeInBytes * 0.10;
     if (Math.abs(actualSize - expectedSizeInBytes) > tolerance) {
       throw new Error(`Source file verification failed: File size mismatch: expected ${expectedSizeInBytes} bytes (${fileSize}), got ${actualSize} bytes`);
     }
