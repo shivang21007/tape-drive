@@ -1,3 +1,7 @@
+// This script is used to generate a CSV file that contains the details of the files on the tape.
+// THis is goes into folders and fetch end file path, name and size.
+
+
 const fs = require('fs');
 const path = require('path');
 const csvWriter = require('csv-writer').createObjectCsvWriter;
@@ -95,7 +99,7 @@ function walkDir(dir: string, fileList: string[] = []) {
  * @param {string} basePath - Root directory to scan
  * @param {string} outputCsvPath - Path where CSV should be written
  */
-export const generateUploadDetailsCSV = async (tapeNumber: string, basePath: string, outputCsvPath = 'upload_details.csv') => {
+export const generateFilesDetailsCSV = async (tapeNumber: string, basePath: string, outputCsvPath = 'upload_details.csv') => {
   if (!fs.existsSync(basePath)) {
     console.error(`Directory not found: ${basePath}`);
     return;

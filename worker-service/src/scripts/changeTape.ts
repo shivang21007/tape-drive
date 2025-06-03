@@ -1,13 +1,12 @@
 import { TapeManager } from '../services/tapeManager';
-import { generateUploadDetailsCSV } from './get_files_path';
+import { generateFolderDetailsCSV } from './generateFolderDetailsCSV';
 
 const tapeManager = new TapeManager();
 
 const basePath = '/home/octro/tapedata1/';
-const outputCsv = 'upload_details.csv';
 
 const switchTape = async (requiredTape: string): Promise<string> => {
-    console.log("Starting tape switch ....");
+    console.log(`🔄 Starting tape switch to ${requiredTape} ....`);
     const isMounted = await tapeManager.isTapeMounted();
     if (!isMounted) {
         console.log("Tape is not mounted");
@@ -48,12 +47,12 @@ const switchTape = async (requiredTape: string): Promise<string> => {
             process.exit(1);
         }
     }
-    console.log("Tape switch completed ....")
+    console.log(`✅ Tape switch completed to ${newTape} ....`)
     return newTape;
 }
 
 const main = async () => {
-    const allowedTapes: string[] = ["000011","000010", "000004", "000006", "000007", "000009"];
+    const allowedTapes: string[] = ["000004", "000006", "000007"];
 
     for (const tape of allowedTapes) {
         const newTape = await switchTape(tape);
@@ -62,8 +61,10 @@ const main = async () => {
         }
 
         const csvPath = `upload_details_tape${newTape}.csv`;
-        await generateUploadDetailsCSV(newTape, basePath, csvPath);
+        await generateFolderDetailsCSV(newTape, basePath, csvPath);
     }
+    console.log("✅ All tapes processed ....")
+    process.exit(0);
 }
 
 main();

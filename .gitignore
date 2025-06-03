@@ -1,5 +1,8 @@
 # TypeScript
 *.tsbuildinfo
+
+*/src/scripts/generateFolderDetailsCSV.ts
+
 */setup_env.sh
 */node_modules
 *.log
