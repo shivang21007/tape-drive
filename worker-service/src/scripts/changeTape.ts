@@ -53,7 +53,7 @@ const switchTape = async (requiredTape: string): Promise<string> => {
 }
 
 const main = async () => {
-    const allowedTapes: string[] = ["11","10", "4", "6", "7", "9"];
+    const allowedTapes: string[] = ["000011","000010", "000004", "000006", "000007", "000009"];
 
     for (const tape of allowedTapes) {
         const newTape = await switchTape(tape);
