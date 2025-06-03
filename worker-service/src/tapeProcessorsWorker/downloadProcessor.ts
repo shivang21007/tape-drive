@@ -122,10 +122,11 @@ export async function processTapeDownload(job: DownloadProcessingJob) {
     
     // Copy file from tape to local storage
     tapeLogger.startOperation('file-copy');
+    let isDirectory = false;
     try {
       // Check if source is a directory
       const sourceStats = await fs.stat(tapeLocation);
-      const isDirectory = sourceStats.isDirectory();
+      isDirectory = sourceStats.isDirectory();
 
       if (isDirectory) {
         // For directories, copy recursively
@@ -145,8 +146,8 @@ export async function processTapeDownload(job: DownloadProcessingJob) {
         logger.info(`File copied to: ${localFilePath}`);
       }
     } catch (error) {
-      logger.error(`Failed to copy file: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      throw new Error(`Failed to copy file from tape: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Failed to copy from tape: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Failed to copy from tape: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     tapeLogger.endOperation('file-copy');
 
@@ -154,30 +155,51 @@ export async function processTapeDownload(job: DownloadProcessingJob) {
     tapeLogger.startOperation('file-verification');
     try {
       const sourceStats = await fs.stat(tapeLocation);
-      let destStats;
-      if (sourceStats.isDirectory()) {
-        destStats = await fs.stat(localFolderPath);
+      const isSourceDirectory = sourceStats.isDirectory();
+
+      if (isSourceDirectory) {
+        // For directories, verify recursively
+        const sourceSize = await getDirectorySize(tapeLocation);
+        const destSize = await getDirectorySize(localFolderPath);
+        
+        logger.info(`Source directory size: ${sourceSize}, Destination directory size: ${destSize}`);
+        
+        if (sourceSize !== destSize) {
+          logger.error('Directory verification failed: size mismatch');
+          await fsExtra.remove(localFolderPath);
+          throw new Error('Directory verification failed: size mismatch');
+        }
       } else {
-        destStats = await fs.stat(localFilePath);
+        // For files, verify directly
+        const destStats = await fs.stat(localFilePath);
+        logger.info(`Source file size: ${sourceStats.size}, Destination file size: ${destStats.size}`);
+        
+        if (sourceStats.size !== destStats.size) {
+          logger.error('File verification failed: size mismatch');
+          await fs.remove(localFilePath);
+          throw new Error('File verification failed: size mismatch');
+        }
       }
-      
-      logger.info(`Source file size: ${sourceStats.size}, Destination file size: ${destStats.size}`);
-      
-      if (sourceStats.size !== destStats.size) {
-        logger.error('File verification failed: size mismatch');
-        await fs.remove(localFilePath);
-        throw new Error('File verification failed: size mismatch');
-      }
-      logger.info('File verification successful');
+      logger.info('Verification successful');
     } catch (error) {
-      logger.error('File verification failed:', error);
-      await fs.remove(localFilePath).catch(() => {});
-      throw new Error(`File verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error('Verification failed:', error);
+      // Clean up based on whether it was a file or directory
+      const sourceStats = await fs.stat(tapeLocation).catch(() => null);
+      if (sourceStats?.isDirectory()) {
+        await fsExtra.remove(localFolderPath).catch(() => {});
+      } else {
+        await fs.remove(localFilePath).catch(() => {});
+      }
+      throw new Error(`Verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     tapeLogger.endOperation('file-verification');
 
     // Update database with local file location and iscached true
-    await databaseService.updateUploadLocalFileLocation(fileId, localFilePath, true);
+    await databaseService.updateUploadLocalFileLocation(
+      fileId, 
+      isDirectory ? localFolderPath : localFilePath, 
+      true
+    );
 
     // Update download request status
     await databaseService.updateDownloadStatus(requestId, 'completed', 'tape');
@@ -219,4 +241,22 @@ export async function processTapeDownload(job: DownloadProcessingJob) {
 
     throw error;
   }
+}
+
+async function getDirectorySize(dirPath: string): Promise<number> {
+  let totalSize = 0;
+  const files = await fs.readdir(dirPath);
+  
+  for (const file of files) {
+    const filePath = path.join(dirPath, file);
+    const stats = await fs.stat(filePath);
+    
+    if (stats.isDirectory()) {
+      totalSize += await getDirectorySize(filePath);
+    } else {
+      totalSize += stats.size;
+    }
+  }
+  
+  return totalSize;
 }

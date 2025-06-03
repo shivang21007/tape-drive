@@ -145,25 +145,39 @@ export async function processTapeUpload(job: FileProcessingJob) {
     }
     tapeLogger.endOperation('tape-mounting');
 
-    // 4. Create tape path and copy file
+    // 4. Create tape path and copy file/folder
     tapeLogger.startOperation('file-copy');
     try {
       tapePath = await tapeManager.createTapePath(job);
-      logger.info(`Copying file to tape path: ${tapePath}`);
+      logger.info(`Copying to tape path: ${tapePath}`);
+
+      // Check if source is a directory
+      const sourceStats = await fs.stat(filePath);
+      const isDirectory = sourceStats.isDirectory();
 
       // Ensure parent directories exist
       await fs.mkdir(path.dirname(tapePath), { recursive: true });
 
-      // Copy file to tape
-      await fsExtra.copy(filePath, tapePath, {
-        overwrite: true,
-        errorOnExist: false,
-        preserveTimestamps: true
-      });
-      logger.info(`File copied to tape: ${tapePath}`);
+      if (isDirectory) {
+        // For directories, copy recursively
+        await fsExtra.copy(filePath, tapePath, {
+          overwrite: true,
+          errorOnExist: false,
+          preserveTimestamps: true
+        });
+        logger.info(`Directory copied recursively to tape: ${tapePath}`);
+      } else {
+        // For files, copy directly
+        await fsExtra.copy(filePath, tapePath, {
+          overwrite: true,
+          errorOnExist: false,
+          preserveTimestamps: true
+        });
+        logger.info(`File copied to tape: ${tapePath}`);
+      }
     } catch (error) {
-      logger.error('Failed to copy file to tape:', error);
-      throw new Error(`Failed to copy file to tape: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error('Failed to copy to tape:', error);
+      throw new Error(`Failed to copy to tape: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     tapeLogger.endOperation('file-copy');
 
@@ -172,17 +186,39 @@ export async function processTapeUpload(job: FileProcessingJob) {
 
     // 5. Verify the copy
     tapeLogger.startOperation('file-verification');
-    const sourceStats = await fs.stat(filePath);
-    const destStats = await fs.stat(tapePath);
+    try {
+      const sourceStats = await fs.stat(filePath);
+      const isDirectory = sourceStats.isDirectory();
 
-    logger.info(`Source file size: ${sourceStats.size}, Destination file size: ${destStats.size}`);
+      if (isDirectory) {
+        // For directories, verify recursively
+        const sourceSize = await getDirectorySize(filePath);
+        const destSize = await getDirectorySize(tapePath);
+        
+        logger.info(`Source directory size: ${sourceSize}, Destination directory size: ${destSize}`);
+        
+        if (sourceSize !== destSize) {
+          logger.error('Directory verification failed: size mismatch');
+          await fsExtra.remove(tapePath);
+          throw new Error('Directory verification failed: size mismatch');
+        }
+      } else {
+        // For files, verify directly
+        const destStats = await fs.stat(tapePath);
+        logger.info(`Source file size: ${sourceStats.size}, Destination file size: ${destStats.size}`);
 
-    if (sourceStats.size !== destStats.size) {
-      logger.error('File verification failed: size mismatch');
-      await fs.unlink(tapePath);
-      throw new Error('File verification failed: size mismatch');
+        if (sourceStats.size !== destStats.size) {
+          logger.error('File verification failed: size mismatch');
+          await fs.unlink(tapePath);
+          throw new Error('File verification failed: size mismatch');
+        }
+      }
+      logger.info('Verification successful');
+    } catch (error) {
+      logger.error('Verification failed:', error);
+      await fsExtra.remove(tapePath).catch(() => {});
+      throw new Error(`Verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    logger.info('File verification successful');
     tapeLogger.endOperation('file-verification');
 
     // 6. Update database with tape location and tape number
@@ -271,4 +307,22 @@ function formatBytes(bytes: string): string {
   }
 
   return `${sizeInBytes} bytes`;
+}
+
+async function getDirectorySize(dirPath: string): Promise<number> {
+  let totalSize = 0;
+  const files = await fs.readdir(dirPath);
+  
+  for (const file of files) {
+    const filePath = path.join(dirPath, file);
+    const stats = await fs.stat(filePath);
+    
+    if (stats.isDirectory()) {
+      totalSize += await getDirectorySize(filePath);
+    } else {
+      totalSize += stats.size;
+    }
+  }
+  
+  return totalSize;
 } 
