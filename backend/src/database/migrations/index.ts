@@ -110,7 +110,6 @@ const createTables = async () => {
         used_size VARCHAR(20) DEFAULT "0B",  -- e.g., "7.2G"
         available_size VARCHAR(20) NOT NULL,  -- e.g., "11T"
         usage_percentage DECIMAL(5,2) DEFAULT 0.00,  -- e.g., 1.00
-        filesystem VARCHAR(50) NOT NULL,  -- e.g., "ltfs:/dev/sg1"
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (group_name) REFERENCES user_groups_table(name) ON DELETE CASCADE
