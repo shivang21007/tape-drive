@@ -66,20 +66,20 @@ export class DatabaseService {
     return DatabaseService.instance;
   }
 
-  async updateUploadStatus(fileId: number, status: 'queueing' | 'processing' | 'completed' | 'failed', localFilePath?: string, fileSize?: string, tapeLocation?: string, tapeNumber?: string, iscached?: boolean): Promise<void> {
+  async updateUploadStatus(fileId: number, status: 'queueing' | 'processing' | 'completed' | 'failed', localFilePath?: string, fileSize?: string, tapeLocation?: string, tapeNumber?: string): Promise<void> {
     try {
       const connection = await this.pool.getConnection();
       
       try {
         if (status === 'completed' && tapeLocation && tapeNumber) {
           await connection.query(
-            'UPDATE upload_details SET status = ?, tape_location = ?, tape_number = ?, iscached = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            [status, tapeLocation, tapeNumber, iscached, fileId]
+            'UPDATE upload_details SET status = ?, tape_location = ?, tape_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [status, tapeLocation, tapeNumber,fileId]
           );
         } else if (status === 'queueing') {
           await connection.query(
-            'UPDATE upload_details SET status = ?, local_file_location = ?, file_size = ?, iscached = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            [status, localFilePath, fileSize, iscached, fileId]
+            'UPDATE upload_details SET status = ?, local_file_location = ?, file_size = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [status, localFilePath, fileSize, fileId]
           );
         } else {
           await connection.query(
@@ -312,5 +312,21 @@ export class DatabaseService {
     } finally {
       connection.release();
     }
+  }
+
+  public async markFileAsCachedByid(fileId: number){
+    const connection = await this.pool.getConnection();
+    try{
+      const [result] = await connection.query(
+        'UPDATE upload_details SET iscached = TRUE WHERE id = ?',
+        [fileId]
+      );
+    }catch(err){
+      logger.warn(`Unable to update iscached status for fileId = ${fileId}`, err)
+    }
+    finally{
+      connection.release();
+    }
+    logger.info(`Updated iscached=true status for file ${fileId}`);
   }
 } 

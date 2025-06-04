@@ -204,8 +204,10 @@ const worker = new Worker<SecureCopyUploadJob | SecureCopyDownloadJob>(
                         actualSize: fileSize,
                         status: 'completed'
                     });
-
-                    await databaseService.updateUploadStatus(fileId, 'queueing', targetPath, formattedSize, 'true');
+                    // Update DB status as queuing 
+                    await databaseService.updateUploadStatus(fileId, 'queueing', targetPath, formattedSize);
+                    //Update DB status iscached=true for that file.
+                    await databaseService.markFileAsCachedByid(fileId);
 
                     const fileProcessingJob: FileProcessingJob = {
                         type: 'upload',
