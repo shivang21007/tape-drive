@@ -83,6 +83,10 @@ const SecureUpload: React.FC = () => {
     e.preventDefault();
     setError('');
 
+    const uploadToastId = toast.loading('Starting upload...', {
+      position: "top-right",
+    });
+
     if (!selectedServer || !filePath) {
       setError('Please fill all fields');
       return;
@@ -107,7 +111,23 @@ const SecureUpload: React.FC = () => {
       }
     } catch (error) {
       console.error('Error uploading file:', error);
-      setError('Failed to upload file');
+      if (axios.isAxiosError(error) && error.response?.status === 400) {
+        setError(error.response.data?.error || 'File already exists. Please use a different file name.');
+        toast.update(uploadToastId, {
+          render: error.response.data?.error || 'File already exists. Please use a different file name.',
+          type: 'error',
+          isLoading: false,
+          autoClose: 3000,
+        });
+      } else {
+        setError('Failed to upload file');
+        toast.update(uploadToastId, {
+          render: 'Failed to upload file',
+          type: 'error',
+          isLoading: false,
+          autoClose: 3000,
+        });
+      }
     }
     setSelectedServer('');
     setFilePath('');

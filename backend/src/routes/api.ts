@@ -274,6 +274,12 @@ router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res)
     return res.status(403).json({ error: 'Invalid role' });
   }
 
+  // check if same name file already exist in upload_details table
+  const [existingFile] = await mysqlPool.query('SELECT * FROM upload_details WHERE file_name = ?', [req.file.originalname]);
+  if ((existingFile as any[]).length > 0) {
+    return res.status(400).json({ error: 'File already exists Please use different File Name' });
+  }
+
   const formattedSize = formatFileSize(req.file.size);
 
   try {
@@ -684,6 +690,12 @@ router.post('/secureupload', hasFeatureAccess, async (req, res) => {
       
       if (!isValidRole(req.user.role)) {
         return res.status(403).json({ error: 'Invalid role' });
+      }
+
+      // check if same name file already exist in upload_details table
+      const [existingFile] = await mysqlPool.query('SELECT * FROM upload_details WHERE file_name = ?', [fileName]);
+      if ((existingFile as any[]).length > 0) {
+        return res.status(400).json({ error: 'File already exists. Please use a different file name.' });
       }
       
       const [result] = await connection.query<ResultSetHeader>(

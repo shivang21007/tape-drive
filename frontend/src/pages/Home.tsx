@@ -220,6 +220,14 @@ const Home: React.FC = () => {
           isLoading: false,
           autoClose: 2000,
         });
+      } else if (axios.isAxiosError(error) && error.response?.status === 400) {
+        // Duplicate file error from backend
+        toast.update(uploadToastId, {
+          render: error.response.data?.error || 'File already exists. Please use a different file name.',
+          type: 'error',
+          isLoading: false,
+          autoClose: 3000,
+        });
       } else {
         console.error('Upload failed:', error);
         toast.update(uploadToastId, {
