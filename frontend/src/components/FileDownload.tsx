@@ -50,6 +50,11 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
       const response = await axios.get(`/api/files/${fileId}/download`);
       const data = response.data;
 
+      if(response.status === 302){
+        alert(data.message);
+        return;
+      }
+
       if (data.status === 'completed' && data.servedFrom === 'cache') {
         alert('File found in cache!');
         // File is in cache, download it directly
@@ -70,7 +75,10 @@ export const FileDownload: React.FC<FileDownloadProps> = ({
       setIsDownloading(false);
       
       if (axios.isAxiosError(error)) {
-        if (error.response?.status === 404) {
+        if(error.response?.status === 302){
+          alert(error.response.data.message);
+        }
+        else if (error.response?.status === 404) {
           alert('File not found');
         } else if (error.response?.status === 403) {
           alert('Access denied');

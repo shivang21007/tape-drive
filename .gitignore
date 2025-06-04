@@ -3,6 +3,7 @@
 
 */src/scripts/generateFolderDetailsCSV.ts
 */src/database/scripts/import_csv_to_upload_details.ts
+*/src/database/scripts/import_csv_to_tape_info.ts
 */csv
 */setup_env.sh
 */node_modules
