@@ -1,5 +1,6 @@
 import { TapeManager } from '../services/tapeManager';
-import { generateFolderDetailsCSV } from './generateFolderDetailsCSV';
+import { generateFilesDetailsCSV } from './generateFilesDetailsCSV';
+import { generateTapeInfoCSV } from './generateTapeInfoCSV';
 
 const tapeManager = new TapeManager();
 
@@ -51,17 +52,28 @@ const switchTape = async (requiredTape: string): Promise<string> => {
     return newTape;
 }
 
+let startGettingFilesDetails: boolean = false;
+
 const main = async () => {
-    const allowedTapes: string[] = ["000004", "000006", "000007"];
+    const allowedTapes: string[] = ["000006", "000004", "000007","000009","000010","000011","000001","000008","000003","000012","000013","000014","000015","000024"];
 
     for (const tape of allowedTapes) {
         const newTape = await switchTape(tape);
-        if (newTape) {
-            console.log(`Switched to tape: ${newTape}`);
+        if(newTape != tape) {
+            console.error(`Error switching to tape: ${tape}`);
+            process.exit(1);
+        }
+        console.log(`Generating tape info for ${newTape} ...`);
+        await generateTapeInfoCSV(newTape, basePath);
+
+        if(tape === '000001') {
+            startGettingFilesDetails = true;
         }
 
-        const csvPath = `upload_details_tape${newTape}.csv`;
-        await generateFolderDetailsCSV(newTape, basePath, csvPath);
+        if (startGettingFilesDetails) {
+            const csvPath = `upload_details_tape${newTape}.csv`;
+            await generateFilesDetailsCSV(newTape, basePath, csvPath);
+        }
     }
     console.log("✅ All tapes processed ....")
     process.exit(0);
