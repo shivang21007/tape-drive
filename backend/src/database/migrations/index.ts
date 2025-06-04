@@ -78,6 +78,7 @@ const createTables = async () => {
         tape_location VARCHAR(255) DEFAULT 'pending',
         tape_number VARCHAR(50) DEFAULT 'pending',
         iscached BOOLEAN DEFAULT FALSE,
+        isdir BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
@@ -110,6 +111,7 @@ const createTables = async () => {
         used_size VARCHAR(20) DEFAULT "0B",  -- e.g., "7.2G"
         available_size VARCHAR(20) NOT NULL,  -- e.g., "11T"
         usage_percentage DECIMAL(5,2) DEFAULT 0.00,  -- e.g., 1.00
+        status VARCHAR(255) DEFAULT 'inactive',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (group_name) REFERENCES user_groups_table(name) ON DELETE CASCADE
