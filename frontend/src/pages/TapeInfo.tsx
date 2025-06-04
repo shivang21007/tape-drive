@@ -8,6 +8,7 @@ interface Tape {
   total_size: string;
   used_size: string;
   available_size: string;
+  status: string;
   usage_percentage: number;
   updated_at: string;
 }
@@ -70,6 +71,7 @@ const TapeInfo: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Used Size</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Available Size</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Usage %</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Last Updated</th>
                   </tr>
                 </thead>
@@ -82,6 +84,7 @@ const TapeInfo: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.used_size}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.available_size}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.usage_percentage}%</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.status}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(tape.updated_at).toLocaleString()}</td>
                     </tr>
                   ))}

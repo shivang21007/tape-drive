@@ -376,6 +376,7 @@ const Admin: React.FC = () => {
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">ID</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Tape No</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Group</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Total Size</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Used Size</th>
@@ -389,6 +390,7 @@ const Admin: React.FC = () => {
                         <tr key={tape.id}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.id}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.tape_no}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.status}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <select
                               value={tape.group_name}
