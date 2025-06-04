@@ -78,7 +78,6 @@ const createTables = async () => {
         tape_location VARCHAR(255) DEFAULT 'pending',
         tape_number VARCHAR(50) DEFAULT 'pending',
         iscached BOOLEAN DEFAULT FALSE,
-        isdir BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
