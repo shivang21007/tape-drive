@@ -160,6 +160,7 @@ export async function processTapeUpload(job: FileProcessingJob) {
 
       if (isDirectory) {
         // For directories, copy recursively
+        logger.info(`Copying directory to tape ....`);
         await fsExtra.copy(filePath, tapePath, {
           overwrite: true,
           errorOnExist: false,
@@ -168,6 +169,7 @@ export async function processTapeUpload(job: FileProcessingJob) {
         logger.info(`Directory copied recursively to tape: ${tapePath}`);
       } else {
         // For files, copy directly
+        logger.info(`Copying file to tape ....`);
         await fsExtra.copy(filePath, tapePath, {
           overwrite: true,
           errorOnExist: false,

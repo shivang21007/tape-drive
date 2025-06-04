@@ -116,11 +116,12 @@ export async function processTapeDownload(job: DownloadProcessingJob) {
     try {
       await fs.ensureDir(path.dirname(localFilePath));
       logger.info(`Created directory: ${path.dirname(localFilePath)}`);
+      // add delay of 5 seconds to ensure tape is stable
+      await new Promise(resolve => setTimeout(resolve, 5000));
     } catch (error) {
       logger.error(`Failed to create directory: ${path.dirname(localFilePath)}`, error);
       throw new Error(`Failed to create directory for download: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
     // Copy file from tape to local storage
     tapeLogger.startOperation('file-copy');
     let isDirectory = false;
@@ -131,6 +132,7 @@ export async function processTapeDownload(job: DownloadProcessingJob) {
 
       if (isDirectory) {
         // For directories, copy recursively
+        logger.info(`Copying directory from tape to local storage ....`);
         await fsExtra.copy(tapeLocation, localFolderPath, {
           overwrite: true,
           errorOnExist: false,
@@ -139,6 +141,7 @@ export async function processTapeDownload(job: DownloadProcessingJob) {
         logger.info(`Directory copied recursively to: ${localFolderPath}`);
       } else {
         // For files, copy directly
+        logger.info(`Copying file from tape to local storage ....`);
         await fs.copy(tapeLocation, localFilePath, {
           overwrite: true,
           errorOnExist: false,
