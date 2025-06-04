@@ -64,7 +64,7 @@ const main = async () => {
             process.exit(1);
         }
         console.log(`Generating tape info for ${newTape} ...`);
-        await generateTapeInfoCSV(newTape, basePath);
+        await generateTapeInfoCSV(newTape);
 
         if(tape === '000001') {
             startGettingFilesDetails = true;
