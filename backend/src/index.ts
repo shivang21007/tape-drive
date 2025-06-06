@@ -10,6 +10,7 @@ import apiRoutes from './routes/api';
 import { isAuthenticated } from './middleware/auth';
 import path from 'path';
 import { redisClient } from './database/config';
+import RedisStore from 'connect-redis';
 
 // Add this type declaration at the top of the file
 declare module 'express-session' {
@@ -78,16 +79,19 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Session configuration
+const redisStore = new RedisStore({ client: redisClient });
+
 app.use(session({
+  store: redisStore,
   secret: process.env.SESSION_SECRET!,
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // Enable secure cookies in production
+    secure: process.env.BACKEND_NODE_ENV === 'production', // Enable secure cookies in production
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax',
-    domain: process.env.NODE_ENV === 'production' ? '.octro.com' : undefined // Set domain in production
+    domain: process.env.BACKEND_NODE_ENV === 'production' ? 'tapeutils.octro.com' : undefined // Set exact domain in production
   },
   name: 'connect.sid'
 }));
@@ -134,7 +138,7 @@ async function startServer() {
     await testConnections();
     
     app.listen(port, () => {
-      console.log(`Server is running on port ${port} in ${process.env.NODE_ENV} mode`);
+      console.log(`Server is running on port ${port} in ${process.env.BACKEND_NODE_ENV} mode`);
       console.log(`Frontend URL: ${process.env.FRONTEND_URL}`);
       console.log('File processor worker started');
     });

@@ -39,8 +39,9 @@ router.get('/logout', (req, res) => {
     res.clearCookie('connect.sid', {
       path: '/',
       httpOnly: true,
-      secure: false,
-      sameSite: 'lax'
+      secure: process.env.BACKEND_NODE_ENV === 'production',
+      sameSite: 'lax',
+      domain: process.env.BACKEND_NODE_ENV === 'production' ? 'tapeutils.octro.com' : undefined
     });
     
     res.status(200).json({ message: 'Logged out successfully' });

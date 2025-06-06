@@ -79,7 +79,7 @@ const TapeInfo: React.FC = () => {
                   {group.tapes.map((tape) => (
                     <tr key={tape.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.tape_no.replace('0000','')}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.tape_no}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.total_size}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.used_size}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.available_size}</td>
