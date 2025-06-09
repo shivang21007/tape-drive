@@ -22,12 +22,14 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
           ws: true,
+          rewrite: (path) => path.replace(/^\/api/, '/api')
         },
         '/auth': {
           target: env.VITE_API_URL || 'http://localhost:8000',
           changeOrigin: true,
           secure: false,
           ws: true,
+          rewrite: (path) => path.replace(/^\/auth/, '/auth')
         },
       },
     },

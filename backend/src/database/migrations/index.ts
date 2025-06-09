@@ -15,23 +15,23 @@ const createTables = async () => {
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-  ) AUTO_INCREMENT = 101
+  ) AUTO_INCREMENT = 100
 `);
     //create admin and user groups by default in user_groups_table
+    await connection.query(`
+      INSERT INTO user_groups_table (name, description)
+      SELECT 'user', 'User group with limited privileges'
+      FROM DUAL
+      WHERE NOT EXISTS (
+        SELECT 1 FROM user_groups_table WHERE name = 'user'
+      )
+    `);
     await connection.query(`
   INSERT INTO user_groups_table (name, description)
   SELECT 'admin', 'Administrator group with full privileges'
   FROM DUAL
   WHERE NOT EXISTS (
     SELECT 1 FROM user_groups_table WHERE name = 'admin'
-  )
-`);
-    await connection.query(`
-  INSERT INTO user_groups_table (name, description)
-  SELECT 'user', 'User group with limited privileges'
-  FROM DUAL
-  WHERE NOT EXISTS (
-    SELECT 1 FROM user_groups_table WHERE name = 'user'
   )
 `);
 
