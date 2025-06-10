@@ -441,12 +441,6 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // check is it is dirctory or file
-    const isDirectory = fs.statSync(file.local_file_location).isDirectory();
-    if(isDirectory){
-      return res.status(302).json({ message: 'File is a directory, Please Download it by Server Method' });
-    }
-
     const connection = await mysqlPool.getConnection();
 
     try {
@@ -454,6 +448,12 @@ router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
       const isInCache = file.local_file_location && fs.existsSync(file.local_file_location);
 
       if (isInCache) {
+
+        // check is it is dirctory or file
+        const isDirectory = fs.statSync(file.local_file_location).isDirectory();
+        if(isDirectory){
+          return res.status(302).json({ message: 'File is a directory, Please Download it by Server Method' });
+        }
         // If download=true, serve the file
         if (download === 'true') {
           const fileStream = fs.createReadStream(file.local_file_location);

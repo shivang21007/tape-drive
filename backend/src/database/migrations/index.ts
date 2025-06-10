@@ -27,10 +27,10 @@ const createTables = async () => {
       )
     `);
     await connection.query(`
-  INSERT INTO user_groups_table (name, description)
-  SELECT 'admin', 'Administrator group with full privileges'
-  FROM DUAL
-  WHERE NOT EXISTS (
+    INSERT INTO user_groups_table (name, description)
+    SELECT 'admin', 'Administrator group with full privileges'
+    FROM DUAL
+    WHERE NOT EXISTS (
     SELECT 1 FROM user_groups_table WHERE name = 'admin'
   )
 `);
@@ -42,6 +42,7 @@ const createTables = async () => {
     google_id VARCHAR(255) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
+    role VARCHAR(255) DEFAULT 'user',
     picture VARCHAR(255) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
