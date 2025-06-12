@@ -17,9 +17,12 @@ router.get(
 
 router.get(
   '/google/callback',
-  passport.authenticate('google', { failureRedirect: '/login' }),
+  passport.authenticate('google', { 
+    session: true,
+    failureRedirect: `${process.env.FRONTEND_URL}/login`,
+  }),
   (req, res) => {
-    res.redirect(process.env.FRONTEND_URL!);
+    res.redirect(process.env.FRONTEND_URL || 'http://localhost:4173');
   }
 );
 
@@ -30,7 +33,7 @@ router.get('/logout', (req, res) => {
       path: '/',
       httpOnly: true,
       secure: process.env.BACKEND_NODE_ENV === 'production',
-      sameSite: 'none',
+      sameSite: process.env.BACKEND_NODE_ENV === 'production' ? 'none' : 'lax',
       domain: process.env.BACKEND_NODE_ENV === 'production' ? '.octro.com' : undefined
     });
     

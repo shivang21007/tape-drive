@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { convertToUserGroup } from '../utils/roleValidation';
 import { User } from '../types/user';
-import { getApiUrl, getAuthUrl } from '../config';
+import { getApiUrl, getAuthUrl} from '../config';
 
 
 interface AuthContextType {

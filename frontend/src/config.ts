@@ -11,6 +11,14 @@ export const AUTH_BASE_URL = isProduction
   ? 'https://tapeutils.octro.com'  // Production
   : 'http://localhost:8000';  // Development
 
+// Cookie configuration
+export const COOKIE_CONFIG = {
+  secure: isProduction,
+  sameSite: isProduction ? 'none' : 'lax',
+  domain: isProduction ? '.octro.com' : undefined,
+  path: '/'
+};
+
 export const getApiUrl = (path: string) => {
   return `${API_BASE_URL}${path}`;
 };

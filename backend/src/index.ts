@@ -73,8 +73,9 @@ app.use(session({
     secure: process.env.BACKEND_NODE_ENV === 'production', // Enable secure cookies in production
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'none', // Allow cross-site cookies
-    domain: process.env.BACKEND_NODE_ENV === 'production' ? '.octro.com' : undefined // Set domain in production
+    sameSite: process.env.BACKEND_NODE_ENV === 'production' ? 'none' : 'lax', // Use 'none' in production for cross-domain
+    domain: process.env.BACKEND_NODE_ENV === 'production' ? '.octro.com' : undefined, // Set domain in production
+    path: '/'
   },
   name: 'connect.sid'
 }));
