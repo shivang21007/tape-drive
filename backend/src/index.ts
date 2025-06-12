@@ -22,9 +22,7 @@ declare module 'express-session' {
 }
 
 // Load environment variables
-const envFile = '.env';
-
-dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 // Verify environment variables
 const requiredEnvVars = [
@@ -64,17 +62,19 @@ app.use(express.urlencoded({ extended: true }));
 // Session configuration
 const redisStore = new RedisStore({ client: redisClient });
 
+const isProduction = process.env.BACKEND_NODE_ENV === 'production';
+
 app.use(session({
   store: redisStore,
   secret: process.env.SESSION_SECRET!,
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.BACKEND_NODE_ENV === 'production', // Enable secure cookies in production
+    secure: isProduction,
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: process.env.BACKEND_NODE_ENV === 'production' ? 'none' : 'lax', // Use 'none' in production for cross-domain
-    domain: process.env.BACKEND_NODE_ENV === 'production' ? '.octro.com' : undefined, // Set domain in production
+    sameSite: isProduction ? 'none' : 'lax',
+    domain: isProduction ? '.octro.com' : undefined,
     path: '/'
   },
   name: 'connect.sid'

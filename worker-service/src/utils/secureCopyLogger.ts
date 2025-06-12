@@ -43,7 +43,7 @@ const secureCopyLogger = winston.createLogger({
 });
 
 // Add console transport in development
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.BACKEND_NODE_ENV !== 'production') {
   secureCopyLogger.add(new winston.transports.Console({
     format: winston.format.combine(
       winston.format.colorize(),

@@ -1,8 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { convertToUserGroup } from '../utils/roleValidation';
 import { User } from '../types/user';
-import { getApiUrl, getAuthUrl} from '../config';
-
+import { getApiUrl, getAuthUrl } from '../config';
 
 interface AuthContextType {
   user: User | null;
@@ -37,7 +36,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (response.ok) {
         const userData = await response.json();
-        // Convert role to UserGroup if it's a string
         if (typeof userData.role === 'string') {
           userData.role = convertToUserGroup(userData.role);
         }

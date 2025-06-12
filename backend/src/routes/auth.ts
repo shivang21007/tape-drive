@@ -9,10 +9,15 @@ if (!process.env.FRONTEND_URL) {
   throw new Error('FRONTEND_URL environment variable is not set');
 }
 
+const isProduction = process.env.BACKEND_NODE_ENV === 'production';
+
 // Google OAuth routes
 router.get(
   '/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
+  passport.authenticate('google', { 
+    scope: ['profile', 'email'],
+    prompt: 'select_account'
+  })
 );
 
 router.get(
@@ -22,6 +27,16 @@ router.get(
     failureRedirect: `${process.env.FRONTEND_URL}/login`,
   }),
   (req, res) => {
+    // Set cookie domain for cross-domain auth
+    if (isProduction) {
+      res.cookie('connect.sid', req.sessionID, {
+        domain: '.octro.com',
+        path: '/',
+        secure: true,
+        httpOnly: true,
+        sameSite: 'none'
+      });
+    }
     res.redirect(process.env.FRONTEND_URL || 'http://localhost:4173');
   }
 );
@@ -32,9 +47,9 @@ router.get('/logout', (req, res) => {
     res.clearCookie('connect.sid', {
       path: '/',
       httpOnly: true,
-      secure: process.env.BACKEND_NODE_ENV === 'production',
-      sameSite: process.env.BACKEND_NODE_ENV === 'production' ? 'none' : 'lax',
-      domain: process.env.BACKEND_NODE_ENV === 'production' ? '.octro.com' : undefined
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      domain: isProduction ? '.octro.com' : undefined
     });
     
     res.status(200).json({ message: 'Logged out successfully' });

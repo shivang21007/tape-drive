@@ -1,17 +1,17 @@
-// Determine if we're in development or production
-const isProduction = process.env.NODE_ENV === 'production';
+// Environment detection
+const isProduction = import.meta.env.VITE_NODE_ENV === 'production';
 
-// Base URL for API calls
+// API Configuration
 export const API_BASE_URL = isProduction 
   ? 'https://tapeutilsbk.octro.com'  // Production
   : 'http://localhost:8000';  // Development
 
-// Base URL for auth redirects (must be same domain as frontend)
+// Auth Configuration
 export const AUTH_BASE_URL = isProduction
   ? 'https://tapeutils.octro.com'  // Production
   : 'http://localhost:8000';  // Development
 
-// Cookie configuration
+// Cookie Configuration
 export const COOKIE_CONFIG = {
   secure: isProduction,
   sameSite: isProduction ? 'none' : 'lax',
@@ -19,6 +19,7 @@ export const COOKIE_CONFIG = {
   path: '/'
 };
 
+// API URL helpers
 export const getApiUrl = (path: string) => {
   return `${API_BASE_URL}${path}`;
 };
