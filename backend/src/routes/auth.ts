@@ -41,7 +41,7 @@ router.get('/logout', (req, res) => {
       httpOnly: true,
       secure: process.env.BACKEND_NODE_ENV === 'production',
       sameSite: 'lax',
-      domain: process.env.BACKEND_NODE_ENV === 'production' ? 'tapeutils.octro.com' : undefined
+      domain: process.env.BACKEND_NODE_ENV === 'production' ? '.octro.com' : undefined
     });
     
     res.status(200).json({ message: 'Logged out successfully' });

@@ -47,25 +47,7 @@ const port = process.env.PORT || 8000;
 
 // CORS configuration
 const corsOptions = {
-  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    const allowedOrigins = [
-      process.env.FRONTEND_URL,
-      'https://tapeutils.octro.com',
-      'http://tapeutils.octro.com',
-      'http://localhost:4173',
-      'http://localhost:5173',
-      'http://serv19.octro.net:4173'
-    ];
-    
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: process.env.FRONTEND_URL,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -92,7 +74,7 @@ app.use(session({
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax',
-    domain: process.env.BACKEND_NODE_ENV === 'production' ? 'tapeutils.octro.com' : undefined // Set exact domain in production
+    domain: process.env.BACKEND_NODE_ENV === 'production' ? '.octro.com' : undefined // Set exact domain in production
   },
   name: 'connect.sid'
 }));
