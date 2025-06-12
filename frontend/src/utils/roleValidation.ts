@@ -1,4 +1,5 @@
 import { User } from '../types/user';
+import { getApiUrl } from '../config';
 
 // Interface for user groups
 export interface UserGroup {
@@ -46,7 +47,7 @@ export const canAccessGroup = (user: User | null, groupName: string): boolean =>
 export const getAvailableRoles = async (): Promise<UserGroup[]> => {
   try {
     // Always use the groups endpoint for admin page
-    const response = await fetch('/api/groups', {
+    const response = await fetch(getApiUrl('/api/groups'), {
       credentials: 'include'
     });
     if (!response.ok) {
@@ -65,7 +66,7 @@ export const getAvailableRoles = async (): Promise<UserGroup[]> => {
 // Function to validate a role
 export const validateRole = async (role: string): Promise<boolean> => {
   try {
-    const response = await fetch(`/api/validate-role/${role}`, {
+    const response = await fetch(getApiUrl(`/api/validate-role/${role}`), {
       credentials: 'include'
     });
     if (!response.ok) {

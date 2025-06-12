@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { convertToUserGroup } from '../utils/roleValidation';
 import { User } from '../types/user';
+import { getApiUrl, getAuthUrl } from '../config';
 
 
 interface AuthContextType {
@@ -25,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const checkUser = async () => {
     try {
       console.log('Checking user authentication...');
-      const response = await fetch('/auth/me', {
+      const response = await fetch(getApiUrl('/auth/me'), {
         credentials: 'include',
         headers: {
           'Accept': 'application/json'
@@ -54,12 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = () => {
-    window.location.href = '/auth/google';
+    window.location.href = getAuthUrl('/auth/google');
   };
 
   const logout = async () => {
     try {
-      await fetch('/auth/logout', {
+      await fetch(getApiUrl('/auth/logout'), {
         method: 'GET',
         credentials: 'include',
         headers: {
