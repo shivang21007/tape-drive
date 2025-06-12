@@ -1,5 +1,6 @@
 // Environment detection
 const isProduction = import.meta.env.VITE_NODE_ENV === 'production';
+console.log('isProduction from config.ts', isProduction);
 
 // API Configuration
 export const API_BASE_URL = isProduction 
