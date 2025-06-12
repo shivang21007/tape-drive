@@ -17,30 +17,20 @@ router.get(
 
 router.get(
   '/google/callback',
-  passport.authenticate('google', { 
-    session: true,
-    failureRedirect: `${process.env.FRONTEND_URL}/login`,
-  }),
+  passport.authenticate('google', { failureRedirect: '/login' }),
   (req, res) => {
-    res.redirect(process.env.FRONTEND_URL || 'http://localhost:4173');
+    res.redirect(process.env.FRONTEND_URL!);
   }
 );
 
 // Logout route
 router.get('/logout', (req, res) => {
-  // Destroy the session
-  req.session.destroy((err) => {
-    if (err) {
-      console.error('Error destroying session:', err);
-      return res.status(500).json({ error: 'Failed to logout' });
-    }
-    
-    // Clear the session cookie
+  req.logout(() => {
     res.clearCookie('connect.sid', {
       path: '/',
       httpOnly: true,
       secure: process.env.BACKEND_NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'none',
       domain: process.env.BACKEND_NODE_ENV === 'production' ? '.octro.com' : undefined
     });
     

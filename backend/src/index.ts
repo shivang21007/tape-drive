@@ -50,7 +50,7 @@ const corsOptions = {
   origin: process.env.FRONTEND_URL,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 1728000 // 20 days
 };
@@ -73,8 +73,8 @@ app.use(session({
     secure: process.env.BACKEND_NODE_ENV === 'production', // Enable secure cookies in production
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'lax',
-    domain: process.env.BACKEND_NODE_ENV === 'production' ? '.octro.com' : undefined // Set exact domain in production
+    sameSite: 'none', // Allow cross-site cookies
+    domain: process.env.BACKEND_NODE_ENV === 'production' ? '.octro.com' : undefined // Set domain in production
   },
   name: 'connect.sid'
 }));
