@@ -88,8 +88,9 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    // Keep original filename
-    cb(null, file.originalname);
+    // Replace spaces with underscores in filename
+    const sanitizedFileName = file.originalname.replace(/\s+/g, '_');
+    cb(null, sanitizedFileName);
   }
 });
 
@@ -274,8 +275,11 @@ router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res)
     return res.status(403).json({ error: 'Invalid role' });
   }
 
+  // File name is already sanitized by multer storage configuration
+  const originalFileName = req.file.originalname.replace(/\s+/g, '_');
+
   // check if same name file already exist in upload_details table
-  const [existingFile] = await mysqlPool.query('SELECT * FROM upload_details WHERE file_name = ?', [req.file.originalname]);
+  const [existingFile] = await mysqlPool.query('SELECT * FROM upload_details WHERE file_name = ?', [originalFileName]);
   if ((existingFile as any[]).length > 0) {
     return res.status(400).json({ error: 'File already exists Please use different File Name' });
   }
@@ -303,14 +307,14 @@ router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res)
       // Insert into database with 'queueing' status
       const [result] = await connection.query<ResultSetHeader>(
         'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location, method, iscached) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [user.name, user.role, req.file.originalname, formattedSize, 'queueing', req.file.path, 'Browser', true]
+        [user.name, user.role, originalFileName, formattedSize, 'queueing', req.file.path, 'Browser', true]
       );
 
       // Push event to BullMQ queue with upload label
       const jobData: FileProcessingJob = {
         type: 'upload',
         fileId: result.insertId,
-        fileName: req.file.originalname,
+        fileName: originalFileName,
         fileSize: formattedSize,
         userName: user.name,
         userEmail: user.email,
@@ -337,7 +341,7 @@ router.post('/upload', hasFeatureAccess, upload.single('file'), async (req, res)
       res.json({
         message: 'File uploaded successfully and queued for processing',
         file: {
-          name: req.file.originalname,
+          name: originalFileName,
           size: formattedSize,
           path: req.file.path
         }
@@ -364,12 +368,27 @@ router.post('/cancel-upload', hasFeatureAccess, async (req, res) => {
   }
 
   try {
+    // Replace spaces with underscores in filename to match how it was saved
+    const sanitizedFileName = fileName.replace(/\s+/g, '_');
+    
+    // Ensure all path components are strings and handle groupName object
+    const uploadDir = String(process.env.UPLOAD_DIR || '/home/octro/google-auth-login-page/tape-drive/backend/uploadfiles');
+    const sanitizedGroupName = typeof groupName === 'object' ? groupName.name : String(groupName);
+    const sanitizedUserName = String(userName);
+    
     // Construct the path to the partial upload
-    const filePath = path.join(__dirname, '../../uploadfiles', groupName, userName, fileName);
+    const filePath = path.join(
+      uploadDir,
+      sanitizedGroupName,
+      sanitizedUserName,
+      sanitizedFileName
+    )
 
     // Check if file exists and delete it
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
+    } else {
+      console.error('Try to cancel upload but file not found at path:', filePath);
     }
 
     res.json({ message: 'Upload cancelled and cleaned up successfully' });
