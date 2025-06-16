@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import octroLogo from '../assets/octro-logo.png';
 import axios, { CancelTokenSource } from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
@@ -25,7 +25,28 @@ const formatFileSize = (bytes: number): string => {
 const Home: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'piyush.sharma@octrotalk.com';
+
+  // Show error if error=not_allowed in query params
+  const params = new URLSearchParams(location.search);
+  const loginError = params.get('error');
+  if (loginError === 'not_allowed') {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="bg-white p-8 rounded shadow text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Login Not Allowed</h1>
+          <p className="mb-4">Only @octro.com and @octrotalk.com emails are allowed to access this application.</p>
+          <button
+            onClick={() => navigate('/login')}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          >
+            Back to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Show welcome message for users without a role
   if (!user?.role || isUserRole(user.role)) {
