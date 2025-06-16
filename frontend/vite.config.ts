@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: env.VITE_API_URL || 'http://localhost:8000',
           changeOrigin: true,
-          secure: true,
+          secure: false,  // <--- allow self-signed certificates
           ws: true,
           rewrite: (path) => path.replace(/^\/api/, '/api'),
           configure: (proxy, _options) => {
@@ -38,7 +38,7 @@ export default defineConfig(({ mode }) => {
         '/auth': {
           target: env.VITE_API_URL || 'http://localhost:8000',
           changeOrigin: true,
-          secure: true,
+          secure: false,  // <--- allow self-signed certificates
           ws: true,
           rewrite: (path) => path.replace(/^\/auth/, '/auth'),
           configure: (proxy, _options) => {

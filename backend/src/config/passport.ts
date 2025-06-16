@@ -80,6 +80,14 @@ const setupPassport = async () => {
         }, 
         async (accessToken, refreshToken, profile, done) => {
           try {
+            // Only allow octro.com and octrotalk.com emails
+            const allowedDomains = ['octro.com', 'octrotalk.com'];
+            const email = profile.emails && profile.emails[0]?.value;
+            const domain = email ? email.split('@')[1] : '';
+            if (!allowedDomains.includes(domain)) {
+              return done(null, false, { message: 'not_allowed' });
+            }
+
             // Ensure roles are initialized
             if (!areRolesInitialized()) {
               await refreshRoles();

@@ -28,23 +28,14 @@ router.get(
     failureRedirect: `${process.env.FRONTEND_URL}/login`,
   }),
   (req, res) => {
-    // Only allow octro.com and octrotalk.com emails
-    const allowedDomains = ['octro.com', 'octrotalk.com'];
-    const userEmail = req.user?.email || '';
-    const userDomain = userEmail.split('@')[1];
-
-    if (!allowedDomains.includes(userDomain)) {
-      req.logout(() => {
-        res.clearCookie('connect.sid', {
-          path: '/',
-          httpOnly: true,
-          secure: true,
-          sameSite: 'none',
-          domain: '.shivanggupta.in'
-        });
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=not_allowed`);
+    if (isProduction) {
+      res.cookie('connect.sid', req.sessionID, {
+        domain: '.shivanggupta.in',
+        path: '/',
+        secure: true,
+        httpOnly: true,
+        sameSite: 'none'
       });
-      return;
     }
     req.session.save((err) => {
       if (err) {
