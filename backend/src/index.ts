@@ -62,8 +62,10 @@ app.use(express.urlencoded({ extended: true }));
 // Session configuration
 const redisStore = new RedisStore({ client: redisClient });
 
-const isProduction = process.env.BACKEND_NODE_ENV === 'production';
-
+const isProduction = false;
+const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
+console.log("cookieDomain", cookieDomain);
+ 
 app.use(session({
   store: redisStore,
   secret: process.env.SESSION_SECRET!,
@@ -74,7 +76,7 @@ app.use(session({
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: isProduction ? 'none' : 'lax',
-    domain: isProduction ? '.shivanggupta.in' : undefined,
+    domain: cookieDomain,
     path: '/'
   },
   name: 'connect.sid'
