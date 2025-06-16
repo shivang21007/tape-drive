@@ -20,7 +20,7 @@ router.get(
   })
 );
 
-const frontendHost = process.env.FRONTEND_URL?.split('://')[1].split(':')[0] || undefined;
+
 router.get(
   '/google/callback',
   passport.authenticate('google', { 
@@ -31,7 +31,7 @@ router.get(
     // Set cookie domain for cross-domain auth
     if (isProduction) {
       res.cookie('connect.sid', req.sessionID, {
-        domain: isProduction ? frontendHost : undefined,
+        domain: '.shivanggupta.in',
         path: '/',
         secure: true,
         httpOnly: true,
@@ -50,7 +50,7 @@ router.get('/logout', (req, res) => {
       httpOnly: true,
       secure: isProduction,
       sameSite: isProduction ? 'none' : 'lax',
-      domain: isProduction ? '.octro.com' : undefined
+      domain: isProduction ? '.shivanggupta.in' : undefined
     });
     
     res.status(200).json({ message: 'Logged out successfully' });
