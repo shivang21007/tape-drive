@@ -43,13 +43,6 @@ export function Header({ user, onLogout, activeTab, setActiveTab }: HeaderProps)
         </div>
 
         <div className="flex items-center space-x-4">
-          {user?.picture && (
-            <img
-              src={user.picture}
-              alt={user.name}
-              className="h-8 w-8 rounded-full border-2 border-white"
-            />
-          )}
           <span className="text-sm">{user?.name}</span>
           <button
             onClick={onLogout}

@@ -12,7 +12,6 @@ declare global {
       google_id: string;
       email: string;
       name: string;
-      picture?: string;
       role: UserRole;
       created_at: Date;
       updated_at: Date;
@@ -135,12 +134,11 @@ const setupPassport = async () => {
 
             // Create new user
             const [result] = await mysqlPool.query(
-              'INSERT INTO users (google_id, email, name, picture, role) VALUES (?, ?, ?, ?, ?)',
+              'INSERT INTO users (google_id, email, name, role) VALUES (?, ?, ?, ?)',
               [
                 profile.id, 
                 profile.emails![0].value, 
                 profile.displayName.replace(/\s+/g, ''),
-                profile.photos![0].value,
                 defaultRole
               ]
             );
@@ -150,7 +148,6 @@ const setupPassport = async () => {
               google_id: profile.id,
               email: profile.emails![0].value,
               name: profile.displayName.replace(/\s+/g, ''),
-              picture: profile.photos![0].value,
               role: defaultRole as UserRole,
               created_at: new Date(),
               updated_at: new Date()
