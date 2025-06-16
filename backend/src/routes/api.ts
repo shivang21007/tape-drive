@@ -368,35 +368,30 @@ router.post('/cancel-upload', hasFeatureAccess, async (req, res) => {
   }
 
   try {
-    // Replace spaces with underscores in filename to match how it was saved
     const sanitizedFileName = fileName.replace(/\s+/g, '_');
-    
-    // Ensure all path components are strings and handle groupName object
     const uploadDir = String(process.env.UPLOAD_DIR || '/home/octro/google-auth-login-page/tape-drive/backend/uploadfiles');
     const sanitizedGroupName = typeof groupName === 'object' ? groupName.name : String(groupName);
     const sanitizedUserName = String(userName);
-    
-    // Construct the path to the partial upload
+
     const filePath = path.join(
       uploadDir,
       sanitizedGroupName,
       sanitizedUserName,
       sanitizedFileName
-    )
+    );
 
-    // Check if file exists and delete it
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
+      res.json({ message: 'Upload cancelled and cleaned up successfully' });
     } else {
-      console.error('Try to cancel upload but file not found at path:', filePath);
+      res.json({ message: 'No partial upload found to clean up (already deleted or never existed).' });
     }
-
-    res.json({ message: 'Upload cancelled and cleaned up successfully' });
+    return;
   } catch (error) {
     console.error('Error cleaning up cancelled upload:', error);
     res.status(500).json({ error: 'Failed to clean up cancelled upload' });
   }
-});
+});;
 
 // Get files endpoint
 router.get('/files', hasFeatureAccess, async (req, res) => {
