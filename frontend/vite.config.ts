@@ -6,30 +6,52 @@ import * as path from 'path'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const isProduction: boolean = process.env.VITE_NODE_ENV == 'production'
-
+  const frontendHost = env.VITE_FRONTEND_URL?.split('://')[1].split(':')[0] || undefined
   console.log('isProduction', isProduction)
-
+  console.log('frontendHost', frontendHost)
   return {
     base: '/',
     plugins: [react()],
     server: { 
       port: isProduction ? 4173 : 5173,
       host: true,
-      allowedHosts: ['serv19.octro.net', 'tapeutils.octro.com'],
+      allowedHosts: ['serv19.octro.net', 'tapeutils.octro.com', frontendHost].filter(Boolean) as string[],
       proxy: {
         '/api': {
           target: env.VITE_API_URL || 'http://localhost:8000',
           changeOrigin: true,
-          secure: false,
+          secure: true,
           ws: true,
-          rewrite: (path) => path.replace(/^\/api/, '/api')
+          rewrite: (path) => path.replace(/^\/api/, '/api'),
+          configure: (proxy, _options) => {
+            proxy.on('error', (err, _req, _res) => {
+              console.log('proxy error', err);
+            });
+            proxy.on('proxyReq', (proxyReq, req, _res) => {
+              console.log('Sending Request to the Target:', proxyReq.method, req.url, proxyReq.path);
+            });
+            proxy.on('proxyRes', (proxyRes, req, _res) => {
+              console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+            });
+          }
         },
         '/auth': {
           target: env.VITE_API_URL || 'http://localhost:8000',
           changeOrigin: true,
-          secure: false,
+          secure: true,
           ws: true,
-          rewrite: (path) => path.replace(/^\/auth/, '/auth')
+          rewrite: (path) => path.replace(/^\/auth/, '/auth'),
+          configure: (proxy, _options) => {
+            proxy.on('error', (err, _req, _res) => {
+              console.log('proxy error', err);
+            });
+            proxy.on('proxyReq', (proxyReq, req, _res) => {
+              console.log('Sending Request to the Target:', proxyReq.method, req.url, proxyReq.path);
+            });
+            proxy.on('proxyRes', (proxyRes, req, _res) => {
+              console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+            });
+          }
         },
       },
     },

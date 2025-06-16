@@ -63,6 +63,7 @@ app.use(express.urlencoded({ extended: true }));
 const redisStore = new RedisStore({ client: redisClient });
 
 const isProduction = process.env.BACKEND_NODE_ENV === 'production';
+const frontendHost = process.env.FRONTEND_URL?.split('://')[1].split(':')[0] || undefined;
 
 app.use(session({
   store: redisStore,
@@ -74,7 +75,7 @@ app.use(session({
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: isProduction ? 'none' : 'lax',
-    domain: isProduction ? '.octro.com' : undefined,
+    domain: isProduction ? frontendHost : undefined,
     path: '/'
   },
   name: 'connect.sid'

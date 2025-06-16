@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "source ./setup_env.sh && vite --host",
+    "dev": "vite --host",
     "build": "tsc && vite build",
-    "preview": "source ./setup_env.sh && vite preview --host",
-    "start": "source ./setup_env.sh && vite preview --host",
+    "preview": "vite preview --host",
+    "start": "vite preview --host",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "type-check": "tsc --noEmit",
     "analyze": "source-map-explorer 'dist/assets/*.js'"

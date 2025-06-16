@@ -398,7 +398,7 @@ const Admin: React.FC = () => {
                               className="block w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                             >
                               {groups.map(g => (
-                                <option key={g.name} value={g.name}>{g.name}</option>
+                                <option key={g.id} value={g.name}>{g.name}</option>
                               ))}
                             </select>
                           </td>
@@ -447,7 +447,7 @@ const Admin: React.FC = () => {
                               className="block w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                             >
                               {groups.map(g => (
-                                <option key={g.name} value={g.name}>{g.name}</option>
+                                <option key={g.id} value={g.name}>{g.name}</option>
                               ))}
                             </select>
                           </td>

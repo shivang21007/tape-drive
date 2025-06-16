@@ -20,6 +20,7 @@ router.get(
   })
 );
 
+const frontendHost = process.env.FRONTEND_URL?.split('://')[1].split(':')[0] || undefined;
 router.get(
   '/google/callback',
   passport.authenticate('google', { 
@@ -30,7 +31,7 @@ router.get(
     // Set cookie domain for cross-domain auth
     if (isProduction) {
       res.cookie('connect.sid', req.sessionID, {
-        domain: '.octro.com',
+        domain: isProduction ? frontendHost : undefined,
         path: '/',
         secure: true,
         httpOnly: true,
