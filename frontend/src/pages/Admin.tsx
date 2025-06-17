@@ -342,7 +342,21 @@ const Admin: React.FC = () => {
             </button>
           </div>
 
-          {activeTab === 'users' && <UsersTable users={users} onRoleChange={handleRoleChange} onDeleteUser={handleDeleteUser} />}
+          <div className="mt-8">
+            {activeTab === 'users' && (
+              loading ? (
+                <div className="text-center py-4">Loading users...</div>
+              ) : error ? (
+                <div className="text-center text-red-600 py-4">{error}</div>
+              ) : (
+                <UsersTable 
+                  users={users} 
+                  onRoleChange={handleRoleChange} 
+                  onDeleteUser={handleDeleteUser} 
+                />
+              )
+            )}
+          </div>
           {activeTab === 'groups' && (
             <div>
               <div className="mb-4">

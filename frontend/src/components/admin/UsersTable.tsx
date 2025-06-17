@@ -46,6 +46,10 @@ export const UsersTable: React.FC<UsersTableProps> = ({ users, onRoleChange, onD
     return <div className="text-center text-red-600 py-4">{error}</div>;
   }
 
+  if (!Array.isArray(users)) {
+    return <div className="text-center text-red-600 py-4">No users data available</div>;
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200">

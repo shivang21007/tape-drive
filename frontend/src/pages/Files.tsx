@@ -250,7 +250,7 @@ const Files: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 ">
-                    {file.tape_number.replace('0000','') || 'N/A'}
+                    {file.tape_number ? file.tape_number.replace('0000','') : 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 ">
                     {file.iscached ? 'Yes' : 'No'}
