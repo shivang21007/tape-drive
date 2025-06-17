@@ -56,8 +56,9 @@ const corsOptions = {
 // Middleware
 app.use(cors(corsOptions));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Increase JSON and URL-encoded payload limits
+app.use(express.json({ limit: '100gb' }));
+app.use(express.urlencoded({ limit: '100gb', extended: true }));
 
 // Session configuration
 const redisStore = new RedisStore({ client: redisClient });

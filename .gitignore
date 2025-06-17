@@ -43,6 +43,7 @@ node_modules
 */*.sln
 */*.sw?
 */.env
+*/vite.config.d.ts
 */nginx.conf
 */docker-compose.yml
 */*/.DS_Store

@@ -1,6 +1,3 @@
-// Environment detection
-const isProduction = import.meta.env.VITE_NODE_ENV === 'production';
-console.log('isProduction from config.ts', isProduction);
 
 // API Configuration
 // export const API_BASE_URL = isProduction 
@@ -15,16 +12,6 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL;
 //   : 'http://localhost:8000';  // Development
 
 export const AUTH_BASE_URL = import.meta.env.VITE_API_URL;
-
-
-
-// Cookie Configuration
-export const COOKIE_CONFIG = {
-  secure: isProduction,
-  sameSite: isProduction ? 'none' : 'lax',
-  domain: isProduction ? '.octro.com' : undefined,
-  path: '/'
-};
 
 // API URL helpers
 export const getApiUrl = (path: string) => {

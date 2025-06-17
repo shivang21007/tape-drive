@@ -8,6 +8,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Confetti from 'react-confetti';
 import { ImCross } from 'react-icons/im';
 import { isUserRole, isAdminRole } from '../utils/roleValidation';
+import axiosInstance from '../utils/axios';
 
 const formatFileSize = (bytes: number): string => {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -198,7 +199,7 @@ const Home: React.FC = () => {
     formData.append('groupName', user?.role.name || '');
 
     try {
-      await axios.post('/api/upload', formData, {
+      await axiosInstance.post('/api/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -228,11 +229,6 @@ const Home: React.FC = () => {
         isLoading: false,
         autoClose: 2000,
       });
-
-      setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
     } catch (error) {
       if (axios.isCancel(error)) {
         toast.update(uploadToastId, {
@@ -241,10 +237,17 @@ const Home: React.FC = () => {
           isLoading: false,
           autoClose: 2000,
         });
-      } else if (axios.isAxiosError(error) && error.response?.status === 400) {
-        // Duplicate file error from backend
+      } else if (axios.isAxiosError(error)) {
+        let errorMessage = 'Upload failed!';
+        
+        if (error.response?.status === 413) {
+          errorMessage = 'File is too large. Maximum size is 100GB.';
+        } else if (error.response?.status === 400) {
+          errorMessage = error.response.data?.error || 'File already exists. Please use a different file name.';
+        }
+        
         toast.update(uploadToastId, {
-          render: error.response.data?.error || 'File already exists. Please use a different file name.',
+          render: errorMessage,
           type: 'error',
           isLoading: false,
           autoClose: 3000,
@@ -264,6 +267,10 @@ const Home: React.FC = () => {
       setUploadSpeed('0 KB/s');
       setTimeRemaining('Calculating...');
       cancelTokenRef.current = null;
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
