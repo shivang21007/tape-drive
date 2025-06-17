@@ -334,7 +334,6 @@ export class TapeManager {
 
     const data = lines[1].split(/\s+/);
     return {
-      filesystem: data[0],
       totalSize: data[1],
       usedSize: data[2],
       availableSize: data[3],
@@ -358,8 +357,7 @@ export class TapeManager {
         tapeInfo.totalSize,
         tapeInfo.usedSize,
         tapeInfo.availableSize,
-        tapeInfo.usagePercentage,
-        tapeInfo.filesystem
+        tapeInfo.usagePercentage
       );
 
       logger.info(`Updated tape info for tape ${tapeNumber}:`, tapeInfo);

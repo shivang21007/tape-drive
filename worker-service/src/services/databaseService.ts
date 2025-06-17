@@ -215,7 +215,6 @@ export class DatabaseService {
     usedSize: string,
     availableSize: string,
     usagePercentage: number,
-    filesystem: string
   ): Promise<void> {
     const connection = await this.pool.getConnection();
     
@@ -226,10 +225,9 @@ export class DatabaseService {
              used_size = ?,
              available_size = ?,
              usage_percentage = ?,
-             filesystem = ?,
              updated_at = CURRENT_TIMESTAMP
          WHERE tape_no = ?`,
-        [totalSize, usedSize, availableSize, usagePercentage, filesystem, tapeNumber]
+        [totalSize, usedSize, availableSize, usagePercentage, tapeNumber]
       );
     } catch (error) {
       logger.error('Error updating tape info:', error);
