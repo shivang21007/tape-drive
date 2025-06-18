@@ -55,14 +55,14 @@ if (process.env.BACKEND_NODE_ENV !== 'production') {
 // Helper methods for secure copy operations
 export const logSecureCopyOperation = (
   operation: string,
-  details: {
-    sourcePath: string;
-    destPath: string;
+  details?: {
+    sourcePath?: string;
+    destPath?: string;
     fileSize?: number;
     tapeNumber?: string;
     groupName?: string;
     userName?: string;
-    status: 'started' | 'completed' | 'failed';
+    status?: 'started' | 'completed' | 'failed';
     error?: Error;
   }
 ) => {
@@ -72,9 +72,9 @@ export const logSecureCopyOperation = (
     timestamp: new Date().toISOString()
   };
 
-  if (details.status === 'failed' && details.error) {
+  if (details?.status === 'failed' && details?.error) {
     secureCopyLogger.error('Secure copy operation failed', logData);
-  } else if (details.status === 'completed') {
+  } else if (details?.status === 'completed') {
     secureCopyLogger.info('Secure copy operation completed', logData);
   } else {
     secureCopyLogger.info('Secure copy operation started', logData);

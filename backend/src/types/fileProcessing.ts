@@ -20,6 +20,7 @@ export interface SecureCopyUploadJob {
   groupName: string;
   filePath: string;
   server: string;
+  sshUser: string;
   isAdmin: boolean;
   requestedAt: number;
 }
@@ -34,6 +35,7 @@ export interface SecureCopyDownloadJob {
   groupName: string;
   filePath: string;
   server: string;
+  sshUser: string;
   isAdmin: boolean;
   requestedAt: number;
 }

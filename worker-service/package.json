@@ -8,9 +8,7 @@
     "start:worker": "node dist/index.js",
     "start:copy": "node dist/secureCopyWorker.js",
     "dev:worker": "ts-node src/index.ts",
-    "dev:copy": "ts-node src/secureCopyWorker.ts",
-    "test": "jest",
-    "test:job": "ts-node src/scripts/testJob.ts"
+    "dev:copy": "ts-node src/secureCopyWorker.ts"
   },
   "dependencies": {
     "@types/fs-extra": "^11.0.4",
@@ -27,6 +25,7 @@
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.0",
     "@types/nodemailer": "^6.4.14",
+    "@types/shell-escape": "^0.2.3",
     "jest": "^29.7.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"

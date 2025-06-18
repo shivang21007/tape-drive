@@ -264,16 +264,16 @@ export class DatabaseService {
   }
 
   // Get private IP for a server based on group and server name
-  public async getPrivateIp(group: string, serverName: string): Promise<string> {
+  public async getPrivateIp(serverName: string): Promise<string> {
     const connection = await this.pool.getConnection();
     try {
       const [rows] = await connection.query(
-        'SELECT server_ip FROM server_info WHERE group_name = ? AND server_name = ?',
-        [group, serverName]
+        'SELECT server_ip FROM server_info WHERE server_name = ?',
+        [serverName]
       );
 
       if (!rows || (rows as any[]).length === 0) {
-        throw new Error(`Server not found: ${serverName} for group: ${group}`);
+        throw new Error(`Server not found: ${serverName}}`);
       }
 
       return (rows as any[])[0].server_ip;

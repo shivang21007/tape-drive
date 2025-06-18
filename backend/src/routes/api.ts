@@ -9,7 +9,7 @@ import fs from 'fs';
 import { fileQueue, secureCopyQueue } from '../queue/fileQueue';
 import { FileProcessingJob, SecureCopyDownloadJob, SecureCopyUploadJob } from '../types/fileProcessing';
 import { isValidRole, getAvailableRoles } from '../models/auth';
-
+import { checkSSHReadAccess } from '../utils/testSSHConnection';
 const router = express.Router();
 
 // Helper functions for role validation
@@ -700,12 +700,12 @@ router.post('/secureupload', hasFeatureAccess, async (req, res) => {
   try {
     // add a entry in upload_details table if type is upload
     if(req.body.type === 'upload'){ 
-      const { server, filePath } = req.body;
+      const { server, sshUser, filePath } = req.body;
       const fileName = filePath.split('/').pop();
       const type = 'upload';
       
-      if(!server || !filePath){
-        return res.status(400).json({ error: 'Server and file path are required' });
+      if(!server || !filePath || !sshUser){
+        return res.status(400).json({ error: 'Server, file path and ssh user are required' });
       }
       
       if (!isValidRole(req.user.role)) {
@@ -718,6 +718,12 @@ router.post('/secureupload', hasFeatureAccess, async (req, res) => {
         return res.status(400).json({ error: 'File already exists. Please use a different file name.' });
       }
       
+      // check ssh connection to server
+      const sshResult = await checkSSHReadAccess(server, sshUser, filePath);
+      if (!sshResult.success) {
+        return res.status(404).json({ stderr: sshResult.stderr, errMsg: sshResult.errMsg });
+      }
+
       const [result] = await connection.query<ResultSetHeader>(
         'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location, method) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [req.user.name, req.user.role, fileName, 'unknown', 'pending', filePath, server]
@@ -726,10 +732,6 @@ router.post('/secureupload', hasFeatureAccess, async (req, res) => {
       if(!result){
         return res.status(500).json({ error: 'Failed to add entry to upload_details table' });
       }
-      
-      console.log('result : ', result);
-      
-      
       
       const jobData: SecureCopyUploadJob = {
         type: type,
@@ -740,6 +742,7 @@ router.post('/secureupload', hasFeatureAccess, async (req, res) => {
         groupName: req.user.role,
         filePath: filePath,
         server: server,
+        sshUser: sshUser,
         isAdmin: req.user.role === 'admin',
         requestedAt: Date.now()
       };
@@ -781,59 +784,61 @@ router.post('/securedownload', hasFeatureAccess, async (req, res) => {
   
   const connection = await mysqlPool.getConnection();
   
-  try{
-    // add a entry in download_requests table if type is download
-    if(req.body.type === 'download'){
-      const {fileId, server, filePath } = req.body;
+  try {
+    if(req.body.type === 'download') {
+      const {fileId, server, sshUser, filePath, fileName } = req.body;
       
-      if (!server || !filePath) {
-        return res.status(400).json({ error: 'Server and file path are required' });
+      if (!server || !filePath || !sshUser) {
+        return res.status(400).json({ error: 'Server, file path and ssh user are required' });
       }
-      
+
       if (!isValidRole(req.user.role)) {
         return res.status(403).json({ error: 'Invalid role' });
       }
       
+      // check ssh connection to server
+      const sshResult = await checkSSHReadAccess(server, sshUser, filePath);
+      if (!sshResult.success) {
+        return res.status(404).json({ stderr: sshResult.stderr, errMsg: sshResult.errMsg });
+      }
+
       const [result] = await connection.query<ResultSetHeader>(
         'INSERT INTO download_requests (file_id, user_name, group_name, status, served_from, served_to, served_to_location, requested_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
         [fileId, req.user.name, req.user.role, 'requested', 'cache', server, filePath]
       );
       
-      console.log('Request body:', req.body);
-      
       const jobData: SecureCopyDownloadJob = {
         type: 'download',
         downloadRequestId: result.insertId,
         fileId: fileId,
-        fileName: req.body.fileName,
+        fileName: fileName,
         userName: req.user.name,
         userEmail: req.user.email,
         groupName: req.user.role,
         filePath: filePath,
         server: server,
+        sshUser: sshUser,
         isAdmin: req.user.role === 'admin',
         requestedAt: Date.now()
       };
       
-      console.log('Secure Copy jobData:', jobData);
+      console.log('Adding Secure Copy download job:', jobData);
       
       const job = await secureCopyQueue.add('SecureCopy', jobData, {
         priority: getPriority(req.user.role),
         jobId: `secureCopy-download-${result.insertId}`
       });
       
-      console.log('Job added successfully with ID:', job.id);
+      console.log('Secure Copy download job added successfully with ID:', job.id);
       
-      res.json({ success: true, message: 'Secure download request submitted successfully' });
-    }
-    else {
+      res.status(200).json({ success: true, message: 'Secure download request submitted successfully' });
+    } else {
       throw new Error('Invalid request type');
     }
-  }
-  catch(error){
-    console.error('Error adding entry to download_requests table:', error);
-    res.status(500).json({ error: 'Failed to add entry to download_requests table' });
-  }finally{
+  } catch(error) {
+    console.error('Error processing secure download request:', error);
+    res.status(500).json({ error: 'Failed to process secure download request' });
+  } finally {
     connection.release();
   }
 });

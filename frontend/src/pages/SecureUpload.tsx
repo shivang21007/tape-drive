@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import {toast, ToastContainer } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 
 interface Server {
@@ -13,6 +13,10 @@ const SecureUpload: React.FC = () => {
   const navigate = useNavigate();
   const [servers, setServers] = useState<Server[]>([]);
   const [selectedServer, setSelectedServer] = useState('');
+  const [selectedUsername, setSelectedUsername] = useState('');
+  const [showOtherUsername, setShowOtherUsername] = useState(false);
+  const [otherUsernameInput, setOtherUsernameInput] = useState('');
+  const [usernameDropdownValue, setUsernameDropdownValue] = useState('');
   const [filePath, setFilePath] = useState('');
   const [error, setError] = useState('');
   const [pathError, setPathError] = useState('');
@@ -24,7 +28,7 @@ const SecureUpload: React.FC = () => {
       setError('');
       try {
         const response = await axios.get('/api/serverinfo');
-        
+
         if (Array.isArray(response.data)) {
           if (response.data.length === 0) {
             setError('Your group has no assigned servers. Please contact the administrator.');
@@ -61,15 +65,15 @@ const SecureUpload: React.FC = () => {
 
   const validatePath = (path: string): boolean => {
     // Check if path contains any special characters or spaces
-    const specialChars = [':', '*', '?', '<', '>', '|', ';', '&','@','%','!','&','#','^'," ",' '];
+    const specialChars = [':', '*', '?', '<', '>', '|', ';', '&', '@', '%', '!', '#', '^', ' '];
     const isValid = !specialChars.some(char => path.includes(char));
-    
+
     if (!isValid) {
       setPathError('Path cannot contain special characters or spaces');
     } else {
       setPathError('');
     }
-    
+
     return isValid;
   };
 
@@ -79,32 +83,84 @@ const SecureUpload: React.FC = () => {
     validatePath(newPath);
   };
 
+  const handleUsernameDropdownChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setUsernameDropdownValue(value);
+    setShowOtherUsername(value === 'other');
+
+    if (value !== 'other') {
+      setSelectedUsername(value);
+      setOtherUsernameInput('');
+    } else {
+      setSelectedUsername(otherUsernameInput); // Initially use current otherUsernameInput
+    }
+  };
+
+  const handleOtherUsernameInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setOtherUsernameInput(value);
+    setSelectedUsername(value);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     const uploadToastId = toast.loading('Starting upload...', {
-      position: "top-right",
+      position: 'top-right',
     });
+
+    // Validate username
+    if (!selectedUsername || selectedUsername.trim() === '') {
+      setError('Please select or enter a valid username');
+      toast.update(uploadToastId, {
+        render: 'Please select or enter a valid username',
+        type: 'error',
+        isLoading: false,
+        autoClose: 3000,
+      });
+      return;
+    }
 
     if (!selectedServer || !filePath) {
       setError('Please fill all fields');
+      toast.update(uploadToastId, {
+        render: 'Please fill all fields',
+        type: 'error',
+        isLoading: false,
+        autoClose: 3000,
+      });
       return;
     }
 
     if (!validatePath(filePath)) {
       setError('Invalid file path');
+      toast.update(uploadToastId, {
+        render: 'Invalid file path',
+        type: 'error',
+        isLoading: false,
+        autoClose: 3000,
+      });
       return;
     }
 
     try {
       const response = await axios.post('/api/secureupload', {
         server: selectedServer,
+        sshUser: selectedUsername.trim(),
         filePath: filePath,
-        type: 'upload'
+        type: 'upload',
       });
       if (response.status === 200) {
-        toast.success('File uploaded successfully')
+        toast.success('File uploaded successfully');
+        // Clear fields ONLY on successful upload
+        setSelectedServer('');
+        setFilePath('');
+        setUsernameDropdownValue('');
+        setOtherUsernameInput('');
+        setSelectedUsername('');
+        setShowOtherUsername(false);
+
         setTimeout(() => {
           navigate('/files');
         }, 3000);
@@ -119,6 +175,14 @@ const SecureUpload: React.FC = () => {
           isLoading: false,
           autoClose: 3000,
         });
+      } else if (axios.isAxiosError(error) && error.response?.status === 404) {
+        setError(error.response.data?.stderr || 'Failed to connect to server. Please check the username and file path.');
+        toast.update(uploadToastId, {
+          render: error.response.data?.errMsg  || 'Failed to connect to server. Please check the username and file path.',
+          type: 'error',
+          isLoading: false,
+          autoClose: 3000,
+        });
       } else {
         setError('Failed to upload file');
         toast.update(uploadToastId, {
@@ -129,23 +193,21 @@ const SecureUpload: React.FC = () => {
         });
       }
     }
-    setSelectedServer('');
-    setFilePath('');
   };
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <ToastContainer 
-      position="top-right"
-      autoClose={3000}
-      hideProgressBar={false}
-      newestOnTop
-      closeOnClick
-      rtl={false}
-      pauseOnFocusLoss
-      draggable
-      pauseOnHover
-       />
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-6">Secure Upload</h1>
@@ -198,6 +260,39 @@ const SecureUpload: React.FC = () => {
               )}
             </div>
 
+            {/* select ssh username */}
+            <div>
+              <label htmlFor="sshUsername" className="block text-sm font-medium text-gray-700 mb-2">
+                SSH Username
+              </label>
+              <div className="flex items-center space-x-2">
+                <select
+                  id="sshUsername"
+                  value={usernameDropdownValue}
+                  onChange={handleUsernameDropdownChange}
+                  className="w-48 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                  required
+                >
+                  <option value="">Select SSH Username</option>
+                  <option value="octro">octro</option>
+                  <option value="hadoop">hadoop</option>
+                  <option value="other">other</option>
+                </select>
+
+                {showOtherUsername && (
+                  <input
+                    type="text"
+                    id="otherUsername"
+                    value={otherUsernameInput}
+                    onChange={handleOtherUsernameInputChange}
+                    className="w-48 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                    placeholder="Enter custom username"
+                    required
+                  />
+                )}
+              </div>
+            </div>
+
             <div>
               <label htmlFor="filePath" className="block text-sm font-medium text-gray-700">
                 Full File Path
@@ -239,4 +334,4 @@ const SecureUpload: React.FC = () => {
   );
 };
 
-export default SecureUpload; 
+export default SecureUpload;
