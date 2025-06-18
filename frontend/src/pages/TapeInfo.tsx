@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
-interface Tape {
+export interface Tape {
   id: number;
   tape_no: string;
+  group_name?: string;
   total_size: string;
   used_size: string;
   available_size: string;

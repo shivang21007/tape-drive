@@ -14,6 +14,8 @@ import octroLogo from '../assets/octro-logo.png';
 import { isAdminRole} from '../utils/roleValidation';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { Tape } from './TapeInfo';
+
 
 interface Server {
   id: number;
@@ -34,7 +36,7 @@ const Admin: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showAddGroup, setShowAddGroup] = useState(false);
   // const [showAddProcess, setShowAddProcess] = useState(false);
-  const [tapes, setTapes] = useState<any[]>([]);
+  const [tapes, setTapes] = useState<Tape[]>([]);
   const [tapesLoading, setTapesLoading] = useState(false);
   const [tapesError, setTapesError] = useState<string | null>(null);
   const [servers, setServers] = useState<Server[]>([]);
@@ -201,7 +203,13 @@ const Admin: React.FC = () => {
         }
         return;
       }
-      setGroups(groups.filter(g => g.id !== group.id));
+      setGroups(prevGroups => {
+        const updatedGroups = prevGroups.filter(g => g.id !== group.id);
+        if (updatedGroups.length === 0) {
+          setActiveTab('users');
+        }
+        return updatedGroups;
+      });
       toast.success('Group deleted successfully');
     } catch (err) {
       toast.error('Failed to delete group');
@@ -367,7 +375,11 @@ const Admin: React.FC = () => {
                   Add Group
                 </button>
               </div>
-              <GroupsTable groups={groups} onDeleteGroup={handleDeleteGroup} />
+              {groups.length === 0 ? (
+                <div className="text-center text-gray-500 py-4">No groups available.</div>
+              ) : (
+                <GroupsTable groups={groups} onDeleteGroup={handleDeleteGroup} />
+              )}
               {showAddGroup && (
                 <AddGroupForm
                   onAddGroup={handleAddGroup}
@@ -396,6 +408,7 @@ const Admin: React.FC = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Used Size</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Available Size</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Usage %</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Tag</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Last Updated</th>
                       </tr>
                     </thead>
@@ -420,6 +433,7 @@ const Admin: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.used_size}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.available_size}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.usage_percentage}%</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.tags || '-'}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(tape.updated_at).toLocaleString()}</td>
                         </tr>
                       ))}
@@ -441,7 +455,6 @@ const Admin: React.FC = () => {
                   <table className="min-w-full divide-y divide-gray-200 bg-white shadow rounded-lg">
                     <thead className="bg-gray-700">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">ID</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Server Name</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Server IP</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Group</th>
@@ -451,7 +464,6 @@ const Admin: React.FC = () => {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {servers.map((server) => (
                         <tr key={server.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{server.id}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{server.server_name}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{server.server_ip}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
