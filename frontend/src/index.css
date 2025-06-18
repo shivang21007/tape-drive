@@ -689,3 +689,26 @@ label {
 .user-delete-btn:hover svg {
   color: #fff !important;
 }
+
+.inline-text-btn {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 2px 2px !important;
+  margin: 0 0 0 2px !important;
+  font-size: 1.2em !important;
+  font-weight: 600 !important;
+  color: inherit;
+  min-width: 0 !important;
+  height: auto !important;
+  line-height: 1 !important;
+  display: inline;
+  vertical-align: middle;
+  cursor: pointer;
+  border-radius: 10px !important;
+  transition: color 0.3s;
+}
+.inline-text-btn:focus {
+  outline: none;
+  box-shadow: none;
+}

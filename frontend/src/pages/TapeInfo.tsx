@@ -11,6 +11,7 @@ interface Tape {
   status: string;
   usage_percentage: number;
   updated_at: string;
+  tags?: string;
 }
 
 interface GroupTapeInfo {
@@ -22,6 +23,7 @@ const TapeInfo: React.FC = () => {
   const [data, setData] = useState<GroupTapeInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingTag, setEditingTag] = useState<{ id: number; value: string } | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,6 +44,35 @@ const TapeInfo: React.FC = () => {
     };
     fetchTapeInfo();
   }, []);
+
+  const handleTagEdit = (tape: Tape) => {
+    setEditingTag({ id: tape.id, value: tape.tags || '' });
+  };
+
+  const handleTagSave = async (tape: Tape) => {
+    if (!editingTag) return;
+
+    try {
+      await axios.put(`/api/tapeinfo/${tape.id}`, { tag: editingTag.value });
+      
+      // Update the local state
+      setData(prevData => prevData.map(group => ({
+        ...group,
+        tapes: group.tapes.map(t => 
+          t.id === tape.id ? { ...t, tags: editingTag.value } : t
+        )
+      })));
+      
+      setEditingTag(null);
+    } catch (err) {
+      console.error('Failed to update tag:', err);
+      setError('Failed to update tag');
+    }
+  };
+
+  const handleTagCancel = () => {
+    setEditingTag(null);
+  };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   if (error) return <div className="min-h-screen flex items-center justify-center text-red-600">{error}</div>;
@@ -72,6 +103,7 @@ const TapeInfo: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Available Size</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Usage %</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Tag</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Last Updated</th>
                   </tr>
                 </thead>
@@ -85,6 +117,45 @@ const TapeInfo: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.available_size}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.usage_percentage}%</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tape.status}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {editingTag?.id === tape.id ? (
+                          <div className="flex items-center space-x-1">
+                            <input
+                              type="text"
+                              value={editingTag.value}
+                              onChange={(e) => setEditingTag({ ...editingTag, value: e.target.value })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleTagSave(tape);
+                                if (e.key === 'Escape') handleTagCancel();
+                              }}
+                              className="border rounded px-1 py-0.5 text-sm w-24"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleTagSave(tape)}
+                              className="inline-text-btn text-green-600 hover:text-green-800"
+                            >
+                              ✓
+                            </button>
+                            <button
+                              onClick={handleTagCancel}
+                              className="inline-text-btn text-red-600 hover:text-red-800"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-1">
+                            <span className="text-sm mr-1">{tape.tags || '-'}</span>
+                            <button
+                              onClick={() => handleTagEdit(tape)}
+                              className="inline-text-btn text-blue-600 hover:text-blue-800"
+                            >
+                              ✎
+                            </button>
+                          </div>
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(tape.updated_at).toLocaleString()}</td>
                     </tr>
                   ))}

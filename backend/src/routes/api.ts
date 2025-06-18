@@ -899,7 +899,9 @@ router.get('/tapeinfo', hasFeatureAccess, async (req, res) => {
       'used_size', used_size,
       'available_size', available_size,
       'usage_percentage', usage_percentage,
-      'updated_at', updated_at
+      'updated_at', updated_at,
+      'status', status,
+      'tags', tags
       )) AS tapes
       FROM tape_info`;
       let params: any[] = [];
@@ -915,7 +917,48 @@ router.get('/tapeinfo', hasFeatureAccess, async (req, res) => {
       res.status(500).json({ error: 'Failed to fetch tape info' });
     }
   });
-  
+
+  // Update tape info
+  router.put('/tapeinfo/:id', hasFeatureAccess, async (req, res) => {
+    const { id } = req.params;
+    const { tag } = req.body;
+    const user = (req as any).user;
+
+    if (!isValidRole(user.role)) {
+      return res.status(403).json({ error: 'Invalid role' });
+    }
+
+    try {
+      // First check if the tape exists and user has access
+      const [tapes] = await mysqlPool.query(
+        'SELECT * FROM tape_info WHERE id = ?',
+        [id]
+      );
+
+      if ((tapes as any[]).length === 0) {
+        return res.status(404).json({ error: 'Tape not found' });
+      }
+
+      const tape = (tapes as any[])[0];
+      
+      // Check if user has access to this tape
+      if (user.role !== 'admin' && tape.group_name !== user.role) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      // Update the tag
+      await mysqlPool.query(
+        'UPDATE tape_info SET tags = ? WHERE id = ?',
+        [tag, id]
+      );
+
+      res.json({ message: 'Tape tag updated successfully' });
+    } catch (error) {
+      console.error('Error updating tape tag:', error);
+      res.status(500).json({ error: 'Failed to update tape tag' });
+    }
+  });
+
   // Delete user (admin only)
   router.delete('/users/:id', isAdmin, async (req, res) => {
     const { id } = req.params;
