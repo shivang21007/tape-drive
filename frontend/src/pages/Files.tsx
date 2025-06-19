@@ -269,10 +269,22 @@ const Files: React.FC = () => {
               Refresh
             </button>
             <button
+              onClick={() => navigate('/')}
+              className="px-2 py-1 text-sm bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+            >
+              Home
+            </button>
+            <button
               onClick={() => navigate('/history')}
               className="px-2 py-1 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
             >
               Download History
+            </button>
+            <button
+              onClick={() => navigate('/tapeinfo')}
+              className="px-2 py-1 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+            >
+              Tape Info
             </button>
             <button
               onClick={handleSort}
@@ -284,12 +296,6 @@ const Files: React.FC = () => {
               ) : (
                 <FaCaretSquareDown className="w-3 h-3" />
               )}
-            </button>
-            <button
-              onClick={() => navigate('/')}
-              className="px-2 py-1 text-sm bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
-            >
-              Home
             </button>
             {/* <SearchBar 
               data={files}

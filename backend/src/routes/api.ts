@@ -671,13 +671,75 @@ router.get('/download-requests/:id/status', hasFeatureAccess, async (req, res) =
 // Get download history
 router.get('/history', hasFeatureAccess, async (req, res) => {
   try {
-    const { group_name } = req.query;
     const user = (req as any).user;
-
     if (!isValidRole(user.role)) {
       return res.status(403).json({ error: 'Invalid role' });
     }
 
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const offset = (page - 1) * limit;
+    const sortOrder = (req.query.sortOrder as string) || 'desc';
+
+    // Filtering
+    const filterFields = ['user_name', 'file_name', 'tape_number', 'description'];
+    const whereConditions: string[] = [];
+    const params: any[] = [];
+
+    // If user is not admin, filter by their group
+    if (user.role !== 'admin') {
+      whereConditions.push('dr.group_name = ?');
+      params.push(user.role);
+    }
+
+    // Special handling for file_name filter
+    let fileIdList: number[] | null = null;
+    if (req.query.file_name) {
+      const [fileRows] = await mysqlPool.query(
+        'SELECT id FROM upload_details WHERE file_name LIKE ?',
+        [`%${req.query.file_name}%`]
+      );
+      fileIdList = (fileRows as any[]).map(row => row.id);
+      if (fileIdList.length === 0) {
+        // No matching files, so return empty result
+        return res.json({ history: [], pagination: { total: 0, page, limit, totalPages: 0 } });
+      }
+      whereConditions.push(`dr.file_id IN (${fileIdList.map(() => '?').join(',')})`);
+      params.push(...fileIdList);
+    }
+
+    // Other filters
+    filterFields.forEach(field => {
+      if (field === 'file_name') return; // already handled
+      const value = req.query[field];
+      if (value) {
+        if (field === 'tape_number') {
+          whereConditions.push('ud.tape_number LIKE ?');
+        } else if (field === 'description') {
+          whereConditions.push('ud.description LIKE ?');
+        } else {
+          whereConditions.push(`dr.${field} LIKE ?`);
+        }
+        params.push(`%${value}%`);
+      }
+    });
+
+    let whereClause = '';
+    if (whereConditions.length > 0) {
+      whereClause = ' WHERE ' + whereConditions.join(' AND ');
+    }
+
+    // Count query
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM download_requests dr
+      JOIN upload_details ud ON dr.file_id = ud.id
+      ${whereClause}
+    `;
+    const [countResult] = await mysqlPool.query(countQuery, params);
+    const totalCount = (countResult as any)[0]?.total || 0;
+
+    // Data query
     let query = `
       SELECT 
         dr.id,
@@ -686,6 +748,8 @@ router.get('/history', hasFeatureAccess, async (req, res) => {
         dr.group_name,
         ud.file_name,
         ud.file_size,
+        ud.tape_number,
+        ud.description,
         dr.status,
         dr.served_from,
         dr.served_to,
@@ -693,20 +757,22 @@ router.get('/history', hasFeatureAccess, async (req, res) => {
         dr.completed_at
       FROM download_requests dr
       JOIN upload_details ud ON dr.file_id = ud.id
+      ${whereClause}
+      ORDER BY dr.requested_at ${sortOrder === 'asc' ? 'ASC' : 'DESC'}
+      LIMIT ? OFFSET ?
     `;
+    const queryParams = [...params, limit, offset];
+    const [rows] = await mysqlPool.query(query, queryParams);
 
-    const params = [];
-
-    // If user is not admin, filter by their group
-    if (user.role !== 'admin') {
-      query += ' WHERE dr.group_name = ?';
-      params.push(user.role);
-    }
-
-    query += ' ORDER BY dr.requested_at DESC';
-
-    const [rows] = await mysqlPool.query(query, params);
-    res.json(rows);
+    res.json({
+      history: rows,
+      pagination: {
+        total: totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    });
   } catch (error) {
     console.error('Error fetching history:', error);
     res.status(500).json({ error: 'Failed to fetch history' });
