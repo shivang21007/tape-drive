@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import axios from 'axios';
 import { ToastContainer } from 'react-toastify';
 import { FileDownload } from '../components/FileDownload';
-import SearchBar from '../components/SearchBar';
-import { FaCaretSquareUp, FaCaretSquareDown } from "react-icons/fa";
+import { FaCaretSquareUp, FaCaretSquareDown, FaTimes } from "react-icons/fa";
+import debounce from 'lodash/debounce';
 
 interface FileData {
   id: number;
@@ -22,97 +22,180 @@ interface FileData {
   description?: string;
 }
 
+interface PaginationData {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+interface FilterCriteria {
+  field: 'user_name' | 'file_name' | 'tape_number' | 'description';
+  value: string;
+}
+
+interface FilterOption {
+  label: string;
+  value: FilterCriteria['field'];
+}
+
+const filterOptions: FilterOption[] = [
+  { label: 'Username', value: 'user_name' },
+  { label: 'Filename', value: 'file_name' },
+  { label: 'Tape Number', value: 'tape_number' },
+  { label: 'Description', value: 'description' }
+];
+
 const Files: React.FC = () => {
   const [files, setFiles] = useState<FileData[]>([]);
-  const [filteredFiles, setFilteredFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingDescription, setEditingDescription] = useState<{ id: number; value: string } | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [currentPage, setCurrentPage] = useState(1);
-  const entriesPerPage = 20;
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [filters, setFilters] = useState<FilterCriteria[]>([]);
+  const [selectedFilterField, setSelectedFilterField] = useState<FilterCriteria['field']>('file_name');
+  const [pagination, setPagination] = useState<PaginationData>({
+    total: 0,
+    page: 1,
+    limit: 20,
+    totalPages: 0
+  });
 
+  // Convert filters to URL parameters
+  const updateUrlParams = useCallback((newFilters: FilterCriteria[]) => {
+    const params = new URLSearchParams(searchParams);
+    
+    // Clear existing filter params
+    filterOptions.forEach(option => {
+      params.delete(option.value);
+    });
+    
+    // Add new filter params
+    newFilters.forEach(filter => {
+      params.append(filter.field, filter.value);
+    });
+    
+    setSearchParams(params);
+  }, [setSearchParams, searchParams]);
+
+  // Initialize filters from URL params
   useEffect(() => {
-    const fetchFiles = async () => {
-      try {
-        const response = await axios.get('/api/files', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-
-        if (response.data) {
-          setFiles(response.data);
-        }
-      } catch (error) {
-        toast.error('Error fetching files');
-        console.error('Error:', error);
-      } finally {
-        setLoading(false);
+    const params = new URLSearchParams(location.search);
+    const initialFilters: FilterCriteria[] = [];
+    
+    filterOptions.forEach(option => {
+      const value = params.get(option.value);
+      if (value) {
+        initialFilters.push({ field: option.value, value });
       }
-    };
+    });
+    
+    setFilters(initialFilters);
+  }, [location.search]);
 
-    fetchFiles();
-  }, []);
-
-  const handleRefresh = async () => {
+  const fetchFiles = useCallback(async (page: number, currentFilters: FilterCriteria[]) => {
     try {
-      const response = await axios.get('/api/files', {
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '20',
+        sortOrder
+      });
+
+      // Add filters to params
+      currentFilters.forEach(filter => {
+        params.append(`${filter.field}`, filter.value);
+      });
+
+      const response = await axios.get(`/api/files?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
 
       if (response.data) {
-        setFiles(response.data);
-        toast.success('Files refreshed');
+        setFiles(response.data.files);
+        setPagination(response.data.pagination);
       }
+    } catch (error) {
+      toast.error('Error fetching files');
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [sortOrder]);
+
+  // Debounced fetch function
+  const debouncedFetch = useCallback(
+    debounce((page: number, filters: FilterCriteria[]) => {
+      fetchFiles(page, filters);
+    }, 600),
+    [fetchFiles]
+  );
+
+  useEffect(() => {
+    debouncedFetch(currentPage, filters);
+    return () => {
+      debouncedFetch.cancel();
+    };
+  }, [currentPage, sortOrder, filters, debouncedFetch]);
+
+  const handleFilterChange = (value: string) => {
+    const newFilter: FilterCriteria = {
+      field: selectedFilterField,
+      value
+    };
+    
+    // Check if filter for this field already exists
+    const existingFilterIndex = filters.findIndex(f => f.field === selectedFilterField);
+    
+    let newFilters: FilterCriteria[];
+    if (existingFilterIndex >= 0) {
+      // Update existing filter
+      newFilters = filters.map((f, index) => 
+        index === existingFilterIndex ? newFilter : f
+      );
+    } else {
+      // Add new filter
+      newFilters = [...filters, newFilter];
+    }
+    
+    setFilters(newFilters);
+    updateUrlParams(newFilters);
+    setCurrentPage(1);
+  };
+
+  const removeFilter = (field: FilterCriteria['field']) => {
+    const newFilters = filters.filter(f => f.field !== field);
+    setFilters(newFilters);
+    updateUrlParams(newFilters);
+    setCurrentPage(1);
+  };
+
+  const clearAllFilters = () => {
+    setFilters([]);
+    updateUrlParams([]);
+    setCurrentPage(1);
+  };
+
+  const handleRefresh = async () => {
+    try {
+      await fetchFiles(currentPage, filters);
+      toast.success('Files refreshed');
     } catch (error) {
       toast.error('Error refreshing files');
       console.error('Error:', error);
     }
   };
 
-  const handleSearch = (query: string) => {
-    if (!query.trim()) {
-      setFilteredFiles(files);
-      setCurrentPage(1);
-      return;
-    }
-    const filtered = files.filter(file => 
-      file.file_name.toLowerCase().includes(query.toLowerCase())
-    );
-    setFilteredFiles(filtered);
-    setCurrentPage(1);
-  };
-
-  const handleSelect = (selectedFile: string) => {
-    const filtered = files.filter(file => 
-      file.file_name.toLowerCase().includes(selectedFile.toLowerCase())
-    );
-    setFilteredFiles(filtered);
-  };
-
-  useEffect(() => {
-    setFilteredFiles(files);
-  }, [files]);
-
-  const indexOfLastEntry = currentPage * entriesPerPage;
-  const indexOfFirstEntry = indexOfLastEntry - entriesPerPage;
-  const totalPages = Math.ceil(filteredFiles.length / entriesPerPage);
+  
 
   const handleSort = () => {
-    setSortOrder(prev => {
-      return prev === 'asc' ? 'desc' : 'asc';
-    });
-  };
-
-  const getSortedFiles = () => {
-    return [...filteredFiles].sort((a, b) => {
-      const dateA = new Date(a.created_at).getTime();
-      const dateB = new Date(b.created_at).getTime();
-      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
-    });
+    const newSortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+    setSortOrder(newSortOrder);
   };
 
   const handleDescriptionEdit = (file: FileData) => {
@@ -137,11 +220,6 @@ const Files: React.FC = () => {
           f.id === file.id ? { ...f, description: editingDescription.value } : f
         );
       setFiles(updatedFiles);
-      setFilteredFiles(prevFiles => 
-        prevFiles.map(f => 
-          f.id === file.id ? { ...f, description: editingDescription.value } : f
-          )
-        );
         
         setEditingDescription(null);
         toast.success('Description updated successfully');
@@ -158,7 +236,7 @@ const Files: React.FC = () => {
     setEditingDescription(null);
   };
 
-  if (loading) {
+  if (loading && files.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -213,12 +291,64 @@ const Files: React.FC = () => {
             >
               Home
             </button>
-            <SearchBar 
+            {/* <SearchBar 
               data={files}
               onSearch={handleSearch}
               onSelect={handleSelect}
+            /> */}
+          </div>
+        </div>
+
+        {/* Filter Section */}
+        <div className="mb-6 bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center space-x-4 mb-4">
+            <select
+              value={selectedFilterField}
+              onChange={(e) => setSelectedFilterField(e.target.value as FilterCriteria['field'])}
+              className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            >
+              {filterOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <input
+              type="text"
+              placeholder="Enter filter value..."
+              value={filters.find(f => f.field === selectedFilterField)?.value || ''}
+              onChange={(e) => handleFilterChange(e.target.value)}
+              className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
+
+          {/* Active Filters */}
+          {filters.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {filters.map(filter => (
+                <div
+                  key={filter.field}
+                  className="flex items-center bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs"
+                >
+                  <span className="mr-1">{filterOptions.find(o => o.value === filter.field)?.label}: {filter.value}</span>
+                  <button
+                    onClick={() => removeFilter(filter.field)}
+                    className="inline-text-btn text-blue-600 hover:text-blue-800 p-0 m-0 h-4 w-4 flex items-center justify-center"
+                    style={{ lineHeight: 1, minWidth: 'unset', minHeight: 'unset' }}
+                    tabIndex={-1}
+                  >
+                    <FaTimes className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={clearAllFilters}
+                className="text-xs text-red-600 hover:text-red-800 ml-1 px-1 py-0.5 border border-red-200 rounded"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
@@ -265,7 +395,7 @@ const Files: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {getSortedFiles().slice(indexOfFirstEntry, indexOfLastEntry).map((file) => (
+                {files.map((file) => (
                   <tr key={file.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {file.id}
@@ -340,7 +470,7 @@ const Files: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {file.tape_number ? file.tape_number.replace('0000','') : 'N/A'}
+                      {file.tape_number}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {file.iscached ? 'Yes' : 'No'}
@@ -369,8 +499,8 @@ const Files: React.FC = () => {
                 Previous
               </button>
               <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, pagination.totalPages))}
+                disabled={currentPage === pagination.totalPages}
                 className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
               >
                 Next
@@ -379,9 +509,9 @@ const Files: React.FC = () => {
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-700">
-                  Showing <span className="font-medium">{indexOfFirstEntry + 1}</span> to{' '}
-                  <span className="font-medium">{Math.min(indexOfLastEntry, filteredFiles.length)}</span>{' '}
-                  of <span className="font-medium">{filteredFiles.length}</span> results
+                  Showing <span className="font-medium">{((currentPage - 1) * pagination.limit) + 1}</span> to{' '}
+                  <span className="font-medium">{Math.min(currentPage * pagination.limit, pagination.total)}</span>{' '}
+                  of <span className="font-medium">{pagination.total}</span> results
                 </p>
               </div>
               <div>
@@ -393,7 +523,7 @@ const Files: React.FC = () => {
                   >
                     Previous
                   </button>
-                  {[...Array(totalPages)].map((_, index) => (
+                  {[...Array(pagination.totalPages)].map((_, index) => (
                     <button
                       key={index + 1}
                       onClick={() => setCurrentPage(index + 1)}
@@ -407,8 +537,8 @@ const Files: React.FC = () => {
                     </button>
                   ))}
                   <button
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, pagination.totalPages))}
+                    disabled={currentPage === pagination.totalPages}
                     className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                   >
                     Next

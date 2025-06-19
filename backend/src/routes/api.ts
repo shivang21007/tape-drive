@@ -405,18 +405,63 @@ router.get('/files', hasFeatureAccess, async (req, res) => {
   }
 
   try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const offset = (page - 1) * limit;
+    const sortOrder = (req.query.sortOrder as string) || 'desc';
+
+    // Build the base query
+    let countQuery = 'SELECT COUNT(*) as total FROM upload_details';
     let query = 'SELECT * FROM upload_details';
     const params: any[] = [];
+    const whereConditions: string[] = [];
 
-    
+    // Add role-based filtering
     if (!isAdminRole(user.role)) {
-      query += ' WHERE group_name = ?';
+      whereConditions.push('group_name = ?');
       params.push(user.role);
-      query += ' ORDER BY created_at DESC';
     }
 
-    const [files] = await mysqlPool.query(query, params);
-    res.json(files);
+    // Handle multiple filter criteria
+    const filterFields = ['user_name', 'file_name', 'tape_number', 'description'];
+    filterFields.forEach(field => {
+      const value = req.query[field];
+      if (value) {
+        whereConditions.push(`${field} LIKE ?`);
+        params.push(`%${value}%`);
+      }
+    });
+
+    // Combine where conditions
+    if (whereConditions.length > 0) {
+      const whereClause = ' WHERE ' + whereConditions.join(' AND ');
+      query += whereClause;
+      countQuery += whereClause;
+    }
+
+    // Add sorting
+    query += ` ORDER BY created_at ${sortOrder === 'asc' ? 'ASC' : 'DESC'}`;
+
+    // Add pagination
+    query += ' LIMIT ? OFFSET ?';
+    const queryParams = [...params, limit, offset];
+
+    // Get total count for pagination
+    const [countResult] = await mysqlPool.query(countQuery, params);
+    const totalCount = (countResult as any)[0].total;
+
+    // Get paginated data
+    const [files] = await mysqlPool.query(query, queryParams);
+
+    res.json({
+      files,
+      pagination: {
+        total: totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    });
   } catch (error) {
     console.error('Error fetching files:', error);
     res.status(500).json({ error: 'Failed to fetch files' });
