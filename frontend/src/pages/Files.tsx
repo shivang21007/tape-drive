@@ -412,51 +412,53 @@ const Files: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {file.group_name || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
                       <div className="break-words max-w-xs">
                         {file.file_name || 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
-                      {editingDescription?.id === file.id ? (
-                        <div className="flex items-center space-x-1">
-                          <input
-                            type="text"
-                            value={editingDescription.value}
-                            onChange={(e) => setEditingDescription({ ...editingDescription, value: e.target.value })}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleDescriptionSave(file);
-                              if (e.key === 'Escape') handleDescriptionCancel();
-                            }}
-                            className="border rounded px-1 py-0.5 text-sm w-full"
-                            autoFocus
-                          />
-                          <button
-                            onClick={() => handleDescriptionSave(file)}
-                            className="inline-text-btn text-green-600 hover:text-green-800"
-                          >
-                            ✓
-                          </button>
-                          <button
-                            onClick={handleDescriptionCancel}
-                            className="inline-text-btn text-red-600 hover:text-red-800"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center space-x-1">
-                          <div className="break-words flex-grow">
-                            {file.description || '-'}
+                      <div className="break-words max-w-xs">
+                        {editingDescription?.id === file.id ? (
+                          <div className="flex items-center space-x-1">
+                            <input
+                              type="text"
+                              value={editingDescription.value}
+                              onChange={(e) => setEditingDescription({ ...editingDescription, value: e.target.value })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleDescriptionSave(file);
+                                if (e.key === 'Escape') handleDescriptionCancel();
+                              }}
+                              className="border rounded px-1 py-0.5 text-sm w-full"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleDescriptionSave(file)}
+                              className="inline-text-btn text-green-600 hover:text-green-800"
+                            >
+                              ✓
+                            </button>
+                            <button
+                              onClick={handleDescriptionCancel}
+                              className="inline-text-btn text-red-600 hover:text-red-800"
+                            >
+                              ✕
+                            </button>
                           </div>
-                          <button
-                            onClick={() => handleDescriptionEdit(file)}
-                            className="inline-text-btn text-blue-600 hover:text-blue-800"
-                          >
-                            ✎
-                          </button>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="flex items-center space-x-1">
+                            <div className="break-words max-w-xs flex-grow">
+                              {file.description || '-'}
+                            </div>
+                            <button
+                              onClick={() => handleDescriptionEdit(file)}
+                              className="inline-text-btn text-blue-600 hover:text-blue-800"
+                            >
+                              ✎
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {file.file_size || '0 B'}
