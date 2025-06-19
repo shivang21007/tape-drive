@@ -339,8 +339,23 @@ button:active {
 
 /* Admin page specific styles */
 .table-custome-width {
-  margin-top: 2rem;
-  margin-left: 2rem;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+@media (min-width: 640px) {
+  .table-custome-width {
+    padding: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .table-custome-width {
+    max-width: 90%;
+    padding: 2rem;
+  }
 }
 
 /* Header Content Layout */

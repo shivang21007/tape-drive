@@ -362,40 +362,40 @@ const Files: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-700">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-16">
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     ID
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-32">
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Username
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-32">
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Group
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-48">
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Filename
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-48">
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Description
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-32">
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Size
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-32">
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Method
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-40">
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Upload Date
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-32">
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Status
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-24">
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Tape No.
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-20">
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Cached
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-32">
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -403,22 +403,22 @@ const Files: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {files.map((file) => (
                   <tr key={file.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-4 text-sm text-gray-900">
                       {file.id}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-4 text-sm text-gray-900">
                       {file.user_name || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-4 text-sm text-gray-900">
                       {file.group_name || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
-                      <div className="break-words max-w-xs">
+                    <td className="px-4 py-4 text-sm text-gray-900">
+                      <div className="break-words max-w-[200px] lg:max-w-xs">
                         {file.file_name || 'N/A'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
-                      <div className="break-words max-w-xs">
+                    <td className="px-4 py-4 text-sm text-gray-900">
+                      <div className="break-words max-w-[200px] lg:max-w-xs">
                         {editingDescription?.id === file.id ? (
                           <div className="flex items-center space-x-1">
                             <input
@@ -447,7 +447,7 @@ const Files: React.FC = () => {
                           </div>
                         ) : (
                           <div className="flex items-center space-x-1">
-                            <div className="break-words max-w-xs flex-grow">
+                            <div className="break-words flex-grow">
                               {file.description || '-'}
                             </div>
                             <button
@@ -460,16 +460,16 @@ const Files: React.FC = () => {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-4 text-sm text-gray-900">
                       {file.file_size || '0 B'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-4 text-sm text-gray-900">
                       {file.method || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-4 text-sm text-gray-900">
                       {new Date(file.created_at).toLocaleString() || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-4 py-4 text-sm">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                         ${file.status === 'completed' ? 'bg-green-100 text-green-800' : 
                           file.status === 'failed' ? 'bg-red-100 text-red-800' : 
@@ -477,13 +477,13 @@ const Files: React.FC = () => {
                         {file.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-4 text-sm text-gray-900">
                       {file.tape_number}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-4 text-sm text-gray-900">
                       {file.iscached ? 'Yes' : 'No'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-4 text-sm text-gray-900">
                       <FileDownload 
                         fileId={file.id}
                         fileName={file.file_name}
