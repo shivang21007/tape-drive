@@ -423,6 +423,34 @@ router.get('/files', hasFeatureAccess, async (req, res) => {
   }
 });
 
+// edit file description 
+router.put('/files/:id/description', async (req: express.Request, res: express.Response) => {
+  try {
+    const { id } = req.params;
+    const { description } = req.body;
+
+    const [result] = await mysqlPool.query(
+      'UPDATE upload_details SET description = ? WHERE id = ?',
+      [description, id]
+    );
+
+    if ((result as any).affectedRows === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Fetch the updated record
+    const [rows] = await mysqlPool.query(
+      'SELECT * FROM upload_details WHERE id = ?',
+      [id]
+    );
+
+    res.json((rows as any)[0]);
+  } catch (error) {
+    console.error('Error updating file description:', error);
+    res.status(500).json({ error: 'Failed to update description' });
+  }
+});
+
 // File download request endpoint
 router.get('/files/:id/download', hasFeatureAccess, async (req, res) => {
   if (!req.user) {

@@ -26,6 +26,7 @@ const Files: React.FC = () => {
   const [files, setFiles] = useState<FileData[]>([]);
   const [filteredFiles, setFilteredFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingDescription, setEditingDescription] = useState<{ id: number; value: string } | null>(null);
   const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
   const entriesPerPage = 20;
@@ -114,6 +115,49 @@ const Files: React.FC = () => {
     });
   };
 
+  const handleDescriptionEdit = (file: FileData) => {
+    setEditingDescription({ id: file.id, value: file.description || '' });
+  };
+
+  const handleDescriptionSave = async (file: FileData) => {
+    if (!editingDescription) return;
+
+    try {
+      const response = await axios.put(`/api/files/${file.id}/description`, {
+        description: editingDescription.value
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if(response.status === 200){  
+        // Update the local state
+        const updatedFiles = files.map(f => 
+          f.id === file.id ? { ...f, description: editingDescription.value } : f
+        );
+      setFiles(updatedFiles);
+      setFilteredFiles(prevFiles => 
+        prevFiles.map(f => 
+          f.id === file.id ? { ...f, description: editingDescription.value } : f
+          )
+        );
+        
+        setEditingDescription(null);
+        toast.success('Description updated successfully');
+      } else {
+        toast.error('Failed to update description');
+      }
+    } catch (err) {
+      console.error('Failed to update description:', err);
+      toast.error('Failed to update description');
+    }
+  };
+
+  const handleDescriptionCancel = () => {
+    setEditingDescription(null);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -136,36 +180,36 @@ const Files: React.FC = () => {
         pauseOnHover
         theme="light"
       />
-      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <div className="table-custome-width mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Files</h1>
           <div className="flex items-center space-x-4">
             <button
               onClick={handleRefresh}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+              className="px-2 py-1 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
             >
               Refresh
             </button>
             <button
               onClick={() => navigate('/history')}
-              className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+              className="px-2 py-1 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
             >
               Download History
             </button>
             <button
               onClick={handleSort}
-              className="px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors flex items-center space-x-2"
+              className="px-2 py-1 text-sm bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors flex items-center space-x-2"
             >
               <span>{sortOrder === 'asc' ? 'Recent' : 'Oldest'} </span>
               {sortOrder === 'asc' ? (
-                <FaCaretSquareUp className="w-4 h-4" />
+                <FaCaretSquareUp className="w-3 h-3" />
               ) : (
-                <FaCaretSquareDown className="w-4 h-4" />
+                <FaCaretSquareDown className="w-3 h-3" />
               )}
             </button>
             <button
               onClick={() => navigate('/')}
-              className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+              className="px-2 py-1 text-sm bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
             >
               Home
             </button>
@@ -194,6 +238,9 @@ const Files: React.FC = () => {
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-48">
                     Filename
                   </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-48">
+                    Description
+                  </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-32">
                     Size
                   </th>
@@ -211,9 +258,6 @@ const Files: React.FC = () => {
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-20">
                     Cached
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-48">
-                    Description
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-32">
                     Actions
@@ -233,7 +277,50 @@ const Files: React.FC = () => {
                       {file.group_name || 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {file.file_name || 'N/A'}
+                      <div className="break-words max-w-xs">
+                        {file.file_name || 'N/A'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
+                      {editingDescription?.id === file.id ? (
+                        <div className="flex items-center space-x-1">
+                          <input
+                            type="text"
+                            value={editingDescription.value}
+                            onChange={(e) => setEditingDescription({ ...editingDescription, value: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleDescriptionSave(file);
+                              if (e.key === 'Escape') handleDescriptionCancel();
+                            }}
+                            className="border rounded px-1 py-0.5 text-sm w-full"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => handleDescriptionSave(file)}
+                            className="inline-text-btn text-green-600 hover:text-green-800"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            onClick={handleDescriptionCancel}
+                            className="inline-text-btn text-red-600 hover:text-red-800"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-1">
+                          <div className="break-words flex-grow">
+                            {file.description || '-'}
+                          </div>
+                          <button
+                            onClick={() => handleDescriptionEdit(file)}
+                            className="inline-text-btn text-blue-600 hover:text-blue-800"
+                          >
+                            ✎
+                          </button>
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {file.file_size || '0 B'}
@@ -257,11 +344,6 @@ const Files: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {file.iscached ? 'Yes' : 'No'}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
-                      <div className="break-words">
-                        {file.description || '-'}
-                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <FileDownload 

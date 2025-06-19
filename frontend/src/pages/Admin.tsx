@@ -266,7 +266,7 @@ const Admin: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 p-8">
-        <div className="max-w-7xl mx-auto">
+        <div className="table-custome-width mx-auto">
           <div className="text-center">Loading...</div>
         </div>
       </div>
@@ -276,7 +276,7 @@ const Admin: React.FC = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-100 p-8">
-        <div className="max-w-7xl mx-auto">
+        <div className="table-custome-width mx-auto">
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
             <span className="block sm:inline">{error}</span>
           </div>
@@ -310,7 +310,7 @@ const Admin: React.FC = () => {
       </header>
 
       <main className="flex-1 bg-gray-50">
-        <div className="max-w-7xl mx-auto">
+        <div className="table-custome-width mx-auto">
           <div className="flex space-x-8 mb-8">
             <button
               onClick={() => setActiveTab("users")}
