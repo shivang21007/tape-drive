@@ -18,6 +18,7 @@ const SecureUpload: React.FC = () => {
   const [otherUsernameInput, setOtherUsernameInput] = useState('');
   const [usernameDropdownValue, setUsernameDropdownValue] = useState('');
   const [filePath, setFilePath] = useState('');
+  const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const [pathError, setPathError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -149,6 +150,7 @@ const SecureUpload: React.FC = () => {
         server: selectedServer,
         sshUser: selectedUsername.trim(),
         filePath: filePath,
+        description: description,
         type: 'upload',
       });
       if (response.status === 200) {
@@ -156,6 +158,7 @@ const SecureUpload: React.FC = () => {
         // Clear fields ONLY on successful upload
         setSelectedServer('');
         setFilePath('');
+        setDescription('');
         setUsernameDropdownValue('');
         setOtherUsernameInput('');
         setSelectedUsername('');
@@ -311,6 +314,20 @@ const SecureUpload: React.FC = () => {
               {pathError && (
                 <p className="mt-1 text-sm text-red-600">{pathError}</p>
               )}
+            </div>
+
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                Description (Optional)
+              </label>
+              <textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                placeholder="Enter a description for this upload (optional)"
+                rows={3}
+              />
             </div>
 
             {error && (

@@ -700,7 +700,7 @@ router.post('/secureupload', hasFeatureAccess, async (req, res) => {
   try {
     // add a entry in upload_details table if type is upload
     if(req.body.type === 'upload'){ 
-      const { server, sshUser, filePath } = req.body;
+      const { server, sshUser, filePath, description } = req.body;
       const fileName = filePath.split('/').pop();
       const type = 'upload';
       
@@ -725,8 +725,8 @@ router.post('/secureupload', hasFeatureAccess, async (req, res) => {
       }
 
       const [result] = await connection.query<ResultSetHeader>(
-        'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location, method) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [req.user.name, req.user.role, fileName, 'unknown', 'pending', filePath, server]
+        'INSERT INTO upload_details (user_name, group_name, file_name, file_size, status, local_file_location, method, description ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [req.user.name, req.user.role, fileName, 'unknown', 'pending', filePath, server, description]
       );
       
       if(!result){
