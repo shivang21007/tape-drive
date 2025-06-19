@@ -11,7 +11,6 @@ interface HistoryItem {
   id: number;
   file_id: number;
   user_name: string;
-  group_name: string;
   file_name: string;
   file_size: string;
   tape_number: string;
@@ -118,7 +117,7 @@ const History: React.FC = () => {
   const debouncedFetch = useCallback(
     debounce((page: number, filters: FilterCriteria[]) => {
       fetchHistory(page, filters);
-    }, 600),
+    }, 500),
     [fetchHistory]
   );
 
@@ -217,7 +216,7 @@ const History: React.FC = () => {
               onClick={() => navigate('/files')}
               className="px-2 py-1 text-sm bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
             >
-              Files
+              Upload History
             </button>
             <button
               onClick={handleSort}
@@ -289,43 +288,40 @@ const History: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-700">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
                   ID
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
                   File ID
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Username
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Group
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Filename
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Description
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Tape No.
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Size
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Status
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Served From
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Served To
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Requested At
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Completed At
                 </th>
               </tr>
@@ -333,31 +329,34 @@ const History: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {history.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-3 py-2 text-sm text-gray-900">
                     {item.id}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-3 py-2 text-sm text-gray-900">
                     {item.file_id}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {item.user_name}
+                  <td className="px-3 py-2 text-sm text-gray-900">
+                    <div className="break-words max-w-[120px]">
+                      {item.user_name}
+                    </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {item.group_name}
+                  <td className="px-3 py-2 text-sm text-gray-900">
+                    <div className="break-words max-w-[200px]">
+                      {item.file_name}
+                    </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {item.file_name}
+                  <td className="px-3 py-2 text-sm text-gray-900">
+                    <div className="break-words max-w-[200px]">
+                      {item.description || '-'}
+                    </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {item.description || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-3 py-2 text-sm text-gray-900">
                     {item.tape_number || '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-3 py-2 text-sm text-gray-900">
                     {item.file_size}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-3 py-2 text-sm">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                       ${item.status === 'completed' ? 'bg-green-100 text-green-800' : 
                         item.status === 'failed' ? 'bg-red-100 text-red-800' : 
@@ -366,17 +365,21 @@ const History: React.FC = () => {
                       {item.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-3 py-2 text-sm text-gray-900">
                     {item.served_from ? item.served_from : '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-3 py-2 text-sm text-gray-900">
                     {item.served_to ? item.served_to : '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(item.requested_at).toLocaleString()}
+                  <td className="px-3 py-2 text-sm text-gray-900">
+                    <div className="break-words max-w-[150px]">
+                      {new Date(item.requested_at).toLocaleString()}
+                    </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {item.completed_at ? new Date(item.completed_at).toLocaleString() : '-'}
+                  <td className="px-3 py-2 text-sm text-gray-900">
+                    <div className="break-words max-w-[150px]">
+                      {item.completed_at ? new Date(item.completed_at).toLocaleString() : '-'}
+                    </div>
                   </td>
                 </tr>
               ))}
