@@ -16,18 +16,6 @@ services:
     networks:
       - tapex-network
 
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    ports:
-      - "8081:80"
-    environment:
-      PMA_HOST: mysql
-      PMA_USER: root
-      PMA_PASSWORD: admin@123
-    depends_on:
-      - mysql
-    networks:
-      - tapex-network
 
   redis:
     image: redis:latest
