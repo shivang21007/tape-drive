@@ -227,8 +227,10 @@ export async function processTapeUpload(job: FileProcessingJob) {
     await databaseService.updateUploadStatus(
       fileId,
       'completed',
-      tapePath,
-      currentTape
+      undefined, // localFilePath
+      undefined, // fileSize
+      tapePath,  // tapeLocation
+      currentTape // tapeNumber
     );
 
     // 7. After successful upload to tape, update tape info
