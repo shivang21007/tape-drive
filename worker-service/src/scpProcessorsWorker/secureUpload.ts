@@ -176,8 +176,8 @@ export async function processSecureUpload(jobData: SecureCopyUploadJob, helpers:
                         requestedAt: Date.now(),
                         errorMessage: 'Authentication failed. Please ensure SSH keys are properly configured.'
                     });
-                    return { 
-                        success: false, 
+                    return {
+                        success: false,
                         message: 'Authentication failed for SCP transfer',
                         error: errorMessage
                     };
@@ -191,8 +191,8 @@ export async function processSecureUpload(jobData: SecureCopyUploadJob, helpers:
                         requestedAt: Date.now(),
                         errorMessage: 'File not found or not accessible.'
                     });
-                    return { 
-                        success: false, 
+                    return {
+                        success: false,
                         message: 'File not found or not accessible',
                         error: errorMessage
                     };
@@ -212,24 +212,33 @@ export async function processSecureUpload(jobData: SecureCopyUploadJob, helpers:
                 };
             }
         }
-        // Verify the file
+        // Verify the file and calculate size
         try {
             const stats = await fs.stat(targetPath);
-            const fileSize = stats.size;
+            const isDirectory = stats.isDirectory();
+
             let formattedSize: string;
-            if (fileSize < 1024) {
-                formattedSize = `${fileSize} B`;
-            } else if (fileSize < 1024 * 1024) {
-                formattedSize = `${(fileSize / 1024).toFixed(2)} KB`;
-            } else if (fileSize < 1024 * 1024 * 1024) {
-                formattedSize = `${(fileSize / (1024 * 1024)).toFixed(2)} MB`;
+            if (isDirectory) {
+                // For directories, use du command for accurate size
+                formattedSize = await getDirectorySize(targetPath);
             } else {
-                formattedSize = `${(fileSize / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+                // For files, use the file size directly
+                const fileSize = stats.size;
+                if (fileSize < 1024) {
+                    formattedSize = `${fileSize} B`;
+                } else if (fileSize < 1024 * 1024) {
+                    formattedSize = `${(fileSize / 1024).toFixed(2)} KB`;
+                } else if (fileSize < 1024 * 1024 * 1024) {
+                    formattedSize = `${(fileSize / (1024 * 1024)).toFixed(2)} MB`;
+                } else {
+                    formattedSize = `${(fileSize / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+                }
             }
+
             logVerification('file-size', {
                 filePath: targetPath,
-                expectedSize: fileSize,
-                actualSize: fileSize,
+                expectedSize: isDirectory ? 0 : stats.size, // For directories, we don't have a single expected size
+                actualSize: isDirectory ? 0 : stats.size,   // For directories, we don't have a single actual size
                 status: 'completed'
             });
             // Update DB status as queuing 
@@ -300,5 +309,38 @@ export async function processSecureUpload(jobData: SecureCopyUploadJob, helpers:
             requestedAt: helpers.job?.timestamp
         });
         throw error;
+    }
+}
+
+async function getDirectorySize(dirPath: string): Promise<string> {
+    try {
+        const { stdout } = await execAsync(`du -sh "${dirPath}"`);
+        const fileSize = stdout.trim().split('\t')[0];
+
+        let lastChar = fileSize.slice(-1);
+
+        let formattedSize: string;
+        switch (lastChar) {
+            case 'B':
+                formattedSize = `${fileSize.slice(0, -1)} B`;
+                break;
+            case 'K':
+                formattedSize = `${fileSize.slice(0, -1)} KB`;
+                break;
+            case 'M':
+                formattedSize = `${fileSize.slice(0, -1)} MB`;
+                break;
+            case 'G':
+                formattedSize = `${fileSize.slice(0, -1)} GB`;
+                break;
+            default:
+                formattedSize = `${fileSize.slice(0, -1)} B`;
+                break;
+        }
+
+        return formattedSize;
+    } catch (error) {
+        console.error('Error getting directory size:', error);
+        return '0 B';
     }
 }
